@@ -2,7 +2,7 @@ const { chromium, devices } = require('playwright');
 const fs = require('fs');
 (async () => {
   fs.mkdirSync('out', { recursive: true });
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ channel: 'chrome' });  // branded Chrome: H.264 decoder (Playwright's Linux Chromium has none)
   const report = { mobile: {}, desktop: {} };
 
   // ── mobile: iPhone 13 emulation (touch => pointer:coarse => governor active) ──

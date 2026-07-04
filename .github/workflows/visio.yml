@@ -9,7 +9,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chrome
       - name: probe video from runner
         run: |
           curl -s -o /dev/null -w 'mp4 no-range: %{http_code} %{size_download}b\n' -H 'Cookie: svic_token=edge-preview' https://test3.siliconvalleyinvestclub.com/svic-video/PkL-NfnsxDk.mp4
