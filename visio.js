@@ -10,6 +10,12 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_5_2 like Mac OS X) AppleWebKit
   const browser = await webkit.launch();
   const ctx = await browser.newContext({ userAgent: UA, viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   await ctx.addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test3.siliconvalleyinvestclub.com', path: '/' }]);
+  await ctx.addInitScript(() => {
+    window.__vids = []; window.__vseq = 0;
+    const tag = (v) => { if (v.__vid) return; v.__vid = ++window.__vseq; window.__vids.push({ id: v.__vid, at: Date.now() }); };
+    new MutationObserver(() => document.querySelectorAll('video').forEach(tag)).observe(document.documentElement, { subtree: true, childList: true });
+    setInterval(() => document.querySelectorAll('video').forEach(tag), 200);
+  });
   const page = await ctx.newPage();
   await page.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(4000);
@@ -36,8 +42,8 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_5_2 like Mac OS X) AppleWebKit
   const samples = [], restarts = [];
   let last = -1, maxCt = 0, srcGone = 0;
   for (let i = 0; i < 62; i++) {
-    const s = await page.evaluate(() => { const v = document.querySelector('video'); if (!v) return null; return { ct: +v.currentTime.toFixed(2), paused: v.paused, hasSrc: v.getAttribute('src') !== null, rs: v.readyState }; });
-    if (s) { samples.push(s.ct); if (!s.hasSrc) srcGone++; maxCt = Math.max(maxCt, s.ct);
+    const s = await page.evaluate(() => { const v = document.querySelector('video'); if (!v) return null; return { ct: +v.currentTime.toFixed(2), vid: v.__vid, paused: v.paused, hasSrc: v.getAttribute('src') !== null }; });
+    if (s) { samples.push(s.ct + '#' + s.vid); if (!s.hasSrc) srcGone++; maxCt = Math.max(maxCt, s.ct);
       if (last >= 0 && s.ct < last - 0.4 && last > 0.6 && last < 28) restarts.push({ from: last, to: s.ct, i });
       last = s.ct; }
     await page.waitForTimeout(500);
@@ -47,7 +53,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_5_2 like Mac OS X) AppleWebKit
   const extra = await page.evaluate(() => { const v = document.querySelector('video'); const w = document.querySelector('.cs-video-wrapper[data-svic-vid]');
     return { loop: v ? v.loop : null, duration: v ? +(v.duration||0).toFixed(2) : null, ended: v ? v.ended : null,
       dataEnd: w ? w.getAttribute('data-video-end') : null, dataStart: w ? w.getAttribute('data-video-start') : null,
-      srcAttr: v ? (v.getAttribute('src')||'').slice(-40) : null, events: (window.__ev||[]).slice(0, 40), endedAt: window.__endedAt }; });
+      srcAttr: v ? (v.getAttribute('src')||'').slice(-40) : null, events: (window.__ev||[]).slice(0, 40), endedAt: window.__endedAt, totalVideosCreated: window.__vseq, vidTimeline: window.__vids.slice(0, 20) }; });
   const report = { env, extra, hero: { played: maxCt > 3, maxCt, restarts, srcGone, samples } };
   fs.writeFileSync('out/report.json', JSON.stringify(report, null, 2));
   await browser.close();
@@ -56,4 +62,5 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_5_2 like Mac OS X) AppleWebKit
   console.log('SAMPLES:', samples.join(' '));
   console.log('RESTARTS:', JSON.stringify(restarts));
   console.log('EXTRA:', JSON.stringify(extra));
+  console.log('VIDS_CREATED:', extra.totalVideosCreated, JSON.stringify(extra.vidTimeline));
 })().catch(e => { console.error(e); process.exit(1); });
