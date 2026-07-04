@@ -9,7 +9,8 @@ const fs = require('fs');
   const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });  // touch => pointer:coarse => governor; default UA so the theme mounts videos
   await mctx.addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test3.siliconvalleyinvestclub.com', path: '/' }]);
   const mp = await mctx.newPage();
-  const consoleErrs = [];
+  const consoleErrs = []; const failedReqs = [];
+  mp.on('response', r => { if (r.status() >= 400) failedReqs.push(r.status() + ' ' + r.url().slice(0, 120)); });
   mp.on('console', m => { if (m.type() === 'error') consoleErrs.push(m.text().slice(0, 160)); });
   await mp.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await mp.waitForTimeout(14000);                      // let the queue mount the hero video
@@ -55,7 +56,7 @@ const fs = require('fs');
   const ts = timeline.filter(Boolean).map(x => x.t);
   let resets = 0;
   for (let i = 1; i < ts.length; i++) if (ts[i] < ts[i - 1] - 0.5 && ts[i - 1] < 28) resets++;   // drop not explained by the 30s->1s loop
-  report.mobile = { samples: timeline, resets, maxT: Math.max(...ts), consoleErrs: consoleErrs.slice(0, 10) };
+  report.mobile = { failedReqs: failedReqs.slice(0,10), samples: timeline, resets, maxT: Math.max(...ts), consoleErrs: consoleErrs.slice(0, 10) };
 
   // ── desktop: scroll down, check the to-top button paints with the chevron ──
   const dctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -76,5 +77,5 @@ const fs = require('fs');
   await dp.screenshot({ path: 'out/d-full.png' });
   fs.writeFileSync('out/report.json', JSON.stringify(report, null, 2));
   await browser.close();
-  console.log('ENV:', JSON.stringify(report.mobileEnv)); console.log('SCROLL:', JSON.stringify(report.mobileScroll)); console.log('RESETS:', report.mobile.resets, 'MAXT:', report.mobile.maxT, 'ERRS:', JSON.stringify(report.mobile.consoleErrs.slice(0,4))); console.log('TOTOP:', JSON.stringify(report.desktop.toTop));
+  console.log('ENV:', JSON.stringify(report.mobileEnv)); console.log('FAILED:', JSON.stringify(report.mobile.failedReqs)); console.log('SCROLL:', JSON.stringify(report.mobileScroll)); console.log('RESETS:', report.mobile.resets, 'MAXT:', report.mobile.maxT, 'ERRS:', JSON.stringify(report.mobile.consoleErrs.slice(0,4))); console.log('TOTOP:', JSON.stringify(report.desktop.toTop));
 })().catch(e => { console.error(e); process.exit(1); });
