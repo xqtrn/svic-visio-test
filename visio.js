@@ -12,7 +12,7 @@ const fs = require('fs');
   const consoleErrs = [];
   mp.on('console', m => { if (m.type() === 'error') consoleErrs.push(m.text().slice(0, 160)); });
   await mp.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await mp.waitForTimeout(10000);                      // let the queue mount the hero video
+  await mp.waitForTimeout(14000);                      // let the queue mount the hero video
   // slow CI parse can outlive the player's 2.5s init retries — a warm reload fixes it
   let vcount = await mp.evaluate(() => document.querySelectorAll('video').length);
   if (vcount === 0){
@@ -25,6 +25,9 @@ const fs = require('fs');
     videos: document.querySelectorAll('video').length,
     spinners: document.querySelectorAll('.svic-spinner').length,
     coarse: matchMedia('(pointer:coarse)').matches,
+    rekickPresent: document.documentElement.outerHTML.indexOf('rekick')>-1,
+    playerTags: document.querySelectorAll('script[src*="svic-video"]').length,
+    doneAttrs: document.querySelectorAll('[data-svic-done]').length,
     ua: navigator.userAgent.slice(0, 60),
   }));
   const timeline = [];
