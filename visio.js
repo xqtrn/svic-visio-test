@@ -12,7 +12,15 @@ const fs = require('fs');
   const consoleErrs = [];
   mp.on('console', m => { if (m.type() === 'error') consoleErrs.push(m.text().slice(0, 160)); });
   await mp.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await mp.waitForTimeout(6000);                       // let the queue mount the hero video
+  await mp.waitForTimeout(10000);                      // let the queue mount the hero video
+  report.mobileEnv = await mp.evaluate(() => ({
+    wrappers: document.querySelectorAll('.cs-video-wrapper[data-svic-vid]').length,
+    playerTag: !!document.querySelector('script[src*="svic-video"]'),
+    videos: document.querySelectorAll('video').length,
+    spinners: document.querySelectorAll('.svic-spinner').length,
+    coarse: matchMedia('(pointer:coarse)').matches,
+    ua: navigator.userAgent.slice(0, 60),
+  }));
   const timeline = [];
   for (let i = 0; i < 40; i++) {                       // 20s @ 500ms
     const s = await mp.evaluate(() => {
@@ -50,5 +58,5 @@ const fs = require('fs');
   await dp.screenshot({ path: 'out/d-full.png' });
   fs.writeFileSync('out/report.json', JSON.stringify(report, null, 2));
   await browser.close();
-  console.log('RESETS:', report.mobile.resets, 'MAXT:', report.mobile.maxT, 'TOTOP:', JSON.stringify(report.desktop.toTop));
+  console.log('ENV:', JSON.stringify(report.mobileEnv)); console.log('RESETS:', report.mobile.resets, 'MAXT:', report.mobile.maxT, 'ERRS:', JSON.stringify(report.mobile.consoleErrs.slice(0,4))); console.log('TOTOP:', JSON.stringify(report.desktop.toTop));
 })().catch(e => { console.error(e); process.exit(1); });
