@@ -1,81 +1,79 @@
-const { chromium, devices } = require('playwright');
+/* iOS-26.5.2 Chrome emulator (Playwright WebKit — the same engine Chrome-for-iOS is forced
+   to use). Instruments every <video>: counts src removals/re-adds and backward currentTime
+   jumps (the "2s then restart" symptom) on the clip that is actually on-screen. */
+const { webkit } = require('playwright');
 const fs = require('fs');
+
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_5_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.0 Mobile/15E148 Safari/604.1';
+
+const MONITOR = () => {
+  window.__vlog = { srcRemoved: 0, srcAdded: 0, restarts: 0, restartDetail: [], hooked: 0 };
+  const seen = new WeakSet();
+  function onScreen(v){ const r = v.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight && r.height > 0; }
+  function hook(v){
+    if (seen.has(v)) return; seen.add(v); window.__vlog.hooked++;
+    let last = 0;
+    v.addEventListener('timeupdate', () => {
+      if (v.currentTime < last - 0.4 && last > 0.6 && last < 28){   // backward jump not explained by the 30->1 loop
+        window.__vlog.restarts++;
+        window.__vlog.restartDetail.push({ from: +last.toFixed(1), to: +v.currentTime.toFixed(1), onScreen: onScreen(v) });
+      }
+      last = v.currentTime;
+    });
+    new MutationObserver(ms => { for (const m of ms) if (m.attributeName === 'src'){
+      if (v.getAttribute('src') === null) window.__vlog.srcRemoved++;
+      else window.__vlog.srcAdded++;
+    }}).observe(v, { attributes: true, attributeFilter: ['src'] });
+  }
+  new MutationObserver(() => document.querySelectorAll('video').forEach(hook)).observe(document.documentElement, { subtree: true, childList: true });
+  setInterval(() => document.querySelectorAll('video').forEach(hook), 400);
+};
+
 (async () => {
   fs.mkdirSync('out', { recursive: true });
-  const browser = await chromium.launch({ channel: 'chrome' });  // branded Chrome: H.264 decoder (Playwright's Linux Chromium has none)
-  const report = { mobile: {}, desktop: {} };
+  const browser = await webkit.launch();
+  const ctx = await browser.newContext({
+    userAgent: UA, viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
+  });
+  await ctx.addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test3.siliconvalleyinvestclub.com', path: '/' }]);
+  await ctx.addInitScript(MONITOR);
+  const page = await ctx.newPage();
+  await page.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForTimeout(4000);
+  let v = await page.evaluate(() => document.querySelectorAll('video').length);
+  if (!v){ await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(7000); }
 
-  // ── mobile: iPhone 13 emulation (touch => pointer:coarse => governor active) ──
-  const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });  // touch => pointer:coarse => governor; default UA so the theme mounts videos
-  await mctx.addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test3.siliconvalleyinvestclub.com', path: '/' }]);
-  const mp = await mctx.newPage();
-  const consoleErrs = []; const failedReqs = [];
-  mp.on('response', r => { if (r.status() >= 400) failedReqs.push(r.status() + ' ' + r.url().slice(0, 120)); });
-  mp.on('console', m => { if (m.type() === 'error') consoleErrs.push(m.text().slice(0, 160)); });
-  await mp.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await mp.waitForTimeout(14000);                      // let the queue mount the hero video
-  // slow CI parse can outlive the player's 2.5s init retries — a warm reload fixes it
-  let vcount = await mp.evaluate(() => document.querySelectorAll('video').length);
-  if (vcount === 0){
-    await mp.reload({ waitUntil: 'domcontentloaded' });
-    await mp.waitForTimeout(9000);
-  }
-  report.mobileEnv = await mp.evaluate(() => ({
-    wrappers: document.querySelectorAll('.cs-video-wrapper[data-svic-vid]').length,
-    playerTag: !!document.querySelector('script[src*="svic-video"]'),
-    videos: document.querySelectorAll('video').length,
-    spinners: document.querySelectorAll('.svic-spinner').length,
-    coarse: matchMedia('(pointer:coarse)').matches,
-    rekickPresent: document.documentElement.outerHTML.indexOf('rekick')>-1,
-    playerTags: document.querySelectorAll('script[src*="svic-video"]').length,
-    doneAttrs: document.querySelectorAll('[data-svic-done]').length,
-    ua: navigator.userAgent.slice(0, 60),
+  const env = await page.evaluate(() => ({
+    webkit: /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent),
+    coarse: matchMedia('(pointer:coarse)').matches, videos: document.querySelectorAll('video').length,
+    canH264: document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E"'),
   }));
-  const timeline = [];
-  for (let i = 0; i < 40; i++) {                       // 20s @ 500ms
-    const s = await mp.evaluate(() => {
-      const v = document.querySelector('video');
-      if (!v) return null;
-      return { t: Math.round(v.currentTime * 100) / 100, paused: v.paused, ready: v.readyState, net: v.networkState, err: v.error ? v.error.code : 0, videos: document.querySelectorAll('video').length, withSrc: [...document.querySelectorAll('video')].filter(x => x.getAttribute('src') !== null).length };
-    });
-    timeline.push(s);
-    if (i === 4)  await mp.screenshot({ path: 'out/m-frame-early.png' });
-    if (i === 20) await mp.screenshot({ path: 'out/m-frame-mid.png' });
-    if (i === 39) await mp.screenshot({ path: 'out/m-frame-late.png' });
-    await mp.waitForTimeout(500);
-  }
-  // scroll phase: the active clip must switch, exactly one src attached at a time
-  await mp.evaluate(() => { const vs = document.querySelectorAll('video'); if (vs[1]) vs[1].scrollIntoView({ block: 'center' }); });
-  await mp.waitForTimeout(3500);
-  report.mobileScroll = await mp.evaluate(() => {
-    const vs = [...document.querySelectorAll('video')];
-    return { videos: vs.length, withSrc: vs.filter(v => v.getAttribute('src') !== null).length,
-      playing: vs.map(v => !v.paused), times: vs.map(v => Math.round(v.currentTime * 10) / 10) };
-  });
-  await mp.screenshot({ path: 'out/m-after-scroll.png' });
-  const ts = timeline.filter(Boolean).map(x => x.t);
-  let resets = 0;
-  for (let i = 1; i < ts.length; i++) if (ts[i] < ts[i - 1] - 0.5 && ts[i - 1] < 28) resets++;   // drop not explained by the 30s->1s loop
-  report.mobile = { failedReqs: failedReqs.slice(0,10), samples: timeline, resets, maxT: Math.max(...ts), consoleErrs: consoleErrs.slice(0, 10) };
 
-  // ── desktop: scroll down, check the to-top button paints with the chevron ──
-  const dctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  await dctx.addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test3.siliconvalleyinvestclub.com', path: '/' }]);
-  const dp = await dctx.newPage();
-  await dp.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await dp.waitForTimeout(2500);
-  await dp.evaluate(() => window.scrollTo(0, 2400));
-  await dp.waitForTimeout(1200);
-  report.desktop.toTop = await dp.evaluate(() => {
-    const b = document.querySelector('.pk-scroll-to-top');
-    if (!b) return { present: false };
-    const cs = getComputedStyle(b), r = b.getBoundingClientRect();
-    const af = getComputedStyle(b, '::after');
-    return { present: true, visible: cs.display !== 'none' && r.width > 0, w: r.width, h: r.height, bg: cs.backgroundColor, radius: cs.borderRadius, arrowW: af.width, arrowBorder: af.borderLeftWidth + ' ' + af.borderLeftColor, x: Math.round(r.x), y: Math.round(r.y) };
-  });
-  await dp.screenshot({ path: 'out/d-bottom.png', clip: { x: 1440 - 220, y: 900 - 220, width: 220, height: 220 } });
-  await dp.screenshot({ path: 'out/d-full.png' });
+  // hold at top 12s (hero should stay put), then scroll the page in steps (triggers the governor),
+  // then back to top — the whole time, watch for restarts / src removals on the on-screen clip
+  const timeline = [];
+  async function snap(tag){
+    const s = await page.evaluate(() => {
+      const vs = [...document.querySelectorAll('video')];
+      return { t: Date.now(), vlog: JSON.parse(JSON.stringify(window.__vlog)),
+        states: vs.map(x => ({ ct: +x.currentTime.toFixed(1), paused: x.paused, hasSrc: x.getAttribute('src') !== null,
+          on: (() => { const r = x.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; })() })) };
+    });
+    timeline.push({ tag, ...s });
+  }
+  for (let i = 0; i < 24; i++){ await snap('top+' + i); await page.waitForTimeout(500); }
+  await page.screenshot({ path: 'out/ios-top.png' });
+  for (const y of [700, 1400, 2100, 2800, 1400, 0]){
+    await page.evaluate(sy => window.scrollTo(0, sy), y);
+    await page.waitForTimeout(1500); await snap('scroll' + y);
+  }
+  await page.screenshot({ path: 'out/ios-scrolled.png' });
+
+  const final = timeline[timeline.length - 1].vlog;
+  const report = { env, finalVlog: final, timeline };
   fs.writeFileSync('out/report.json', JSON.stringify(report, null, 2));
   await browser.close();
-  console.log('ENV:', JSON.stringify(report.mobileEnv)); console.log('FAILED:', JSON.stringify(report.mobile.failedReqs)); console.log('SCROLL:', JSON.stringify(report.mobileScroll)); console.log('RESETS:', report.mobile.resets, 'MAXT:', report.mobile.maxT, 'ERRS:', JSON.stringify(report.mobile.consoleErrs.slice(0,4))); console.log('TOTOP:', JSON.stringify(report.desktop.toTop));
+  console.log('ENV:', JSON.stringify(env));
+  console.log('RESULT: srcRemoved=' + final.srcRemoved + ' srcAdded=' + final.srcAdded + ' restarts=' + final.restarts + ' hooked=' + final.hooked);
+  console.log('RESTART_DETAIL:', JSON.stringify(final.restartDetail.slice(0, 8)));
 })().catch(e => { console.error(e); process.exit(1); });

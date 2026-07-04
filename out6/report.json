@@ -1,0 +1,422 @@
+{
+  "mobile": {
+    "failedReqs": [
+      "403 https://test3.siliconvalleyinvestclub.com/wp-includes/js/wp-emoji-release.min.js?ver=7.0",
+      "404 https://test3.siliconvalleyinvestclub.com/offcanvas-menu.js"
+    ],
+    "samples": [
+      {
+        "t": 14.42,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 14.91,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 15.42,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 15.92,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 16.43,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 17.52,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 18.03,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 18.53,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 19.03,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 19.53,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 20.03,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 20.54,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 21.04,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 21.54,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 22.05,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 22.55,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 23.05,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 23.55,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 24.05,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 24.56,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 25.06,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 25.87,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 26.38,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 26.88,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 27.38,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 0.35,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 0.85,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 1.35,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 1.86,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 2.36,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 2.86,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 3.36,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 3.87,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 4.37,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 4.87,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 5.37,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 5.87,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 6.37,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 6.88,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      },
+      {
+        "t": 7.38,
+        "paused": false,
+        "ready": 4,
+        "net": 1,
+        "err": 0,
+        "videos": 6,
+        "withSrc": 6
+      }
+    ],
+    "resets": 1,
+    "maxT": 27.38,
+    "consoleErrs": [
+      "Failed to load resource: the server responded with a status of 403 ()",
+      "Failed to load resource: the server responded with a status of 404 ()",
+      "Refused to execute script from 'https://test3.siliconvalleyinvestclub.com/offcanvas-menu.js' because its MIME type ('text/plain') is not executable, and strict "
+    ]
+  },
+  "desktop": {
+    "toTop": {
+      "present": true,
+      "visible": true,
+      "w": 42,
+      "h": 42,
+      "bg": "rgb(10, 23, 51)",
+      "radius": "4px",
+      "arrowW": "11px",
+      "arrowBorder": "2px rgb(255, 255, 255)",
+      "x": 1366,
+      "y": 826
+    }
+  },
+  "mobileEnv": {
+    "wrappers": 6,
+    "playerTag": true,
+    "videos": 6,
+    "spinners": 0,
+    "coarse": true,
+    "rekickPresent": true,
+    "playerTags": 1,
+    "doneAttrs": 6,
+    "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, l"
+  },
+  "mobileScroll": {
+    "videos": 6,
+    "withSrc": 1,
+    "playing": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ],
+    "times": [
+      0,
+      39.1,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}
