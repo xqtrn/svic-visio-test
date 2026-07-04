@@ -13,6 +13,12 @@ const fs = require('fs');
   mp.on('console', m => { if (m.type() === 'error') consoleErrs.push(m.text().slice(0, 160)); });
   await mp.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await mp.waitForTimeout(10000);                      // let the queue mount the hero video
+  // slow CI parse can outlive the player's 2.5s init retries — a warm reload fixes it
+  let vcount = await mp.evaluate(() => document.querySelectorAll('video').length);
+  if (vcount === 0){
+    await mp.reload({ waitUntil: 'domcontentloaded' });
+    await mp.waitForTimeout(9000);
+  }
   report.mobileEnv = await mp.evaluate(() => ({
     wrappers: document.querySelectorAll('.cs-video-wrapper[data-svic-vid]').length,
     playerTag: !!document.querySelector('script[src*="svic-video"]'),
