@@ -6,7 +6,7 @@ const fs = require('fs');
   const report = { mobile: {}, desktop: {} };
 
   // ── mobile: iPhone 13 emulation (touch => pointer:coarse => governor active) ──
-  const mctx = await browser.newContext({ ...devices['iPhone 13'] });
+  const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });  // touch => pointer:coarse => governor; default UA so the theme mounts videos
   await mctx.addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test3.siliconvalleyinvestclub.com', path: '/' }]);
   const mp = await mctx.newPage();
   const consoleErrs = [];
@@ -40,6 +40,15 @@ const fs = require('fs');
     if (i === 39) await mp.screenshot({ path: 'out/m-frame-late.png' });
     await mp.waitForTimeout(500);
   }
+  // scroll phase: the active clip must switch, exactly one src attached at a time
+  await mp.evaluate(() => { const vs = document.querySelectorAll('video'); if (vs[1]) vs[1].scrollIntoView({ block: 'center' }); });
+  await mp.waitForTimeout(3500);
+  report.mobileScroll = await mp.evaluate(() => {
+    const vs = [...document.querySelectorAll('video')];
+    return { videos: vs.length, withSrc: vs.filter(v => v.getAttribute('src') !== null).length,
+      playing: vs.map(v => !v.paused), times: vs.map(v => Math.round(v.currentTime * 10) / 10) };
+  });
+  await mp.screenshot({ path: 'out/m-after-scroll.png' });
   const ts = timeline.filter(Boolean).map(x => x.t);
   let resets = 0;
   for (let i = 1; i < ts.length; i++) if (ts[i] < ts[i - 1] - 0.5 && ts[i - 1] < 28) resets++;   // drop not explained by the 30s->1s loop
@@ -64,5 +73,5 @@ const fs = require('fs');
   await dp.screenshot({ path: 'out/d-full.png' });
   fs.writeFileSync('out/report.json', JSON.stringify(report, null, 2));
   await browser.close();
-  console.log('ENV:', JSON.stringify(report.mobileEnv)); console.log('RESETS:', report.mobile.resets, 'MAXT:', report.mobile.maxT, 'ERRS:', JSON.stringify(report.mobile.consoleErrs.slice(0,4))); console.log('TOTOP:', JSON.stringify(report.desktop.toTop));
+  console.log('ENV:', JSON.stringify(report.mobileEnv)); console.log('SCROLL:', JSON.stringify(report.mobileScroll)); console.log('RESETS:', report.mobile.resets, 'MAXT:', report.mobile.maxT, 'ERRS:', JSON.stringify(report.mobile.consoleErrs.slice(0,4))); console.log('TOTOP:', JSON.stringify(report.desktop.toTop));
 })().catch(e => { console.error(e); process.exit(1); });

@@ -1,0 +1,76 @@
+{
+  "mobile": {
+    "samples": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "resets": 0,
+    "maxT": null,
+    "consoleErrs": [
+      "Failed to load resource: the server responded with a status of 404 ()",
+      "Refused to execute script from 'https://test3.siliconvalleyinvestclub.com/offcanvas-menu.js' because its MIME type ('text/plain') is not executable, and strict ",
+      "Failed to load resource: the server responded with a status of 404 ()",
+      "Refused to execute script from 'https://test3.siliconvalleyinvestclub.com/offcanvas-menu.js' because its MIME type ('text/plain') is not executable, and strict "
+    ]
+  },
+  "desktop": {
+    "toTop": {
+      "present": true,
+      "visible": true,
+      "w": 42,
+      "h": 42,
+      "bg": "rgb(10, 23, 51)",
+      "radius": "4px",
+      "arrowW": "11px",
+      "arrowBorder": "2px rgb(255, 255, 255)",
+      "x": 1366,
+      "y": 826
+    }
+  },
+  "mobileEnv": {
+    "wrappers": 6,
+    "playerTag": true,
+    "videos": 0,
+    "spinners": 0,
+    "coarse": true,
+    "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) Apple"
+  }
+}
