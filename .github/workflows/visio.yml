@@ -9,6 +9,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - run: sudo apt-get update && sudo apt-get install -y gstreamer1.0-libav gstreamer1.0-plugins-bad gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly
       - run: npx playwright install --with-deps webkit
       - name: probe video from runner
         run: |
