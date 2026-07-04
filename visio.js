@@ -27,13 +27,15 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_5_2 like Mac OS X) AppleWebKit
       v.addEventListener(t, function(){ window.__ev.push(t + '@' + v.currentTime.toFixed(2) + (t==='error'&&v.error?(' code'+v.error.code):'')); });
     });
     v.__meta = { loop: v.loop, dataEnd: (v.closest('.cs-entry__overlay')||document).querySelector ? null : null };
+    document.querySelectorAll('video').forEach(function(x){ x.loop = false; });  // EXPERIMENT: kill native short-loop
     v.muted = true; const p = v.play(); if (p && p.catch) p.catch(() => {});
+    v.addEventListener('ended', function(){ window.__endedAt = +v.currentTime.toFixed(2); });  // does it end at ~3 or ~30?
   });
 
   // track the hero for 24s (500ms), detecting backward jumps not explained by the 30->1 loop
   const samples = [], restarts = [];
   let last = -1, maxCt = 0, srcGone = 0;
-  for (let i = 0; i < 48; i++) {
+  for (let i = 0; i < 62; i++) {
     const s = await page.evaluate(() => { const v = document.querySelector('video'); if (!v) return null; return { ct: +v.currentTime.toFixed(2), paused: v.paused, hasSrc: v.getAttribute('src') !== null, rs: v.readyState }; });
     if (s) { samples.push(s.ct); if (!s.hasSrc) srcGone++; maxCt = Math.max(maxCt, s.ct);
       if (last >= 0 && s.ct < last - 0.4 && last > 0.6 && last < 28) restarts.push({ from: last, to: s.ct, i });
@@ -45,7 +47,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_5_2 like Mac OS X) AppleWebKit
   const extra = await page.evaluate(() => { const v = document.querySelector('video'); const w = document.querySelector('.cs-video-wrapper[data-svic-vid]');
     return { loop: v ? v.loop : null, duration: v ? +(v.duration||0).toFixed(2) : null, ended: v ? v.ended : null,
       dataEnd: w ? w.getAttribute('data-video-end') : null, dataStart: w ? w.getAttribute('data-video-start') : null,
-      srcAttr: v ? (v.getAttribute('src')||'').slice(-40) : null, events: (window.__ev||[]).slice(0, 40) }; });
+      srcAttr: v ? (v.getAttribute('src')||'').slice(-40) : null, events: (window.__ev||[]).slice(0, 40), endedAt: window.__endedAt }; });
   const report = { env, extra, hero: { played: maxCt > 3, maxCt, restarts, srcGone, samples } };
   fs.writeFileSync('out/report.json', JSON.stringify(report, null, 2));
   await browser.close();
