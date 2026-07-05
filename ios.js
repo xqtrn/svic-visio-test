@@ -54,6 +54,16 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
       const rects = es.map(e => e.getBoundingClientRect());
       out.railGaps = rects.slice(1).map((r, i) => Math.round(r.top - rects[i].bottom));
     }
+    // цепочка стыка hero: computed-отступы от vcap до следующего медиа
+    var v1=document.querySelector('.cnvs-block-posts-1587564778142 .svic-vcap');
+    if(v1){ var chain=[], el=v1; for(var i=0;i<7&&el;i++){ var cs=getComputedStyle(el);
+      chain.push([el.className.split(' ').slice(0,2).join('.'), cs.marginBottom, cs.paddingBottom]); el=el.parentElement; }
+      out.heroChain=chain;
+      var img2=document.querySelector('.cnvs-block-posts-1587564829158 img, .cnvs-block-posts-1587564829158 video');
+      if(img2) out.heroJunction=Math.round(img2.getBoundingClientRect().top - v1.getBoundingClientRect().bottom);
+      var b2=document.querySelector('.cnvs-block-posts-1587564829158'); 
+      if(b2){ var c2=getComputedStyle(b2); out.b2=[c2.marginTop,c2.paddingTop]; var pa=b2.querySelector('.cs-posts-area'); if(pa){var cp=getComputedStyle(pa); out.pa2=[cp.marginTop,cp.paddingTop];} }
+    }
     // зазоры: подпись hero → фото сателлита-1, и сателлит-1 подпись → фото сателлита-2
     var caps=[].slice.call(document.querySelectorAll('.svic-vcap')).slice(0,3);
     out.capGaps=[];
