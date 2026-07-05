@@ -54,6 +54,12 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
       const rects = es.map(e => e.getBoundingClientRect());
       out.railGaps = rects.slice(1).map((r, i) => Math.round(r.top - rects[i].bottom));
     }
+    // зазоры: подпись hero → фото сателлита-1, и сателлит-1 подпись → фото сателлита-2
+    var caps=[].slice.call(document.querySelectorAll('.svic-vcap')).slice(0,3);
+    out.capGaps=[];
+    caps.forEach(function(c){ var n=c.parentElement.nextElementSibling||((c.closest('.cnvs-block-posts')||{}).nextElementSibling);
+      var img=null,el=c; while(el&&!img){ el=el.nextElementSibling||el.parentElement.nextElementSibling; if(el) img=el.querySelector&&el.querySelector('img,video'); if(el&&el.matches&&el.matches('.svic-vcap'))break; }
+      if(img){ out.capGaps.push(Math.round(img.getBoundingClientRect().top - c.getBoundingClientRect().bottom)); } });
     out.planActive = !!document.querySelector('.svic-viewall');
     out.hasSampler = !!document.querySelector('.cs-video-wrapper[data-svic-vid]');
     return out;
