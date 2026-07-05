@@ -1,0 +1,32 @@
+name: ui-audit
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Base URL (https://host)'
+        required: true
+      paths:
+        description: 'Space-separated paths'
+        default: '/'
+      cookies:
+        description: 'name=value;name2=value2 (host-only)'
+        default: ''
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - run: npx playwright install --with-deps webkit
+      - run: sudo apt-get install -y gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad >/dev/null 2>&1 || true
+      - run: rm -rf out && node ui-audit.js
+        env:
+          BASE: ${{ inputs.base }}
+          PATHS: ${{ inputs.paths }}
+          COOKIES: ${{ inputs.cookies }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: ui-audit-out, path: out/ }
