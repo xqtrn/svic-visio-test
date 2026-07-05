@@ -34,10 +34,13 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
   await page.waitForLoadState('domcontentloaded', { timeout: 60000 }).catch(e=>console.log('dcl-timeout'));
   bc('dcl');
   await page.waitForTimeout(1500);
-  await page.tap('body').catch(() => {});   // unlock muted autoplay (WebKit)
+  // gesture-unlock БЕЗ навигации: тап в пустую зону топбара (5,5), не tap('body') —
+  // на 112K-px странице центр body = карточка → уводило на статью
+  page.on('framenavigated', f => { if (f === page.mainFrame()) console.log('[nav]', f.url().slice(0, 80)); });
+  await page.touchscreen.tap(5, 5).catch(() => {});
   await page.waitForTimeout(9000);
   const probe = await evalT(() => {
-    const out = { ua: navigator.userAgent.slice(0, 40) };
+    const out = { path: location.pathname, ua: navigator.userAgent.slice(0, 30) };
     const hero = document.querySelector('.cs-entry__overlay');
     if (hero) { const r = hero.getBoundingClientRect(); out.heroAspect = +(r.width / r.height).toFixed(3); }
     const v = document.querySelector('video');
