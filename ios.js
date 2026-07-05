@@ -10,7 +10,7 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
   const browser = await webkit.launch();
   bc('launched');
   const ctx = await browser.newContext({
-    viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
+    viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0.6478.54 Mobile/15E148 Safari/604.1',
   });
   await ctx.addCookies([
@@ -19,6 +19,13 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
   ]);
   const page = await ctx.newPage();
   bc('page');
+  page.on('crash', () => console.log('[CRASH] page crashed'));
+  page.on('pageerror', e => console.log('[pageerror]', String(e).slice(0,160)));
+  // тяжесть WebKit-процесса: пускаем только ПЕРВЫЙ клип (hero) — остальные mp4 глушим
+  let mp4s = 0;
+  await page.route('**/*.mp4*', route => (mp4s++ < 1 ? route.continue() : route.abort()));
+  const evalT = (fn, ms) => Promise.race([ page.evaluate(fn),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('eval-timeout ' + ms + 'ms')), ms)) ]);
   const errs = [];
   page.on('console', m => { if (m.type() === 'error') errs.push(m.text().slice(0, 160)); });
   bc('goto');
@@ -29,7 +36,7 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
   await page.waitForTimeout(1500);
   await page.tap('body').catch(() => {});   // unlock muted autoplay (WebKit)
   await page.waitForTimeout(9000);
-  const probe = await page.evaluate(() => {
+  const probe = await evalT(() => {
     const out = { ua: navigator.userAgent.slice(0, 40) };
     const hero = document.querySelector('.cs-entry__overlay');
     if (hero) { const r = hero.getBoundingClientRect(); out.heroAspect = +(r.width / r.height).toFixed(3); }
@@ -47,18 +54,18 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
     out.planActive = !!document.querySelector('.svic-viewall');
     out.hasSampler = !!document.querySelector('.cs-video-wrapper[data-svic-vid]');
     return out;
-  });
+  }, 25000);
   console.log('PROBE-IOS:', JSON.stringify(probe)); bc('probe1-done');
   await page.screenshot({ path: 'out/ios-fold.png' });
   // rail region shot: scroll to the unicorn rail and capture
-  await page.evaluate(() => { const r = document.querySelector('.cnvs-block-row-1587535409467'); if (r) r.scrollIntoView({ block: 'start' }); });
+  await evalT(() => { const r = document.querySelector('.cnvs-block-row-1587535409467'); if (r) r.scrollIntoView({ block: 'start' }); }, 15000);
   await page.waitForTimeout(1200);
-  const probe2 = await page.evaluate(() => {
+  const probe2 = await evalT(() => {
     const rail = document.querySelector('.cnvs-block-row-1587535409467');
     const es = rail ? [...rail.querySelectorAll('.cs-entry__outer')] : [];
     const rects = es.map(e => e.getBoundingClientRect());
     return { railGapsScrolled: rects.slice(1).map((r, i) => Math.round(r.top - rects[i].bottom)) };
-  });
+  }, 15000);
   console.log('PROBE-IOS-RAIL:', JSON.stringify(probe2));
   await page.screenshot({ path: 'out/ios-rail.png' });
   bc('skip-full');
