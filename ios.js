@@ -43,7 +43,7 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
     const hero = document.querySelector('.cs-entry__overlay');
     if (hero) { const r = hero.getBoundingClientRect(); out.heroAspect = +(r.width / r.height).toFixed(3); }
     const v = document.querySelector('video');
-    if (v) out.video = { vw: v.videoWidth, vh: v.videoHeight, playing: !v.paused, rs: v.readyState, ct: +v.currentTime.toFixed(1) };
+    if (v) out.video = { vw: v.videoWidth, vh: v.videoHeight, playing: !v.paused, rs: v.readyState, ct: +v.currentTime.toFixed(1), loop: v.loop, ended: v.ended };
     const d = document.querySelector('.cs-entry__overlay .cs-meta-date');
     if (d) { const cs = getComputedStyle(d); out.date = { color: cs.color, shadow: cs.textShadow.slice(0, 40) }; }
     const rail = document.querySelector('.cnvs-block-row-1587535409467');
