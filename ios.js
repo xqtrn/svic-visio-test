@@ -1,9 +1,14 @@
 /* iOS-engine test (Playwright WebKit + CriOS UA) of plan points 39/40 on mobile after. */
 const { webkit } = require('playwright');
 const fs = require('fs');
+let step='init';
+const bc=(x)=>{step=x;console.log('[step]',x,new Date().toISOString());};
+setInterval(()=>console.log('[hb]',step),15000).unref();
 (async () => {
   fs.mkdirSync('out', { recursive: true });
+  bc('launch');
   const browser = await webkit.launch();
+  bc('launched');
   const ctx = await browser.newContext({
     viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0.6478.54 Mobile/15E148 Safari/604.1',
@@ -13,9 +18,14 @@ const fs = require('fs');
     { name: 'svic_plan', value: '1', domain: 'test3.siliconvalleyinvestclub.com', path: '/' },
   ]);
   const page = await ctx.newPage();
+  bc('page');
   const errs = [];
   page.on('console', m => { if (m.type() === 'error') errs.push(m.text().slice(0, 160)); });
-  await page.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+  bc('goto');
+  await page.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'commit', timeout: 60000 });
+  bc('committed');
+  await page.waitForLoadState('domcontentloaded', { timeout: 60000 }).catch(e=>console.log('dcl-timeout'));
+  bc('dcl');
   await page.waitForTimeout(1500);
   await page.tap('body').catch(() => {});   // unlock muted autoplay (WebKit)
   await page.waitForTimeout(9000);
@@ -38,7 +48,7 @@ const fs = require('fs');
     out.hasSampler = !!document.querySelector('.cs-video-wrapper[data-svic-vid]');
     return out;
   });
-  console.log('PROBE-IOS:', JSON.stringify(probe));
+  console.log('PROBE-IOS:', JSON.stringify(probe)); bc('probe1-done');
   await page.screenshot({ path: 'out/ios-fold.png' });
   // rail region shot: scroll to the unicorn rail and capture
   await page.evaluate(() => { const r = document.querySelector('.cnvs-block-row-1587535409467'); if (r) r.scrollIntoView({ block: 'start' }); });
@@ -51,7 +61,7 @@ const fs = require('fs');
   });
   console.log('PROBE-IOS-RAIL:', JSON.stringify(probe2));
   await page.screenshot({ path: 'out/ios-rail.png' });
-  await page.screenshot({ path: 'out/ios-full.png', fullPage: true });
+  bc('skip-full');
   console.log('ios console-errors=' + errs.length + (errs.length ? ' :: ' + errs.slice(0, 4).join(' | ') : ''));
   await browser.close();
   console.log('CAPTURED');
