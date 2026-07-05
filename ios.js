@@ -15,7 +15,6 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
   });
   await ctx.addCookies([
     { name: 'svic_token', value: 'edge-preview', domain: 'test3.siliconvalleyinvestclub.com', path: '/' },
-    { name: 'svic_plan', value: '1', domain: 'test3.siliconvalleyinvestclub.com', path: '/' },
   ]);
   const page = await ctx.newPage();
   bc('page');
