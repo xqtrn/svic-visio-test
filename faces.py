@@ -39,20 +39,24 @@ for p in paths:
         det.setInputSize((w, h))
         ok, faces = det.detect(img)
         if faces is None or len(faces) == 0: continue
-        # weighted center of all faces (weight = bbox area)
-        cx = cy = tw = 0.0
+        # weighted center of all faces (weight = bbox area) + face extent
+        cx = cy = tw = 0.0; top = 1.0; fhmax = 0.0
         for f in faces:
             fx, fy, fw, fh = f[0], f[1], f[2], f[3]
             area = max(fw * fh, 1e-6)
             cx += (fx + fw / 2) / w * area
             cy += (fy + fh / 2) / h * area
             tw += area
+            top = min(top, fy / h); fhmax = max(fhmax, fh / h)
         fx = round(100 * cx / tw); fy = round(100 * cy / tw)
-        # crop rule: (1) horizontally keep the face-group point; (2) vertically LIFT
-        # so eyes sit above center (rule of thirds within the crop slack);
-        # (3) clamp; store raw focus too (tester + future ratios).
-        x = min(95, max(5, fx)); y = min(85, max(5, fy - 6))
-        out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy]}
+        top = round(100 * top); fh = round(100 * fhmax)
+        # crop rule v3 (Nyobolt case, Arthur 07-05): (1) horizontally keep the
+        # face-group point; (2) vertical thirds-lift ONLY when the face is small
+        # (<35% of frame) — tight head-shots keep the face CENTERED (fy), no lift,
+        # never crop the forehead harder than the original; (3) clamp.
+        lift = 6 if fh < 35 else 0
+        x = min(95, max(5, fx)); y = min(85, max(5, fy - lift))
+        out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy], 'top': top, 'fh': fh}
     except Exception as e:
         print('skip', p, str(e)[:80], file=sys.stderr)
 
