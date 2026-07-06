@@ -7,7 +7,6 @@ import json, re, sys, urllib.request
 
 import cv2
 import numpy as np
-import mediapipe as mp
 
 COOKIE = 'svic_token=edge-preview'
 HOME = 'https://test3.siliconvalleyinvestclub.com/'
@@ -22,7 +21,10 @@ html = fetch(HOME)
 paths = sorted(set(re.findall(r'i0\.wp\.com/(siliconvalleyinvestclub\.com/wp-content/uploads/[^"?\s]+\.(?:jpg|jpeg|png|webp))', html)))
 print('covers found:', len(paths))
 
-det = mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
+# YuNet (opencv_zoo, Apache-2.0) — compact open face detector, single onnx file
+MODEL = 'face_detection_yunet_2023mar.onnx'
+urllib.request.urlretrieve('https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx', MODEL)
+det = cv2.FaceDetectorYN_create(MODEL, '', (320, 320), score_threshold=0.6)
 out = {}
 for p in paths:
     try:
@@ -30,15 +32,16 @@ for p in paths:
         img = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
         if img is None: continue
         h, w = img.shape[:2]
-        res = det.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        if not res.detections: continue
+        det.setInputSize((w, h))
+        ok, faces = det.detect(img)
+        if faces is None or len(faces) == 0: continue
         # weighted center of all faces (weight = bbox area)
         cx = cy = tw = 0.0
-        for d in res.detections:
-            bb = d.location_data.relative_bounding_box
-            area = max(bb.width * bb.height, 1e-6)
-            cx += (bb.xmin + bb.width / 2) * area
-            cy += (bb.ymin + bb.height / 2) * area
+        for f in faces:
+            fx, fy, fw, fh = f[0], f[1], f[2], f[3]
+            area = max(fw * fh, 1e-6)
+            cx += (fx + fw / 2) / w * area
+            cy += (fy + fh / 2) / h * area
             tw += area
         x = round(100 * cx / tw); y = round(100 * cy / tw)
         x = min(95, max(5, x)); y = min(90, max(5, y))
