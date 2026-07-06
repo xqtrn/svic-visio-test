@@ -26,7 +26,7 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
   const evalT = (fn, ms) => Promise.race([ page.evaluate(fn),
     new Promise((_, rej) => setTimeout(() => rej(new Error('eval-timeout ' + ms + 'ms')), ms)) ]);
   const errs = [];
-  page.on('console', m => { if (m.type() === 'error') errs.push(m.text().slice(0, 160)); });
+  page.on('console', m => { if (m.type() === 'error' || (m.type() === 'warning' && /loadmore|svic|plan/.test(m.text()))) errs.push(m.type()+': '+m.text().slice(0, 160)); });
   bc('goto');
   await page.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'commit', timeout: 60000 });
   bc('committed');
@@ -69,6 +69,9 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
     caps.forEach(function(c){ var n=c.parentElement.nextElementSibling||((c.closest('.cnvs-block-posts')||{}).nextElementSibling);
       var img=null,el=c; while(el&&!img){ el=el.nextElementSibling||el.parentElement.nextElementSibling; if(el) img=el.querySelector&&el.querySelector('img,video'); if(el&&el.matches&&el.matches('.svic-vcap'))break; }
       if(img){ out.capGaps.push(Math.round(img.getBoundingClientRect().top - c.getBoundingClientRect().bottom)); } });
+    out.loadMore = { btn: document.querySelectorAll('.svic-load-more').length,
+      grids: [].slice.call(document.querySelectorAll('.cs-posts-area__main')).map(function(g){return g.querySelectorAll('article').length;}).slice(-3),
+      hidden: document.querySelectorAll('.svic-hidden-card').length };
     out.planActive = !!document.querySelector('.svic-viewall');
     out.hasSampler = !!document.querySelector('.cs-video-wrapper[data-svic-vid]');
     return out;
