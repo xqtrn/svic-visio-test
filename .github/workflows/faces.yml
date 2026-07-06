@@ -1,0 +1,22 @@
+name: faces
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'   # weekly: new covers auto-centered without anyone in the loop
+permissions:
+  contents: write
+jobs:
+  faces:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip -q install mediapipe opencv-python-headless numpy
+      - run: python faces.py
+      - name: publish to release 'faces'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release view faces >/dev/null 2>&1 || gh release create faces -t faces -n "face-centering map"
+          gh release upload faces faces.json --clobber
