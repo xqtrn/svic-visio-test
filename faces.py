@@ -68,12 +68,37 @@ for p in paths:
             top = min(top, fy / h); fhmax = max(fhmax, fh / h)
             gleft = min(gleft, fx / w); gright = max(gright, (fx + fw) / w)
             if area > barea: barea = area; best = ((fx + fw / 2) / w, (fy + fh / 2) / h)
-        # v4 (Render case, Arthur 07-05): если разлёт группы шире, чем видит самый
-        # узкий наш кадр (1:1 из этого исходника видит h/w ширины), взвешенный центр
-        # попадает в ПУСТУЮ середину — тогда центрируем по САМОМУ КРУПНОМУ лицу.
-        vis_1x1 = min(1.0, h / w)
-        if (gright - gleft) > vis_1x1 * 0.92 and best is not None:
-            cx, cy, tw = best[0], best[1], 1.0
+        # v5 (claroty case, Arthur 07-05): не «прыгать на крупнейшее лицо», а выбрать
+        # ПЛОТНЕЙШЕЕ ОКНО — позицию кропа шириной самого узкого кадра (1:1 видит h/w),
+        # покрывающую максимум суммарной площади лиц (частичное покрытие — пропорц.).
+        # Трио claroty целиком в центре-окне; Render (двое по краям, оба не влезают)
+        # автоматически сводится к крупнейшему лицу.
+        vis = min(1.0, h / w)
+        if (gright - gleft) > vis * 0.92:
+            flist = []
+            for f in faces:
+                l = f[0] / w; r = (f[0] + f[2]) / w
+                flist.append((l, r, max((f[2] / w) * (f[3] / h), 1e-6),
+                              (f[0] + f[2] / 2) / w, (f[1] + f[3] / 2) / h))
+            def coverage(c):
+                wl, wr = c - vis / 2, c + vis / 2
+                cov = ncx = ncy = nw = 0.0
+                for l, r, a, fcx, fcy in flist:
+                    inter = max(0.0, min(r, wr) - max(l, wl))
+                    frac = inter / max(r - l, 1e-6)
+                    cov += a * frac
+                    if frac > 0.5: ncx += fcx * a; ncy += fcy * a; nw += a
+                return cov, ncx, ncy, nw
+            half = vis / 2
+            cands = sorted(set([min(max(fc, half), 1 - half) for _, _, _, fc, _ in flist] + [min(max(cx / tw, half), 1 - half)]))
+            bestc = None; bestcov = -1.0
+            for c in cands:
+                cov, ncx, ncy, nw = coverage(c)
+                if cov > bestcov + 1e-9 or (abs(cov - bestcov) <= 1e-9 and bestc is not None and abs(c - cx / tw) < abs(bestc[0] - cx / tw)):
+                    bestcov = cov; bestc = (c, ncx, ncy, nw)
+            if bestc and bestc[3] > 0:
+                cx, tw = bestc[0], 1.0
+                cy = bestc[2] / bestc[3]
         fx = round(100 * cx / tw); fy = round(100 * cy / tw)
         top = round(100 * top); fh = round(100 * fhmax)
         # crop rule v3 (Nyobolt case, Arthur 07-05): (1) horizontally keep the
