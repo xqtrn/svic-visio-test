@@ -39,8 +39,9 @@ for p in paths:
         det.setInputSize((w, h))
         ok, faces = det.detect(img)
         if faces is None or len(faces) == 0: continue
-        # weighted center of all faces (weight = bbox area) + face extent
+        # weighted center of all faces (weight = bbox area) + face extent + spread
         cx = cy = tw = 0.0; top = 1.0; fhmax = 0.0
+        gleft = 1.0; gright = 0.0; best = None; barea = 0.0
         for f in faces:
             fx, fy, fw, fh = f[0], f[1], f[2], f[3]
             area = max(fw * fh, 1e-6)
@@ -48,6 +49,14 @@ for p in paths:
             cy += (fy + fh / 2) / h * area
             tw += area
             top = min(top, fy / h); fhmax = max(fhmax, fh / h)
+            gleft = min(gleft, fx / w); gright = max(gright, (fx + fw) / w)
+            if area > barea: barea = area; best = ((fx + fw / 2) / w, (fy + fh / 2) / h)
+        # v4 (Render case, Arthur 07-05): если разлёт группы шире, чем видит самый
+        # узкий наш кадр (1:1 из этого исходника видит h/w ширины), взвешенный центр
+        # попадает в ПУСТУЮ середину — тогда центрируем по САМОМУ КРУПНОМУ лицу.
+        vis_1x1 = min(1.0, h / w)
+        if (gright - gleft) > vis_1x1 * 0.92 and best is not None:
+            cx, cy, tw = best[0], best[1], 1.0
         fx = round(100 * cx / tw); fy = round(100 * cy / tw)
         top = round(100 * top); fh = round(100 * fhmax)
         # crop rule v3 (Nyobolt case, Arthur 07-05): (1) horizontally keep the
