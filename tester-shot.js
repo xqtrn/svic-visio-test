@@ -19,6 +19,16 @@ const { chromium } = require('playwright');
       return c ? Math.round(c.getBoundingClientRect().bottom + scrollY) : null; }));
   });
   console.log('RAIL-EQ rows bottoms:', JSON.stringify(eq));
+  const gp = await pg.evaluate(() => {
+    const hero = document.querySelector('.cnvs-block-posts-1587564778142');
+    const sat = document.querySelector('.cnvs-block-posts-1587564829158');
+    const row = document.querySelector('.cnvs-block-row-1587564766408');
+    const ww = document.getElementById('worldwide');
+    const b = el => el ? Math.round(el.getBoundingClientRect().bottom + scrollY) : null;
+    const t = el => el ? Math.round(el.getBoundingClientRect().top + scrollY) : null;
+    return { heroBottom: b(hero), satBottom: b(sat), rowBottom: b(row), wwTop: t(ww) };
+  });
+  console.log('GAP-PROBE:', JSON.stringify(gp));
   const rail = await pg.locator('.cnvs-block-row-1587535409467').boundingBox();
   await pg.screenshot({ path: 'out/rail-eq.png', clip: { x: rail.x, y: rail.y, width: Math.min(rail.width, 1400), height: Math.min(rail.height, 700) } });
   await b.close();
