@@ -28,9 +28,13 @@ det = cv2.FaceDetectorYN_create(MODEL, '', (320, 320), score_threshold=0.6)
 out = {}
 for p in paths:
     try:
-        raw = fetch('https://i0.wp.com/' + p + '?resize=800%2C800&ssl=1', binary=True)
+        # Photon 404s from GH-runner IPs — pull originals through our own edge (cookie'd)
+        raw = fetch('https://test3.siliconvalleyinvestclub.com/' + p.split('siliconvalleyinvestclub.com/',1)[1], binary=True)
         img = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
         if img is None: continue
+        if img.shape[1] > 900:
+            sc = 900 / img.shape[1]
+            img = cv2.resize(img, (900, int(img.shape[0] * sc)))
         h, w = img.shape[:2]
         det.setInputSize((w, h))
         ok, faces = det.detect(img)
