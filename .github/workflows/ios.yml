@@ -12,6 +12,7 @@ jobs:
       - run: npx playwright install --with-deps webkit
       - run: sudo apt-get install -y gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad >/dev/null 2>&1 || true
       - run: rm -rf out && timeout 420 node ios.js || echo "EXIT=$?"
+      - run: npx playwright install --with-deps chrome >/dev/null 2>&1 && timeout 180 node tester-shot.js || echo "TESTER_EXIT=$?"
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: ios-out, path: out/ }
