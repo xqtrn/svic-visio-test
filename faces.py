@@ -47,11 +47,12 @@ for p in paths:
             cx += (fx + fw / 2) / w * area
             cy += (fy + fh / 2) / h * area
             tw += area
-        x = round(100 * cx / tw); y = round(100 * cy / tw)
-        x = min(95, max(5, x)); y = min(90, max(5, y))
-        # only store when meaningfully off-center (else default is fine)
-        if abs(x - 50) >= 8 or abs(y - 50) >= 8:
-            out[p] = f'{x}% {y}%'
+        fx = round(100 * cx / tw); fy = round(100 * cy / tw)
+        # crop rule: (1) horizontally keep the face-group point; (2) vertically LIFT
+        # so eyes sit above center (rule of thirds within the crop slack);
+        # (3) clamp; store raw focus too (tester + future ratios).
+        x = min(95, max(5, fx)); y = min(85, max(5, fy - 6))
+        out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy]}
     except Exception as e:
         print('skip', p, str(e)[:80], file=sys.stderr)
 
