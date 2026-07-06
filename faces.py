@@ -17,9 +17,26 @@ def fetch(url, binary=False):
         return r.read() if binary else r.read().decode('utf-8', 'ignore')
 
 html = fetch(HOME)
-# all upload covers (dedup by path, strip query)
-paths = sorted(set(re.findall(r'i0\.wp\.com/(siliconvalleyinvestclub\.com/wp-content/uploads/[^"?\s]+\.(?:jpg|jpeg|png|webp))', html)))
-print('covers found:', len(paths))
+# home covers (dedup by path, strip query)
+paths = set(re.findall(r'i0\.wp\.com/(siliconvalleyinvestclub\.com/wp-content/uploads/[^"?\s]+\.(?:jpg|jpeg|png|webp))', html))
+# + the FULL archive via REST featured-media (Load More reaches the earliest post)
+page = 1
+while True:
+    try:
+        js = json.loads(fetch(HOME.rstrip('/') + f'/wp-json/wp/v2/posts?per_page=100&page={page}&_embed=wp:featuredmedia&_fields=id,_links,_embedded'))
+    except Exception as e:
+        print('rest stop', page, str(e)[:60], file=sys.stderr); break
+    if not isinstance(js, list) or not js: break
+    for post in js:
+        try:
+            src = post['_embedded']['wp:featuredmedia'][0]['source_url']
+            m = re.search(r'(siliconvalleyinvestclub\.com/wp-content/uploads/[^"?\s]+\.(?:jpg|jpeg|png|webp))', src, re.I)
+            if m: paths.add(m.group(1))
+        except Exception: pass
+    if len(js) < 100: break
+    page += 1
+paths = sorted(paths)
+print('covers found (home+archive):', len(paths))
 
 # YuNet (opencv_zoo, Apache-2.0) — compact open face detector, single onnx file
 MODEL = 'face_detection_yunet_2023mar.onnx'
