@@ -14,7 +14,7 @@ const { chromium, webkit } = require('playwright');
       const groups = [...document.querySelectorAll('.bb-nav .eyebrow')].map(e => e.textContent.trim()).slice(1);
       const ps = document.getElementById('public-site');
       return { sections: secs.length, navOk: nav.every(h => secs.includes(h)), groups,
-               psSubs: ps.querySelectorAll('.bb-sub').length, psPreviews: ps.querySelectorAll('[data-code]').length };
+               psSubs: ps.querySelectorAll('.bb-sub').length, psPreviews: ps.querySelectorAll('[data-code]').length, unlockGuide: !!document.getElementById('motion-unlock') };
     });
     console.log('DS-PROBE-' + name + ':', JSON.stringify(probe));
     await pg.screenshot({ path: 'out/ds-' + name + '.png' });

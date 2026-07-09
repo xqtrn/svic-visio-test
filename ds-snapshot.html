@@ -198,7 +198,7 @@
       <h1>Design System</h1>
       <p>The single source of truth for how every screen, document and surface looks, reads and behaves. Built for institutional restraint — the reference is BlackRock, Macquarie and Goldman Sachs. If something decorates without carrying meaning, it does not belong here.</p>
       <div class="meta">
-        <div><div class="k">Version</div><div class="v">2.3 · Jun 10, 2026</div></div>
+        <div><div class="k">Version</div><div class="v">2.4 · Jul 9, 2026</div></div>
         <div><div class="k">Source of truth</div><div class="v bb-code">/app.css</div></div>
         <div><div class="k">Enforced by</div><div class="v">pre-deploy lint</div></div>
       </div>
@@ -1046,6 +1046,19 @@
         </tbody>
       </table>
           <div class="bb-note" style="margin-top:8px"><b>Public chrome motion (2026-07-05).</b> The public topbar auto-hide follows the networker algorithm verbatim (thresholds 200/200, up-scroll accumulator — §Public&nbsp;site P-6); caret colour snaps while rotation eases (P-7); menu open/close carries NO transition-delay (hover-intent rejected); tapped chrome shows an instant pressed state.</div>
+      <h3 class="bb-sub" id="motion-unlock">Unlock transition — gated &#8594; signed-in</h3>
+      <div class="bb-note" style="margin-bottom:13px">The canonical state change for any gated surface (data rooms, previews): the navy cover is the <b>constant</b> — it never moves; only the working pane changes hands. The outgoing form concedes quietly; the incoming surface arrives as a short cascade, top first, facts next, footnotes last. Reference implementation: <span class="mono">vault.html</span>.</div>
+      <table class="bbt">
+        <thead><tr><th>Phase</th><th>Element</th><th>Spec</th></tr></thead>
+        <tbody>
+          <tr><td>1 · Exit</td><td>outgoing form pane</td><td class="mono">opacity&#8594;0 · translateY(+6px) · 160ms ease; swap at ~170ms</td></tr>
+          <tr><td>2 · Enter</td><td>top bar</td><td class="mono">translateY(&#8722;100%)&#8594;0 · 260ms ease</td></tr>
+          <tr><td>2 · Enter</td><td>content cover</td><td class="mono">opacity 0&#8594;1 · translateY(+8px)&#8594;0 · 280ms ease</td></tr>
+          <tr><td>3 · Cascade</td><td>subhead &amp; facts</td><td class="mono">same fade-rise · 300ms · delay 80ms</td></tr>
+          <tr><td>3 · Cascade</td><td>footnote row</td><td class="mono">same fade-rise · 300ms · delay 140ms</td></tr>
+        </tbody>
+      </table>
+      <div class="bb-note" style="margin-top:8px">Amplitudes stay at 6&#8211;8px and the whole cascade completes inside ~450ms — felt, not watched. The cover pane, brand and assurance icons persist across the swap so the room «unlocks» rather than «navigates». Runs once per entry (the class is removed after 700ms); <span class="mono">prefers-reduced-motion</span> neutralises it via the global kill-switch. Don&#8217;t: slide the cover, animate on every route change, exceed 8px travel, or add spinners — the top progress line (R-11) already owns loading.</div>
     </section>
 
             <section class="bb-sec" id="elevation">
@@ -1255,13 +1268,13 @@
           <div style="aspect-ratio:16/9;background:var(--navy);border-radius:4px;position:relative;overflow:hidden">
             <span style="position:absolute;top:9px;right:10px;color:#fff;font-size:10.5px;opacity:.85">June 1, 2026</span>
             <span style="position:absolute;left:0;bottom:18px;background:rgba(10,23,51,.62);color:#fff;font-family:var(--serif);font-size:13px;padding:7px 10px;max-width:85%">Base Power to Raise $1 Billion&#8230;</span>
-            <span style="position:absolute;right:10px;bottom:10px;width:22px;height:22px;border-radius:4px;background:rgba(10,23,51,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center">&#10074;&#10074;</span>
+            <span style="position:absolute;right:10px;bottom:10px;width:22px;height:22px;border-radius:4px;background:rgba(10,23,51,.55);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center">&#10074;&#10074;</span>
           </div>
           <div class="eyebrow" style="margin-top:8px">Video card &#183; desktop</div>
         </div>
         <div>
           <div style="aspect-ratio:16/9;background:var(--subtle);border:1px solid var(--line);border-radius:4px"></div>
-          <div style="margin-top:10px"><div class="eyebrow" style="letter-spacing:.14em">United States</div><div style="font-family:var(--serif);font-size:15.5px;line-height:1.35;margin:4px 0 6px">Anthropic Raises $65 Billion at a $965 Billion Valuation</div><div style="font-size:12px;color:var(--muted)">May 29, 2026</div></div>
+          <div style="margin-top:10px"><div class="eyebrow" style="letter-spacing:.14em">United States</div><div style="font-family:var(--serif);font-size:15px;line-height:1.35;margin:4px 0 6px">Anthropic Raises $65 Billion at a $965 Billion Valuation</div><div style="font-size:12px;color:var(--muted)">May 29, 2026</div></div>
           <div class="eyebrow" style="margin-top:8px">Photo / mobile card</div>
         </div>
         <div>
@@ -1281,7 +1294,7 @@
       <div class="bb-note" style="margin-top:8px">The section heading owns an optional quiet «View all»; the list grows with «Load more» that first reveals rendered rows, then pages the archive — a public page never dead-ends into a hundred-screen scroll.</div>
 
       <h3 class="bb-sub" id="ps-footer">Block — public footer</h3>
-      <div data-code style="background:var(--navy);border-radius:6px;padding:20px 22px;color:rgba(231,237,246,.75);font-size:12.5px">
+      <div data-code style="background:var(--navy);border-radius:6px;padding:20px 22px;color:var(--on-navy-muted);font-size:12.5px">
         <div style="display:flex;gap:34px;flex-wrap:wrap">
           <div style="min-width:170px"><div style="color:#fff;font-weight:600;font-size:13px;margin-bottom:5px">Silicon Valley Investclub</div><div>Private markets, institutional discipline.</div></div>
           <div><div style="color:#fff;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;margin-bottom:7px">Media</div>Interviews &#183; Podcasts &#183; Videos</div>
@@ -1345,7 +1358,7 @@
 
       <h3 class="bb-sub" style="margin-top:22px">Changelog</h3>
       <table class="bbt"><thead><tr><th>Version</th><th>Date</th><th>Change</th></tr></thead><tbody>
-        <tr><td class="mono">2.3</td><td class="mono">Jun 10, 2026</td><td>Audit pass 3: dark-theme AA (--on-accent), visible 2px focus ring, modal/menu/toast/sortable keyboard+ARIA, preloader on all pages via loader.js, pre-paint OS theme on token-complete pages (data-theme-auto), search ranking + deep-linkable h3 anchors, clean section renumbering 01&#8211;22, enforcement extended to linked CSS/&lt;style&gt;/JS with shrink-only baselines, tokens.json full W3C export.</td></tr>
+        <tr><td class="mono">2.4</td><td class="mono">Jul 9, 2026</td><td>World-class editorial pass: named nav groups (Foundations · Identity · System · Components · Reference · Operating); one normative home per rule (Space &amp; radii merged into Layout contract, single type scale in Typography, elevation demo with its table, Do &amp; don&#8217;t folded into Principles as the litmus strip); semantic tokens with light/dark pairs; component catalogue completed (select/textarea/radio, deal row, panel-card, stats, avatar, platform footer, state matrix, a11y notes); Public site section rebuilt as principles + block catalogue; lint legend and versioning policy in Governance; BrE sweep, timeless register, named cross-links.</td></tr><tr><td class="mono">2.3</td><td class="mono">Jun 10, 2026</td><td>Audit pass 3: dark-theme AA (--on-accent), visible 2px focus ring, modal/menu/toast/sortable keyboard+ARIA, preloader on all pages via loader.js, pre-paint OS theme on token-complete pages (data-theme-auto), search ranking + deep-linkable h3 anchors, clean section renumbering 01&#8211;22, enforcement extended to linked CSS/&lt;style&gt;/JS with shrink-only baselines, tokens.json full W3C export.</td></tr>
         <tr><td class="mono">2.2</td><td class="mono">Jun 10, 2026</td><td>Hardening: numeric layout contract (Layout contract, now &#167;08 — container whitelist, grid, rhythm, type scale, skeletons); mandatory top-line preloader on every page (R-11, loader.js); skinning &amp; frozen canons (now &#167;Skinning — media grid + marketplace, skin-wp.css); prohibitions R-1&#8211;R-11 each wired to a lint step (0ds/0dt/0du, 0dr extended to the skin); lint core shipped to non-platform repos.</td></tr>
         <tr><td class="mono">2.1</td><td class="mono">Jun 10, 2026</td><td>Truth pass: files unified to /app.css + /ui.js; one breakpoint set (640/900); z-scale matches code; focus-visible, reduced-motion, disabled/loading/skeleton implemented; primitives tier + spacing/radius/motion/z tokens; label contrast raised to AA; theme follows the OS and persists; lint extended to every page (ratchet).</td></tr>
         <tr><td class="mono">2.0</td><td class="mono">May 31, 2026</td><td>Becomes a design system: token tiers + dark theme, Patterns, component states, deeper accessibility, content &amp; numbers, this governance.</td></tr>
@@ -1384,7 +1397,7 @@
         <a href="https://platform.siliconvalleyinvestclub.com/fonts.css" target="_blank"><div class="rt"><span data-ic="file"></span>Source Serif 4</div><div class="rd">display typeface · self-hosted (specimen: fonts.google.com/specimen/Source+Serif+4)</div></a>
         <a href="https://platform.siliconvalleyinvestclub.com/fonts.css" target="_blank"><div class="rt"><span data-ic="file"></span>Inter</div><div class="rd">text typeface · self-hosted (specimen: fonts.google.com/specimen/Inter)</div></a>
       </div>
-      <div style="padding:36px 0 0;color:var(--muted-2);font-size:12px">Silicon Valley Investclub · Design System v2.3 · the living token system in <span class="mono">/app.css</span>.</div>
+      <div style="padding:36px 0 0;color:var(--muted-2);font-size:12px">Silicon Valley Investclub · Design System v2.4 · the living token system in <span class="mono">/app.css</span>.</div>
     </section>
   </main>
 </div>
