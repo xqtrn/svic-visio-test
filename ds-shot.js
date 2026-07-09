@@ -9,10 +9,12 @@ const { chromium, webkit } = require('playwright');
     await pg.evaluate(() => document.getElementById('public-site').scrollIntoView());
     await pg.waitForTimeout(600);
     const probe = await pg.evaluate(() => {
-      const s = document.getElementById('public-site');
-      return { notes: s.querySelectorAll('.bb-note').length, rows: s.querySelectorAll('tbody tr').length,
-               subs: s.querySelectorAll('.bb-sub').length, navLink: !!document.querySelector('a[href="#public-site"]'),
-               w: Math.round(s.getBoundingClientRect().width) };
+      const secs = [...document.querySelectorAll('section.bb-sec')].map(x => x.id);
+      const nav = [...document.querySelectorAll('.bb-nav a[href^="#"]')].filter(a=>a.getAttribute('href')!=='#bbmain').map(a => a.getAttribute('href').slice(1));
+      const groups = [...document.querySelectorAll('.bb-nav .eyebrow')].map(e => e.textContent.trim()).slice(1);
+      const ps = document.getElementById('public-site');
+      return { sections: secs.length, navOk: nav.every(h => secs.includes(h)), groups,
+               psSubs: ps.querySelectorAll('.bb-sub').length, psPreviews: ps.querySelectorAll('[data-code]').length };
     });
     console.log('DS-PROBE-' + name + ':', JSON.stringify(probe));
     await pg.screenshot({ path: 'out/ds-' + name + '.png' });

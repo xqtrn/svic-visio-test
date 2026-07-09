@@ -11,7 +11,8 @@
 <style>
   .bb{ display:grid; grid-template-columns:236px 1fr; max-width:1280px; margin:0 auto; }
   .bb-nav{ position:sticky; top:62px; align-self:start; height:calc(100vh - 62px); overflow-y:auto; padding:32px 18px 32px 26px; border-right:1px solid var(--line); }
-  .bb-nav .eyebrow{ margin-bottom:12px; }
+  .bb-nav .grp{ font-size:10.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted-2); margin:18px 0 5px; }
+  .bb-nav .grp:first-child{ margin-top:0; }
   .bb-nav a{ display:flex; gap:10px; align-items:baseline; padding:6px 0; font-size:12.5px; color:var(--muted); text-decoration:none; transition:.13s; }
   .bb-nav a .n{ font-variant-numeric:tabular-nums; color:var(--muted-2); font-size:11px; width:18px; }
   .bb-nav a:hover{ color:var(--ink); }
@@ -38,14 +39,15 @@
   .sw{ background:var(--panel); } .sw .chip{ height:78px; } .sw .chip.bordered{ box-shadow:inset 0 0 0 1px var(--line); }
   .sw .meta{ padding:12px 14px; } .sw .nm{ font-size:12.5px; font-weight:600; color:var(--ink); }
   .sw .role{ font-size:11px; color:var(--muted-2); margin-top:2px; line-height:1.4; }
-  .sw .hex{ font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace; font-size:11px; color:var(--muted); margin-top:7px; }
+  .sw .hex{ font-size:11px; color:var(--muted); margin-top:7px; }
+  .sw .hex,table.bbt .mono,.bb-code{ font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace; }
 
   table.bbt{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:6px; overflow:hidden; }
   table.bbt th{ text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted-2); padding:11px 14px; background:var(--subtle); border-bottom:1px solid var(--line); }
   table.bbt td{ padding:11px 14px; font-size:12.5px; color:var(--ink); border-bottom:1px solid var(--line-2); vertical-align:middle; }
   table.bbt tr:last-child td{ border-bottom:none; }
-  table.bbt .mono{ font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace; font-size:11.5px; color:var(--muted); }
-  .badge{ font-size:10px; font-weight:700; letter-spacing:.04em; padding:2px 7px; border-radius:3px; }
+  table.bbt .mono{ font-size:11.5px; color:var(--muted); }
+  .badge{ font-size:10.5px; font-weight:700; letter-spacing:.04em; padding:2px 7px; border-radius:3px; }
   .badge.aaa{ color:var(--ok); background:var(--ok-soft); } .badge.aa{ color:var(--accent); background:var(--accent-soft); }
   .badge.large{ color:var(--warn); background:var(--warn-soft); }
   .dotc{ width:13px; height:13px; border-radius:3px; display:inline-block; vertical-align:-2px; margin-right:8px; }
@@ -59,7 +61,7 @@
   .clearspace{ background:#fff; border:1px solid var(--line); border-radius:6px; padding:30px; }
   .cs-box{ display:inline-block; border:1px dashed var(--accent); padding:32px; position:relative; }
   .cs-box img{ height:26px; display:block; }
-  .cs-tag{ position:absolute; font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); background:#fff; padding:0 5px; top:-8px; left:32px; }
+  .cs-tag{ position:absolute; font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); background:#fff; padding:0 5px; top:-8px; left:32px; }
 
   .dd-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
   .dd{ border:1px solid var(--line); border-radius:6px; overflow:hidden; background:var(--panel); }
@@ -68,12 +70,12 @@
   .dd .hd svg{ width:15px; height:15px; }
   .dd.no .hd{ color:var(--bad); } .dd.yes .hd{ color:var(--ok); }
   .dd .txt{ padding:0 14px 14px; font-size:12px; color:var(--muted); line-height:1.5; }
-  .shadow-demo{ background:#fff; border-radius:14px; padding:10px 16px; font-size:12px; color:var(--ink); box-shadow:0 8px 22px rgba(10,23,51,.16); }
+  .shadow-demo{ background:var(--panel); border-radius:14px; padding:10px 16px; font-size:12px; color:var(--ink); box-shadow:0 8px 22px rgba(10,23,51,.16); }
 
   .ico-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:6px; overflow:hidden; }
   .ico-cell{ background:var(--panel); padding:16px 8px; text-align:center; }
   .ico-cell svg{ width:21px; height:21px; color:var(--ink); stroke-width:1.8; }
-  .ico-cell .nm{ font-size:10px; color:var(--muted-2); margin-top:8px; }
+  .ico-cell .nm{ font-size:10.5px; color:var(--muted-2); margin-top:8px; }
 
   .ramp{ display:flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
   .ramp div{ flex:1; height:48px; }
@@ -85,7 +87,7 @@
   .grid-demo{ display:grid; grid-template-columns:repeat(12,1fr); gap:8px; }
   .grid-demo div{ height:40px; background:var(--accent-soft); border:1px solid var(--accent); border-radius:3px; }
   .elev .lvl{ display:flex; align-items:center; gap:18px; padding:12px 0; border-bottom:1px solid var(--line-2); }
-  .elev .box{ width:72px; height:40px; border-radius:6px; background:#fff; border:1px solid var(--line); flex-shrink:0; }
+  .elev .box{ width:72px; height:40px; border-radius:6px; background:var(--panel); border:1px solid var(--line); flex-shrink:0; }
   .elev .e2{ box-shadow:0 4px 14px rgba(10,23,51,.08); } .elev .e3{ box-shadow:0 14px 40px rgba(10,23,51,.14); }
   .elev .t{ font-size:12.5px; color:var(--ink); } .elev .t b{ font-weight:600; } .elev .t span{ color:var(--muted); }
 
@@ -99,7 +101,7 @@
   .mock{ border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--page); }
   .mock-top{ background:var(--navy); height:46px; display:flex; align-items:center; padding:0 18px; gap:12px; }
   .mock-top img{ height:15px; filter:brightness(0) invert(1); }
-  .mock-top .ctx{ font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--on-navy-muted); }
+  .mock-top .ctx{ font-size:11px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--on-navy-muted); }
   .mock-body{ padding:22px; }
   .phone{ width:300px; border:1px solid var(--line); border-radius:18px; overflow:hidden; background:var(--page); margin:0; }
   .phone-top{ background:var(--navy); height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; }
@@ -116,8 +118,6 @@
   .res .rt svg{ width:15px; height:15px; color:var(--accent); }
   .res .rd{ font-size:11.5px; color:var(--muted-2); margin-top:5px; }
 
-  .bb-nav .sep{ height:1px; background:var(--line-2); margin:9px 0; }
-  /* real <button> tabs keep the .tab look until the reset lands in app.css */
   .tb-s-ic{ display:none; } .tb-s-ic svg{ width:16px; height:16px; display:block; }
   .tb-g-short{ display:none; }
   .bb-mtoc{ display:none; }
@@ -163,34 +163,33 @@
 <div class="bb">
   <aside class="bb-nav" id="bbnav">
     <div class="eyebrow">Contents</div>
+    <div class="eyebrow" style="margin-top:10px;color:var(--muted-2)">Foundations</div>
     <a href="#principles"><span class="n">01</span> Principles</a>
-    <a href="#logo"><span class="n">02</span> Logo</a>
-    <a href="#color"><span class="n">03</span> Colour</a>
     <a href="#tokens"><span class="n">04</span> Tokens</a>
     <a href="#access"><span class="n">05</span> Accessibility</a>
+    <div class="eyebrow" style="margin-top:10px;color:var(--muted-2)">Identity</div>
+    <a href="#logo"><span class="n">02</span> Logo</a>
+    <a href="#color"><span class="n">03</span> Colour</a>
     <a href="#type"><span class="n">06</span> Typography</a>
-    <div class="sep"></div>
+    <a href="#icons"><span class="n">09</span> Iconography</a>
+    <div class="eyebrow" style="margin-top:10px;color:var(--muted-2)">System</div>
     <a href="#layout"><span class="n">07</span> Layout &amp; mobile</a>
     <a href="#contract"><span class="n">08</span> Layout contract</a>
-    <a href="#spacing"><span class="n">09</span> Space &amp; grid</a>
-    <a href="#icons"><span class="n">10</span> Iconography</a>
-    <div class="sep"></div>
-    <a href="#components"><span class="n">11</span> Components &amp; nav</a>
-    <a href="#patterns"><span class="n">12</span> Patterns</a>
-    <div class="sep"></div>
-    <a href="#charts"><span class="n">13</span> Data viz</a>
-    <a href="#motion"><span class="n">14</span> Motion</a>
-    <a href="#elevation"><span class="n">15</span> Elevation</a>
-    <div class="sep"></div>
-    <a href="#voice"><span class="n">16</span> Content &amp; numbers</a>
-    <a href="#insitu"><span class="n">17</span> In situ</a>
-    <a href="#docs"><span class="n">18</span> Documents &amp; email</a>
-    <a href="#dodont"><span class="n">19</span> Do &amp; don't</a>
-    <div class="sep"></div>
+    <a href="#charts"><span class="n">12</span> Data viz</a>
+    <a href="#motion"><span class="n">13</span> Motion</a>
+    <a href="#elevation"><span class="n">14</span> Elevation</a>
+    <a href="#skinning"><span class="n">18</span> Skinning &amp; frozen canons</a>
+    <a href="#public-site"><span class="n">19</span> Public site</a>
+    <div class="eyebrow" style="margin-top:10px;color:var(--muted-2)">Components</div>
+    <a href="#components"><span class="n">10</span> Components &amp; nav</a>
+    <a href="#patterns"><span class="n">11</span> Patterns</a>
+    <div class="eyebrow" style="margin-top:10px;color:var(--muted-2)">Reference</div>
+    <a href="#voice"><span class="n">15</span> Content &amp; numbers</a>
+    <a href="#insitu"><span class="n">16</span> In situ</a>
+    <a href="#docs"><span class="n">17</span> Documents &amp; email</a>
+    <div class="eyebrow" style="margin-top:10px;color:var(--muted-2)">Operating</div>
     <a href="#govern"><span class="n">20</span> Governance</a>
-    <a href="#skinning"><span class="n">21</span> Skinning &amp; frozen canons</a>
-    <a href="#public-site"><span class="n">22</span> Public site — home</a>
-    <a href="#resources"><span class="n">23</span> Resources</a>
+    <a href="#resources"><span class="n">21</span> Resources</a>
   </aside>
 
   <main class="bb-main" id="bbmain">
@@ -200,7 +199,7 @@
       <p>The single source of truth for how every screen, document and surface looks, reads and behaves. Built for institutional restraint — the reference is BlackRock, Macquarie and Goldman Sachs. If something decorates without carrying meaning, it does not belong here.</p>
       <div class="meta">
         <div><div class="k">Version</div><div class="v">2.3 · Jun 10, 2026</div></div>
-        <div><div class="k">Source of truth</div><div class="v" style="font-family:ui-monospace,monospace">/app.css</div></div>
+        <div><div class="k">Source of truth</div><div class="v bb-code">/app.css</div></div>
         <div><div class="k">Enforced by</div><div class="v">pre-deploy lint</div></div>
       </div>
     </div>
@@ -209,11 +208,20 @@
       <div class="eyebrow">01 — Foundations</div>
       <h2>Principles</h2>
       <div class="lead">Five rules govern every decision. When in doubt, remove rather than add. The interface should read like a document from an investment bank, not a consumer app.</div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Restraint over decoration.</b> Whitespace, hairlines and one accent do the work. No decorative gradients, no drop shadows on content, no neon, no illustration. The single sanctioned gradient is the navy confidential cover (§03).</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Restraint over decoration.</b> Whitespace, hairlines and one accent do the work. No decorative gradients, no drop shadows on content, no neon, no illustration. The single sanctioned gradient is the navy confidential cover (<a href="#color">&#167;Colour</a>).</div></div>
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>One accent.</b> A single blue carries every interactive cue. Status uses muted semantic pairs only. Never a second decorative accent.</div></div>
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Serif for display, sans for work.</b> Headings, names and large numbers are serif; body, labels and controls are sans. The serif is what reads as "institutional".</div></div>
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Hairlines, not boxes.</b> Structure is drawn with 1px lines on a quiet field, not with shadows or heavy borders. Corners are calm (4–6px), never bubbly.</div></div>
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Generous space.</b> Air is the premium signal. Pad rooms, separate sections, let the page breathe.</div></div>
+      <div class="bb-note" style="margin-top:14px"><b>The litmus.</b> Place a screen next to blackrock.com or macquarie.com — if ours looks brighter, busier or denser, it has regressed.</div>
+      <div class="dd-grid">
+        <div class="dd yes"><div class="canvas"><span class="tag ready"><span class="dot"></span>Ready</span></div><div class="hd"><span data-ic="check"></span>Do — muted status pill</div><div class="txt">Status as a small pill with a dot and soft background.</div></div>
+        <div class="dd no"><div class="canvas"><span style="background:#16a34a;color:#fff;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700">READY</span></div><div class="hd"><span data-ic="x"></span>Don't — loud fill</div><div class="txt">No saturated, full-colour, heavy badges.</div></div>
+        <div class="dd yes"><div class="canvas"><button class="btn btn-primary btn-sm">Save</button></div><div class="hd"><span data-ic="check"></span>Do — one blue accent</div><div class="txt">A single blue for the primary action.</div></div>
+        <div class="dd no"><div class="canvas"><span style="width:22px;height:22px;border-radius:6px;background:#8b5cf6"></span><span style="width:22px;height:22px;border-radius:6px;background:#f59e0b"></span><span style="width:22px;height:22px;border-radius:6px;background:#06b6d4"></span></div><div class="hd"><span data-ic="x"></span>Don't — many accents</div><div class="txt">No purple/teal/orange decorative colours.</div></div>
+        <div class="dd yes"><div class="canvas"><div style="background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:10px 16px;font-size:12px;color:var(--ink)">Card · hairline</div></div><div class="hd"><span data-ic="check"></span>Do — hairline borders</div><div class="txt">Structure with 1px lines.</div></div>
+        <div class="dd no"><div class="canvas"><div class="shadow-demo">Card · shadow</div></div><div class="hd"><span data-ic="x"></span>Don't — drop shadows</div><div class="txt">No shadows on content; no bubbly 14px+ radii.</div></div>
+      </div>
     </section>
 
         <section class="bb-sec" id="logo">
@@ -302,7 +310,7 @@
       <div class="bb-note">Roughly <b>70% neutral field</b>, <b>20% navy / ink</b>, <b>10% accent</b>. The accent is a seasoning, not a base. If a screen looks blue, there is too much of it.</div>
 
       <h3 class="bb-sub">Confidential cover — the sanctioned gradient</h3>
-      <div class="bb-note" style="margin-bottom:16px">The one approved gradient. A deep navy base, a faint accent glow and a hairline diagonal texture — reserved for data-room gates, fund covers and confidential hero panels, never as decoration elsewhere. Defined once as <span class="mono">.cover</span> in app.css and reversed type sits directly on it.</div>
+      <div class="bb-note" style="margin-bottom:16px">The single sanctioned gradient. A deep navy base, a faint accent glow and a hairline diagonal texture — reserved for data-room gates, fund covers and confidential hero panels, never as decoration elsewhere. Defined once as <span class="mono">.cover</span> in app.css and reversed type sits directly on it.</div>
       <div class="cover" style="border-radius:8px;padding:40px 44px">
         <div class="eyebrow">Private &amp; confidential</div>
         <div style="font-family:var(--serif);font-weight:500;font-size:30px;color:#fff;margin:12px 0 12px;letter-spacing:-.01em">Positron AI — Confidential Investment Materials</div>
@@ -327,28 +335,65 @@
         <div style="background:var(--panel);padding:16px 18px"><div class="eyebrow">Component</div><div class="bb-note" style="font-size:12px;margin-top:7px">Usage — a button reads <span class="mono">--accent</span>, a card reads <span class="mono">--panel</span>. Components never see a primitive.</div></div>
       </div>
       <h3 class="bb-sub">Core semantic tokens</h3>
-      <table class="bbt"><thead><tr><th>Token</th><th>Role</th><th>Light</th><th>Dark</th></tr></thead><tbody><tr><td class="mono">--page</td><td>App background</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#f5f7fa"></span><span class="mono" style="color:var(--muted-2)">#F5F7FA</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0a1322"></span><span class="mono" style="color:var(--muted-2)">#0A1322</span></td></tr><tr><td class="mono">--panel</td><td>Card / surface</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#ffffff"></span><span class="mono" style="color:var(--muted-2)">#FFFFFF</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0f1b30"></span><span class="mono" style="color:var(--muted-2)">#0F1B30</span></td></tr><tr><td class="mono">--subtle</td><td>Hover / well</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#f7f9fc"></span><span class="mono" style="color:var(--muted-2)">#F7F9FC</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#13223b"></span><span class="mono" style="color:var(--muted-2)">#13223B</span></td></tr><tr><td class="mono">--ink</td><td>Primary text</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0c1626"></span><span class="mono" style="color:var(--muted-2)">#0C1626</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#e7edf7"></span><span class="mono" style="color:var(--muted-2)">#E7EDF7</span></td></tr><tr><td class="mono">--muted</td><td>Secondary text</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#586273"></span><span class="mono" style="color:var(--muted-2)">#586273</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#9eb0c9"></span><span class="mono" style="color:var(--muted-2)">#9EB0C9</span></td></tr><tr><td class="mono">--line</td><td>Hairline / border</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#e6eaf1"></span><span class="mono" style="color:var(--muted-2)">#E6EAF1</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#20304c"></span><span class="mono" style="color:var(--muted-2)">#20304C</span></td></tr><tr><td class="mono">--accent</td><td>Interactive</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0a64bc"></span><span class="mono" style="color:var(--muted-2)">#0A64BC</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#5aa2e8"></span><span class="mono" style="color:var(--muted-2)">#5AA2E8</span></td></tr><tr><td class="mono">--on-accent</td><td>Text on accent / danger fills</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#ffffff"></span><span class="mono" style="color:var(--muted-2)">#FFFFFF</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0a1322"></span><span class="mono" style="color:var(--muted-2)">#0A1322</span></td></tr><tr><td class="mono">--ok</td><td>Gain / success</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0f7a52"></span><span class="mono" style="color:var(--muted-2)">#0F7A52</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#3fae84"></span><span class="mono" style="color:var(--muted-2)">#3FAE84</span></td></tr><tr><td class="mono">--bad</td><td>Loss / danger</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#a32a30"></span><span class="mono" style="color:var(--muted-2)">#A32A30</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#df7d82"></span><span class="mono" style="color:var(--muted-2)">#DF7D82</span></td></tr></tbody></table>
+      <table class="bbt"><thead><tr><th>Token</th><th>Role</th><th>Light</th><th>Dark</th></tr></thead><tbody><tr><td colspan="4" style="background:var(--subtle);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);padding:7px 14px">Surface</td></tr>
+      <tr><td class="mono">--page</td><td>App background</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#f5f7fa"></span><span class="mono" style="color:var(--muted-2)">#F5F7FA</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0a1322"></span><span class="mono" style="color:var(--muted-2)">#0A1322</span></td></tr>
+      <tr><td class="mono">--panel</td><td>Card / surface</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#ffffff"></span><span class="mono" style="color:var(--muted-2)">#FFFFFF</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0f1b30"></span><span class="mono" style="color:var(--muted-2)">#0F1B30</span></td></tr>
+      <tr><td class="mono">--subtle</td><td>Hover / well</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#f7f9fc"></span><span class="mono" style="color:var(--muted-2)">#F7F9FC</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#13223b"></span><span class="mono" style="color:var(--muted-2)">#13223B</span></td></tr>
+      <tr><td class="mono">--navy</td><td>Shell, dark surfaces</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0a1733"></span><span class="mono" style="color:var(--muted-2)">#0A1733</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#070f1e"></span><span class="mono" style="color:var(--muted-2)">#070F1E</span></td></tr>
+      <tr><td class="mono">--navy-2</td><td>Secondary dark, hover on navy</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#13233f"></span><span class="mono" style="color:var(--muted-2)">#13233F</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0c1830"></span><span class="mono" style="color:var(--muted-2)">#0C1830</span></td></tr>
+      <tr><td colspan="4" style="background:var(--subtle);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);padding:7px 14px">Text</td></tr>
+      <tr><td class="mono">--ink</td><td>Primary text</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0c1626"></span><span class="mono" style="color:var(--muted-2)">#0C1626</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#e7edf7"></span><span class="mono" style="color:var(--muted-2)">#E7EDF7</span></td></tr>
+      <tr><td class="mono">--muted</td><td>Secondary text</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#586273"></span><span class="mono" style="color:var(--muted-2)">#586273</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#9eb0c9"></span><span class="mono" style="color:var(--muted-2)">#9EB0C9</span></td></tr>
+      <tr><td class="mono">--muted-2</td><td>Labels / captions</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#67738a"></span><span class="mono" style="color:var(--muted-2)">#67738A</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#7e90a8"></span><span class="mono" style="color:var(--muted-2)">#7E90A8</span></td></tr>
+      <tr><td colspan="4" style="background:var(--subtle);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);padding:7px 14px">Border</td></tr>
+      <tr><td class="mono">--line</td><td>Hairline / border</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#e6eaf1"></span><span class="mono" style="color:var(--muted-2)">#E6EAF1</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#20304c"></span><span class="mono" style="color:var(--muted-2)">#20304C</span></td></tr>
+      <tr><td class="mono">--line-2</td><td>Secondary hairline, row rules</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#eef1f6"></span><span class="mono" style="color:var(--muted-2)">#EEF1F6</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#192741"></span><span class="mono" style="color:var(--muted-2)">#192741</span></td></tr>
+      <tr><td colspan="4" style="background:var(--subtle);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);padding:7px 14px">Interactive</td></tr>
+      <tr><td class="mono">--accent</td><td>Interactive</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0a64bc"></span><span class="mono" style="color:var(--muted-2)">#0A64BC</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#5aa2e8"></span><span class="mono" style="color:var(--muted-2)">#5AA2E8</span></td></tr>
+      <tr><td class="mono">--accent-dark</td><td>Hover / pressed</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#084a90"></span><span class="mono" style="color:var(--muted-2)">#084A90</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#7ab4ee"></span><span class="mono" style="color:var(--muted-2)">#7AB4EE</span></td></tr>
+      <tr><td class="mono">--accent-soft</td><td>Tints, focus halo, selected</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#eef4fb"></span><span class="mono" style="color:var(--muted-2)">#EEF4FB</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#13243c"></span><span class="mono" style="color:var(--muted-2)">#13243C</span></td></tr>
+      <tr><td class="mono">--accent-mid</td><td>Progress-line mid-stop</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#2d8fe0"></span><span class="mono" style="color:var(--muted-2)">#2D8FE0</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#7ab4ee"></span><span class="mono" style="color:var(--muted-2)">#7AB4EE</span></td></tr>
+      <tr><td class="mono">--accent-track</td><td>Progress-line idle track</td><td><span class="mono" style="color:var(--muted-2)">rgba(10,100,188,.14)</span></td><td><span class="mono" style="color:var(--muted-2)">rgba(90,162,232,.16)</span></td></tr>
+      <tr><td colspan="4" style="background:var(--subtle);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);padding:7px 14px">Status</td></tr>
+      <tr><td class="mono">--ok</td><td>Gain / success</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0f7a52"></span><span class="mono" style="color:var(--muted-2)">#0F7A52</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#3fae84"></span><span class="mono" style="color:var(--muted-2)">#3FAE84</span></td></tr>
+      <tr><td class="mono">--ok-soft</td><td>Success wash</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#eaf4ef"></span><span class="mono" style="color:var(--muted-2)">#EAF4EF</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#102a20"></span><span class="mono" style="color:var(--muted-2)">#102A20</span></td></tr>
+      <tr><td class="mono">--warn</td><td>Caution</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#946312"></span><span class="mono" style="color:var(--muted-2)">#946312</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#cda44f"></span><span class="mono" style="color:var(--muted-2)">#CDA44F</span></td></tr>
+      <tr><td class="mono">--warn-soft</td><td>Caution wash</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#f6efe1"></span><span class="mono" style="color:var(--muted-2)">#F6EFE1</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#2a2110"></span><span class="mono" style="color:var(--muted-2)">#2A2110</span></td></tr>
+      <tr><td class="mono">--bad</td><td>Loss / danger</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#a32a30"></span><span class="mono" style="color:var(--muted-2)">#A32A30</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#df7d82"></span><span class="mono" style="color:var(--muted-2)">#DF7D82</span></td></tr>
+      <tr><td class="mono">--bad-soft</td><td>Danger wash</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#f7ebec"></span><span class="mono" style="color:var(--muted-2)">#F7EBEC</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#2a1518"></span><span class="mono" style="color:var(--muted-2)">#2A1518</span></td></tr>
+      <tr><td class="mono">--bad-dark</td><td>Danger hover</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#871f24"></span><span class="mono" style="color:var(--muted-2)">#871F24</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#e8989c"></span><span class="mono" style="color:var(--muted-2)">#E8989C</span></td></tr>
+      <tr><td colspan="4" style="background:var(--subtle);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);padding:7px 14px">On-colour</td></tr>
+      <tr><td class="mono">--on-accent</td><td>Text on accent / danger fills</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#ffffff"></span><span class="mono" style="color:var(--muted-2)">#FFFFFF</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#0a1322"></span><span class="mono" style="color:var(--muted-2)">#0A1322</span></td></tr>
+      <tr><td class="mono">--on-navy</td><td>Text on navy</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#cdd6e6"></span><span class="mono" style="color:var(--muted-2)">#CDD6E6</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#cdd6e6"></span><span class="mono" style="color:var(--muted-2)">#CDD6E6</span></td></tr>
+      <tr><td class="mono">--on-navy-muted</td><td>Muted text on navy</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#8c98b0"></span><span class="mono" style="color:var(--muted-2)">#8C98B0</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#8c98b0"></span><span class="mono" style="color:var(--muted-2)">#8C98B0</span></td></tr>
+      <tr><td colspan="4" style="background:var(--subtle);font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);padding:7px 14px">Meter</td></tr>
+      <tr><td class="mono">--track</td><td>Meter / axis track</td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#cdd5e1"></span><span class="mono" style="color:var(--muted-2)">#CDD5E1</span></td><td><span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--line);vertical-align:middle;margin-right:6px;background:#2a3a55"></span><span class="mono" style="color:var(--muted-2)">#2A3A55</span></td></tr></tbody></table>
+      <div class="bb-note" style="font-size:12px;margin-top:8px">Chart series tokens <span class="mono">--chart-1..5</span> are documented with both themes in <a href="#charts">&#167;Data visualisation</a>.</div>
       <h3 class="bb-sub">Dark theme</h3>
-      <div class="bb-note" style="margin-bottom:12px">The whole system re-themes by setting <span class="mono">data-theme="dark"</span> on the root — semantic tokens flip and every component follows, because none of them hardcode a colour. Initialisation is pre-paint: <span class="mono">/loader.js</span>, loaded synchronously in the head of every page, applies the saved or OS theme before first render on pages marked <span class="mono">&lt;html data-theme-auto&gt;</span> (the token-complete surfaces: this doc, the gallery, e-sign); legacy pages pin light until their stylesheets are converged. A manual choice persists per device. Try it on this page:</div>
+      <div class="bb-note" style="margin-bottom:12px">The whole system re-themes by setting <span class="mono">data-theme="dark"</span> on the root — semantic tokens flip and every component follows, because none of them hardcode a colour. Try it on this page:</div>
       <button class="btn btn-ghost btn-sm" id="themeToggle" aria-pressed="false">Toggle dark theme</button>
+      <div class="bb-rule" style="margin-top:14px"><span class="ic" data-ic="check"></span><div><b>Pre-paint init.</b> <span class="mono">/loader.js</span>, loaded synchronously in the head, applies the saved or OS theme before first render on pages marked <span class="mono">&lt;html data-theme-auto&gt;</span> — the token-complete surfaces: this doc, the gallery, e-sign.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Legacy pins light</b> until its stylesheets are converged.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>The choice persists.</b> A manual selection is saved per device.</div></div>
       <div class="bb-rule" style="margin-top:18px"><span class="ic" data-ic="check"></span><div><b>One source.</b> All tokens live in <span class="mono">/app.css :root</span> — colour primitives and roles plus the scales <span class="mono">--sp-1..7</span> (4/8/12/16/20/26/40), <span class="mono">--r-control/card/panel</span> (4/6/8), <span class="mono">--t-fast/med/slow</span> (150/180/250ms) and <span class="mono">--z-*</span> layers. A screen never hardcodes a hex, radius or spacing — it reads a token, so one edit re-skins everything and a theme is just an override block.</div></div>
     </section>
 
         <section class="bb-sec" id="access">
       <div class="eyebrow">05 — Foundations</div>
       <h2>Accessibility</h2>
-      <div class="lead">Every text/background pair meets WCAG 2.2 AA (4.5:1) or better — in the dark theme as well as the light. Text on accent and danger fills uses <span class="mono">--on-accent</span> (white in light, deep navy in dark): every such pair, hovers included, measures &#8805;5.9:1 light and &#8805;6.5:1 dark. Measured light-theme ratios:</div>
+      <div class="lead">Every text/background pair meets WCAG 2.2 AA (4.5:1) or better — in the dark theme as well as the light. Text on accent and danger fills uses <span class="mono">--on-accent</span> (white in light, deep navy in dark): every such pair, hovers included, measures &#8805;5.9:1 light and &#8805;6.5:1 dark. Measured ratios, both themes (dark pairs against <span class="mono">--panel #0F1B30</span>):</div>
       <table class="bbt">
-        <thead><tr><th>Pair</th><th>Ratio</th><th>Rating</th></tr></thead>
+        <thead><tr><th>Pair</th><th>Light</th><th>Dark</th><th>Rating</th></tr></thead>
         <tbody>
-          <tr><td><span class="dotc" style="background:#0c1626"></span>Ink on white</td><td class="mono">18.1:1</td><td><span class="badge aaa">AAA</span></td></tr>
-          <tr><td><span class="dotc bordered" style="background:#fff"></span>White on navy</td><td class="mono">17.8:1</td><td><span class="badge aaa">AAA</span></td></tr>
-          <tr><td><span class="dotc" style="background:#586273"></span>Muted on white</td><td class="mono">6.2:1</td><td><span class="badge aa">AA</span></td></tr>
-          <tr><td><span class="dotc" style="background:#0a64bc"></span>Accent on white</td><td class="mono">5.9:1</td><td><span class="badge aa">AA</span></td></tr>
-          <tr><td><span class="dotc" style="background:#a32a30"></span>Negative on its soft</td><td class="mono">6.2:1</td><td><span class="badge aa">AA</span></td></tr>
-          <tr><td><span class="dotc" style="background:#0f7a52"></span>Positive on its soft</td><td class="mono">4.8:1</td><td><span class="badge aa">AA</span></td></tr>
-          <tr><td><span class="dotc" style="background:#67738a"></span>Muted 2 on white</td><td class="mono">4.8:1</td><td><span class="badge aa">AA</span></td></tr>
-          <tr><td><span class="dotc" style="background:#67738a"></span>Muted 2 on subtle (table heads)</td><td class="mono">4.5:1</td><td><span class="badge aa">AA</span></td></tr>
+          <tr><td><span class="dotc" style="background:#0c1626"></span>Ink on white</td><td class="mono">18.1:1</td><td class="mono">14.6:1</td><td><span class="badge aaa">AAA</span></td></tr>
+          <tr><td><span class="dotc bordered" style="background:#fff"></span>White on navy</td><td class="mono">17.8:1</td><td class="mono">19.2:1</td><td><span class="badge aaa">AAA</span></td></tr>
+          <tr><td><span class="dotc" style="background:#586273"></span>Muted on white</td><td class="mono">6.2:1</td><td class="mono">7.8:1</td><td><span class="badge aa">AA</span></td></tr>
+          <tr><td><span class="dotc" style="background:#0a64bc"></span>Accent on white</td><td class="mono">5.9:1</td><td class="mono">6.4:1</td><td><span class="badge aa">AA</span></td></tr>
+          <tr><td><span class="dotc" style="background:#a32a30"></span>Negative on its soft</td><td class="mono">6.2:1</td><td class="mono">6.1:1</td><td><span class="badge aa">AA</span></td></tr>
+          <tr><td><span class="dotc" style="background:#0f7a52"></span>Positive on its soft</td><td class="mono">4.8:1</td><td class="mono">5.5:1</td><td><span class="badge aa">AA</span></td></tr>
+          <tr><td><span class="dotc" style="background:#67738a"></span>Muted 2 on white</td><td class="mono">4.8:1</td><td class="mono">5.3:1</td><td><span class="badge aa">AA</span></td></tr>
+          <tr><td><span class="dotc" style="background:#67738a"></span>Muted 2 on subtle (table heads)</td><td class="mono">4.5:1</td><td class="mono">4.9:1</td><td><span class="badge aa">AA</span></td></tr>
+          <tr><td><span class="dotc" style="background:#0a64bc"></span>Focus ring (non-text, WCAG 1.4.11, &#8805;3:1)</td><td class="mono">5.49:1</td><td class="mono">6.88:1</td><td><span class="badge aa">AA</span></td></tr>
         </tbody>
       </table>
       <div class="bb-rule" style="margin-top:18px"><span class="ic" data-ic="check"></span><div><b>Focus is always visible</b> — a 2px solid <span class="mono">accent</span> outline, offset 2px, plus an <span class="mono">accent-soft</span> halo, on every interactive element including menu items. Ring contrast 5.49&#8211;6.88:1 in both themes.</div></div>
@@ -364,7 +409,7 @@
         <tr><td class="mono">&#8984; / Ctrl + K</td><td>Open the documentation search on this page (Up/Down choose, Enter opens, Esc closes).</td></tr>
       </tbody></table>
       <div class="bb-rule" style="margin-top:18px"><span class="ic" data-ic="check"></span><div><b>Real semantics first.</b> A button is a <span class="mono">&lt;button&gt;</span>, a link an <span class="mono">&lt;a&gt;</span>, a table a <span class="mono">&lt;table&gt;</span>. ARIA only fills gaps native elements cannot; every input has a programmatic label — <span class="mono">label[for]</span> + <span class="mono">input[id]</span> in the <span class="mono">.field</span> pattern, <span class="mono">aria-label</span> on standalone search inputs.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Dark theme is first-class.</b> Contrast pairs hold under <span class="mono">data-theme="dark"</span>; the theme follows <span class="mono">prefers-color-scheme</span> on <span class="mono">data-theme-auto</span> pages and a manual choice persists per device (<span class="mono">toggleTheme()</span> in ui.js).</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Dark theme is first-class.</b> See the Dark column above; the theme follows <span class="mono">prefers-color-scheme</span> on <span class="mono">data-theme-auto</span> pages and a manual choice persists per device (<span class="mono">toggleTheme()</span> in ui.js).</div></div>
 
     </section>
 
@@ -372,17 +417,23 @@
       <div class="eyebrow">06 — Identity</div>
       <h2>Typography</h2>
       <div class="lead"><b>Source Serif 4</b> for display — headings, names, large figures. <b>Inter</b> for everything functional — body, labels, controls, data. Stacks fall back to Georgia (serif) and system-sans.</div>
+      <div class="bb-note" style="margin-bottom:14px">This table is the <b>only</b> type scale in the system — one row per <span class="mono">.t-*</span> class in app.css, each rendered live in its own style.</div>
       <table class="bbt">
-        <thead><tr><th>Role</th><th>Family</th><th>Size / line</th><th>Weight / tracking</th></tr></thead>
+        <thead><tr><th>Role</th><th>Class</th><th>Spec</th><th>Sample</th></tr></thead>
         <tbody>
-          <tr><td style="font-family:var(--serif);font-size:18px">Display</td><td>Source Serif 4</td><td class="mono">34–46 / 1.1</td><td class="mono">500 · −1.5%</td></tr>
-          <tr><td style="font-family:var(--serif);font-weight:600">Heading</td><td>Source Serif 4</td><td class="mono">17–28 / 1.2</td><td class="mono">600</td></tr>
-          <tr><td style="font-family:var(--serif);font-variant-numeric:tabular-nums">Figure $1.24B</td><td>Source Serif 4</td><td class="mono">18–30 / 1.0</td><td class="mono">500 · tabular</td></tr>
-          <tr><td style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Eyebrow</td><td>Inter</td><td class="mono">11 / 1.4</td><td class="mono">600 · +16% · UPPER</td></tr>
-          <tr><td style="font-size:14px">Body copy</td><td>Inter</td><td class="mono">14 / 1.6</td><td class="mono">400</td></tr>
-          <tr><td style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2)">Label</td><td>Inter</td><td class="mono">10.5–11 / 1.4</td><td class="mono">600 · +10% · UPPER</td></tr>
-          <tr><td style="font-variant-numeric:tabular-nums">Data 241.55</td><td>Inter</td><td class="mono">13 / 1.5</td><td class="mono">400 · tabular</td></tr>
-          <tr><td style="font-size:13.5px">Control / input</td><td>Inter</td><td class="mono">13.5 / 1.5</td><td class="mono">400</td></tr>
+          <tr><td>Hero / cover headline</td><td class="mono">.t-display</td><td class="mono">serif 500 clamp(30,4.6vw,44)/1.14 &#8722;1%</td><td><span class="t-display">Aa</span></td></tr>
+          <tr><td>Page title</td><td class="mono">.t-h1</td><td class="mono">serif 500 clamp(26,3.6vw,38)/1.15 &#8722;1%</td><td><span class="t-h1">Aa</span></td></tr>
+          <tr><td>Section heading</td><td class="mono">.t-h2</td><td class="mono">serif 600 22/1.3</td><td><span class="t-h2">Overview</span></td></tr>
+          <tr><td>Card / row heading</td><td class="mono">.t-h3</td><td class="mono">serif 600 17/1.35</td><td><span class="t-h3">Anthropic</span></td></tr>
+          <tr><td>Large figures</td><td class="mono">.t-figure</td><td class="mono">serif 500 clamp(18,2.4vw,30)/1.05 tabular</td><td><span class="t-figure">$1.24B</span></td></tr>
+          <tr><td>App body</td><td class="mono">.t-body</td><td class="mono">Inter 400 14/1.6</td><td><span class="t-body">Body copy</span></td></tr>
+          <tr><td>Long-form reading</td><td class="mono">.t-read</td><td class="mono">Inter 400 16.5/1.75 (16 &#8804;640)</td><td><span class="t-read">Reading text</span></td></tr>
+          <tr><td>Secondary text</td><td class="mono">.t-small</td><td class="mono">Inter 400 12.5/1.5 muted</td><td><span class="t-small">Secondary note</span></td></tr>
+          <tr><td>Eyebrow</td><td class="mono">.t-eyebrow</td><td class="mono">Inter 600 11/1.4 +16% UPPER</td><td><span class="t-eyebrow">Fund administration</span></td></tr>
+          <tr><td>Column / field label</td><td class="mono">.t-label</td><td class="mono">Inter 600 11/1.4 +10% UPPER</td><td><span class="t-label">Committed</span></td></tr>
+          <tr><td>Dense table / data cells</td><td class="mono">.t-data</td><td class="mono">Inter 400 13/1.5</td><td><span class="t-data t-num">241.55</span></td></tr>
+          <tr><td>Inputs &amp; controls</td><td class="mono">.t-control</td><td class="mono">Inter 400 13.5/1.5</td><td><span class="t-control">Search deals</span></td></tr>
+          <tr><td>Any number</td><td class="mono">.t-num</td><td class="mono">tabular-nums</td><td><span class="t-num">1,240.55</span></td></tr>
         </tbody>
       </table>
       <div class="bb-rule" style="margin-top:16px"><span class="ic" data-ic="check"></span><div><b>Measure</b> — body copy max ~660px (≈70 characters). Numbers always tabular and right-aligned in tables.</div></div>
@@ -391,7 +442,7 @@
         <section class="bb-sec" id="layout">
       <div class="eyebrow">07 — System</div>
       <h2>Layout, grid &amp; mobile</h2>
-      <div class="lead">A centred 1280px column on a 12-column grid, generous padding, structure drawn entirely with 1px hairlines. Grids are built by a 1px gap over the line colour, so cards and tables read as ruled paper.</div>
+      <div class="lead">A centred 1280px column on a 12-column grid, generous padding, structure drawn entirely with 1px hairlines. Grids are built by a 1px gap over the line colour, so cards and tables read as ruled paper. The numeric norms live in <a href="#contract">&#167;Layout contract</a>; this section shows them applied.</div>
       <h3 class="bb-sub">12-column grid · 24px gutter</h3>
       <div class="grid-demo"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
       <h3 class="bb-sub">Breakpoints</h3>
@@ -423,7 +474,7 @@
           <tr><td>Filters / controls</td><td>The sticky page-head wraps to two rows; search goes full-width</td></tr>
           <tr><td>Modals &amp; drawers</td><td>Full-width sheets with 16px margins; the drawer spans up to 92vw</td></tr>
           <tr><td>Confidential cover</td><td>The split <span class="mono">.gate</span> stacks — cover band on top, request-access form below</td></tr>
-          <tr><td>Type</td><td>Display 34→27px; labels &#8805;11px, body &#8805;14px. Exception: the compact deal-row (dense-list composition) floors at 9px labels / 10px values — a deliberate, frozen trade-off</td></tr>
+          <tr><td>Type</td><td>Display floors at 30px (its clamp — see <a href="#type">&#167;Typography</a>); labels &#8805;11px, body &#8805;14px. Exception: the dense deal-row floors at 9px labels / 10px values — see <a href="#contract">&#167;Layout contract</a> &#8594; Density</td></tr>
           <tr><td>Touch targets</td><td>≥ 44px tap height, ≥ 8px apart; no hover-only affordances; respect safe-area insets</td></tr>
         </tbody>
       </table>
@@ -505,9 +556,9 @@
     </section>
 
             <section class="bb-sec" id="contract">
-      <div class="eyebrow">08 — System</div>
+      <div class="eyebrow">08 — System · normative</div>
       <h2>Layout contract</h2>
-      <div class="lead">The numeric contract every SVIC screen obeys. <b>What is not written here is forbidden.</b> A new page is assembled from a skeleton, the container whitelist, the rhythm table and the type scale — it never invents a size. Enforcement: font sizes and containers are linted on every page (0ds) — new pages strict against the published scale, legacy pinned in <span class="mono">design-scale-baseline.txt</span>, which can only shrink; padding and gap follow the <span class="mono">--sp-*</span> guidance scale (not yet machine-enforced).</div>
+      <div class="lead">The numeric contract every SVIC screen obeys. <b>What is not written here is forbidden.</b> A new page is assembled from a skeleton, the container whitelist, the rhythm table and the type scale — it never invents a size. Enforcement: <a href="#govern">&#167;Governance</a>, R-2&#8211;R-3.</div>
 
       <h3 class="bb-sub">Containers — the whitelist</h3>
       <table class="bbt">
@@ -522,10 +573,10 @@
       <div class="bb-note" style="margin-top:8px">Side padding is part of the container: <span class="mono">26px</span> desktop, <span class="mono">18px</span> &#8804;640. Any other <span class="mono">max-width</span> on a page is a lint failure.</div>
 
       <div class="bb-rule" style="margin-top:14px"><span class="ic" data-ic="check"></span><div><b>The chrome shares the content grid — nothing overhangs the content column.</b> Every horizontal band — the top bar, the page content, any sticky control bar — sits in the <b>same</b> container. The top bar's inner row (<span class="mono">.topbar-in</span>) uses the <b>same</b> <span class="mono">max-width</span> and side padding as the content below it, so the burger and brand line up with the content's left edge and the right-side controls (search/social) line up with its right edge. The bar's controls sticking out past the content column is a bug, not a style — the left edge of the burger must equal the left edge of the first content block, and the right edge of the last control must equal the content's right edge.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>On a skinned surface, align the chrome to the skin's grid — not the 1280 default.</b> A skin surface (&#167;21) may carry a narrower content grid than the <span class="mono">1280</span> default — e.g. the WP media skin centres its content at <span class="mono">~1160px</span>. There the DS top bar must be aligned to <b>that</b> grid: measure the skin's content <span class="mono">max-width</span> (render it, read the left edge of the content column at a known viewport) and set <span class="mono">.topbar-in</span> to match — never leave the 1280 bar overhanging a 1160 column. The canonical <span class="mono">1280</span> stays for native DS pages; only the skinned chrome is re-fitted.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>On a skinned surface, align the chrome to the skin's grid — not the 1280 default.</b> A skin surface (<a href="#skinning">&#167;Skinning</a>) may carry a narrower content grid than the <span class="mono">1280</span> default — e.g. the WP media skin centres its content at <span class="mono">~1160px</span>. There the DS top bar must be aligned to <b>that</b> grid: measure the skin's content <span class="mono">max-width</span> (render it, read the left edge of the content column at a known viewport) and set <span class="mono">.topbar-in</span> to match — never leave the 1280 bar overhanging a 1160 column. The canonical <span class="mono">1280</span> stays for native DS pages; only the skinned chrome is re-fitted.</div></div>
 
       <h3 class="bb-sub">Grid</h3>
-      <div class="bb-note"><span class="mono">12</span> columns, <span class="mono">24px</span> gutter (<span class="mono">--grid-cols / --grid-gutter</span>) inside a <span class="mono">.w-app</span> container. Hairline grids (cards, terms) build from <span class="mono">gap:1px</span> over the line colour. Columns per breakpoint: 12 desktop &#183; collapse to 2-up &#8804;900 &#183; single column &#8804;640.</div>
+      <div class="bb-note"><span class="mono">12</span> columns, <span class="mono">24px</span> gutter (<span class="mono">--grid-cols / --grid-gutter</span>) inside a <span class="mono">.w-app</span> container. Hairline grids (cards, terms) build from <span class="mono">gap:1px</span> over the line colour. Columns per breakpoint: per the Breakpoints table above.</div>
 
       <h3 class="bb-sub">Vertical rhythm — what separates what</h3>
       <table class="bbt">
@@ -538,26 +589,8 @@
         </tbody>
       </table>
 
-      <h3 class="bb-sub">Type scale — the classes</h3>
-      <table class="bbt">
-        <thead><tr><th>Class</th><th>Spec</th><th>Role</th></tr></thead>
-        <tbody>
-          <tr><td class="mono">.t-display</td><td class="mono">serif 500 clamp(30,4.6vw,44)/1.14 &#8722;1%</td><td>Hero / cover headline</td></tr>
-          <tr><td class="mono">.t-h1</td><td class="mono">serif 500 clamp(26,3.6vw,38)/1.15 &#8722;1%</td><td>Page title</td></tr>
-          <tr><td class="mono">.t-h2</td><td class="mono">serif 600 22/1.3</td><td>Section heading</td></tr>
-          <tr><td class="mono">.t-h3</td><td class="mono">serif 600 17/1.35</td><td>Card / row heading</td></tr>
-          <tr><td class="mono">.t-figure</td><td class="mono">serif 500 clamp(18,2.4vw,30)/1.05 tabular</td><td>Large figures</td></tr>
-          <tr><td class="mono">.t-body</td><td class="mono">Inter 400 14/1.6</td><td>App body</td></tr>
-          <tr><td class="mono">.t-read</td><td class="mono">Inter 400 16.5/1.75 (16 &#8804;640)</td><td>Long-form reading</td></tr>
-          <tr><td class="mono">.t-small</td><td class="mono">Inter 400 12.5/1.5 muted</td><td>Secondary text</td></tr>
-          <tr><td class="mono">.t-eyebrow</td><td class="mono">Inter 600 11/1.4 +16% UPPER</td><td>Eyebrow</td></tr>
-          <tr><td class="mono">.t-label</td><td class="mono">Inter 600 11/1.4 +10% UPPER</td><td>Column / field label</td></tr>
-          <tr><td class="mono">.t-data</td><td class="mono">Inter 400 13/1.5</td><td>Dense table / data cells</td></tr>
-          <tr><td class="mono">.t-control</td><td class="mono">Inter 400 13.5/1.5</td><td>Inputs &amp; controls</td></tr>
-          <tr><td class="mono">.t-num</td><td class="mono">tabular-nums</td><td>Any number</td></tr>
-        </tbody>
-      </table>
-      <div class="bb-note" style="margin-top:8px">New screens take text styles ONLY from this scale. A font-size outside this scale (plus the component sizes published in app.css) fails 0ds on new pages; legacy is baseline-pinned.</div>
+      <h3 class="bb-sub">Type scale</h3>
+      <div class="bb-note">New screens take text styles ONLY from the <a href="#type">&#167;Typography</a> scale (<span class="mono">.t-*</span> classes), plus the component sizes published in app.css. A font-size outside the scale fails 0ds on new pages; legacy is baseline-pinned — <a href="#govern">&#167;Governance</a>, R-2.</div>
 
       <h3 class="bb-sub">Media embeds in content</h3>
       <table class="bbt">
@@ -571,35 +604,31 @@
       </table>
 
       <h3 class="bb-sub">Top-line preloader — mandatory on every page (R-11)</h3>
-      <div class="bb-note">The 2px accent line pinned to the <b>very top of the viewport, above the top bar</b> is the global load indicator: track <span class="mono">--accent-track</span>, fill <span class="mono">accent&#8594;--accent-mid&#8594;accent</span> (both dark-aware), driven by <span class="mono">--page-progress</span>. <b>Every page includes <span class="mono">/loader.js</span></b> (auto-runs: 8% at parse &#8594; 38% @140ms &#8594; 72% at DOMContentLoaded &#8594; 100% at load &#8594; fade 480ms). It is a fixed standalone bar (<span class="mono">#ds-loader</span>) on every page; <span class="mono">[data-progress-host]</span> is a rare escape hatch to host the line on another element instead. Programmatic milestones: <span class="mono">dsLoaderSet(0..100)</span> / ui.js <span class="mono">setProgress</span>. Own progress bars are forbidden; lint 0du enforces the include.</div>
+      <div class="bb-note">The 2px accent line pinned to the <b>very top of the viewport, above the top bar</b> is the global load indicator: track <span class="mono">--accent-track</span>, fill <span class="mono">accent&#8594;--accent-mid&#8594;accent</span> (both dark-aware), driven by <span class="mono">--page-progress</span>. <b>Every page includes <span class="mono">/loader.js</span></b> (auto-runs: 8% at parse &#8594; 38% @140ms &#8594; 72% at DOMContentLoaded &#8594; 100% at load &#8594; fade 480ms). It is a fixed standalone bar (<span class="mono">#ds-loader</span>) on every page; <span class="mono">[data-progress-host]</span> is a rare escape hatch to host the line on another element instead. Programmatic milestones: <span class="mono">dsLoaderSet(0..100)</span> / ui.js <span class="mono">setProgress</span>, and <span class="mono">startProgress()</span> / <span class="mono">doneProgress()</span> for fetch-level work. No spinners thrown over content for page-level loads. Own progress bars are forbidden; lint 0du enforces the include.</div>
 
       <h3 class="bb-sub">Page skeletons</h3>
-      <div class="bb-note">Every new page starts from a skeleton in <a href="/_gallery.html#skeletons">the gallery</a> — App list &#183; Article &#183; Form &#183; Auth gate &#183; Data table. A page that does not start from a skeleton is a review failure (R-10). Skin surfaces (WP media, marketplace) keep their frozen grids — see &#167;Skinning.</div>
-    </section>
-
-            <section class="bb-sec" id="spacing">
-      <div class="eyebrow">09 — System</div>
-      <h2>Space &amp; grid</h2>
-      <div class="lead">Rhythm comes from one spacing scale, a small set of radii and a single content width — never a magic number. Every gap and pad is a step on the scale.</div>
+      <div class="bb-note">Every new page starts from a skeleton in <a href="/_gallery.html#skeletons">the gallery</a> — App list &#183; Article &#183; Form &#183; Auth gate &#183; Data table. A page that does not start from a skeleton is a review failure (R-10). Skin surfaces (WP media, marketplace) keep their frozen grids — see <a href="#skinning">&#167;Skinning</a>.</div>
+      <h3 class="bb-sub">Space &amp; radii</h3>
       <h3 class="bb-sub">Spacing scale</h3>
-      <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:6px"><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:4px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10px;color:var(--muted-2);margin-top:5px">4</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:8px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10px;color:var(--muted-2);margin-top:5px">8</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:12px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10px;color:var(--muted-2);margin-top:5px">12</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:16px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10px;color:var(--muted-2);margin-top:5px">16</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:20px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10px;color:var(--muted-2);margin-top:5px">20</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:26px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10px;color:var(--muted-2);margin-top:5px">26</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:40px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10px;color:var(--muted-2);margin-top:5px">40</div></div></div>
+      <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:6px"><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:4px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10.5px;color:var(--muted-2);margin-top:5px">4</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:8px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10.5px;color:var(--muted-2);margin-top:5px">8</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:12px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10.5px;color:var(--muted-2);margin-top:5px">12</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:16px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10.5px;color:var(--muted-2);margin-top:5px">16</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:20px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10.5px;color:var(--muted-2);margin-top:5px">20</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:26px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10.5px;color:var(--muted-2);margin-top:5px">26</div></div><div style="display:flex;flex-direction:column;align-items:flex-start"><div style="width:40px;height:18px;background:var(--accent);border-radius:2px"></div><div class="mono" style="font-size:10.5px;color:var(--muted-2);margin-top:5px">40</div></div></div>
       <div class="bb-note" style="font-size:12px">Steps in px. Component padding 16–26, gaps 8–16, sections 34–40 apart.</div>
       <h3 class="bb-sub">Radii</h3>
       <div style="display:flex;gap:22px;flex-wrap:wrap"><div><div style="width:56px;height:38px;border:1px solid var(--line);border-radius:4px;background:var(--subtle)"></div><div class="mono" style="font-size:10.5px;color:var(--muted-2);margin-top:6px">4px · control</div></div><div><div style="width:56px;height:38px;border:1px solid var(--line);border-radius:6px;background:var(--subtle)"></div><div class="mono" style="font-size:10.5px;color:var(--muted-2);margin-top:6px">6px · card</div></div><div><div style="width:56px;height:38px;border:1px solid var(--line);border-radius:8px;background:var(--subtle)"></div><div class="mono" style="font-size:10.5px;color:var(--muted-2);margin-top:6px">8px · panel</div></div></div>
-      <div class="bb-rule" style="margin-top:18px"><span class="ic" data-ic="check"></span><div><b>Containers come from the whitelist.</b> The &#167;08 Layout-contract whitelist is the only source of content widths — <span class="mono">1280</span> default, <span class="mono">768</span> reading, <span class="mono">560</span> form, <span class="mono">1400</span> wide data — padded <span class="mono">40px 26px</span>; grids build from <span class="mono">gap:1px</span> on a line-coloured field, so panels read as a ruled sheet.</div></div>
+      <div class="bb-rule" style="margin-top:18px"><span class="ic" data-ic="check"></span><div><b>Containers come from the whitelist.</b> The <a href="#contract">&#167;Layout-contract</a> whitelist is the only source of content widths — <span class="mono">1280</span> default, <span class="mono">768</span> reading, <span class="mono">560</span> form, <span class="mono">1400</span> wide data — padded <span class="mono">40px 26px</span>; grids build from <span class="mono">gap:1px</span> on a line-coloured field, so panels read as a ruled sheet.</div></div>
       <h3 class="bb-sub">Breakpoints</h3>
       <div class="bb-note">One set, defined once: <b>&#8804; 640</b> mobile · <b>641&#8211;900</b> compact · <b>&gt; 900</b> desktop. 900px is the structural breakpoint; 640px adjusts container padding and reading sizes; <span class="mono">.market-row.compact</span> is applied by the page, not a breakpoint. Full behaviour table in &#167;Layout.</div>
     </section>
 
-    <section class="bb-sec" id="icons">
-      <div class="eyebrow">10 — System</div>
+
+<section class="bb-sec" id="icons">
+      <div class="eyebrow">09 — Identity</div>
       <h2>Iconography</h2>
       <div class="lead">One line style. Inline SVG, 1.6–2px stroke, <span class="mono">currentColor</span>, 16–22px. No emoji, no filled glyphs, no second icon library. Icons inherit text colour and only carry the accent on interactive states. Pair an icon with a label wherever meaning could be ambiguous.</div>
       <div class="ico-grid" id="icoGrid"></div>
     </section>
 
         <section class="bb-sec" id="components">
-      <div class="eyebrow">11 — Components</div>
+      <div class="eyebrow">10 — Components</div>
       <h2>Components</h2>
       <div class="lead">Every component is defined once in <span class="mono">/app.css</span> and reused verbatim, with default / hover / focus / disabled / loading states. Components are stable unless tagged otherwise; additions ship with a since-version tag and all states. The full living set is in the <a class="cell-link" href="/_gallery.html">component gallery</a> — and every demo below has a <b>View code</b> toggle generated from the live example.</div>
       <h3 class="bb-sub">Buttons</h3>
@@ -608,6 +637,14 @@
       </div>
       <h3 class="bb-sub">States &amp; interaction</h3>
       <div class="bb-note" style="margin-bottom:13px">Every interactive component ships the full set of states — visible and consistent. Focus is never removed, disabled is never a dead mystery, loading never leaves the user guessing.</div>
+      <table class="bbt" style="margin-bottom:14px"><thead><tr><th>Component</th><th>hover</th><th>focus</th><th>disabled</th><th>loading</th><th>empty</th><th>error</th></tr></thead><tbody>
+        <tr><td>Button</td><td class="mono">&#10003;</td><td class="mono">&#10003;</td><td class="mono">&#10003;</td><td class="mono">&#10003;</td><td class="mono">—</td><td class="mono">—</td></tr>
+        <tr><td>Field / select / textarea</td><td class="mono">&#10003;</td><td class="mono">&#10003;</td><td class="mono">&#10003;</td><td class="mono">—</td><td class="mono">—</td><td class="mono">&#10003;</td></tr>
+        <tr><td>Table row / deal row</td><td class="mono">&#10003;</td><td class="mono">&#10003;</td><td class="mono">—</td><td class="mono">skeleton</td><td class="mono">&#10003;</td><td class="mono">banner</td></tr>
+        <tr><td>Tabs / pagination</td><td class="mono">&#10003;</td><td class="mono">&#10003;</td><td class="mono">&#10003;</td><td class="mono">—</td><td class="mono">—</td><td class="mono">—</td></tr>
+        <tr><td>Menu item</td><td class="mono">&#10003;</td><td class="mono">&#10003;</td><td class="mono">&#10003;</td><td class="mono">—</td><td class="mono">—</td><td class="mono">danger</td></tr>
+        <tr><td>Toast / banner</td><td class="mono">—</td><td class="mono">&#10003;</td><td class="mono">—</td><td class="mono">—</td><td class="mono">—</td><td class="mono">semantic</td></tr>
+      </tbody></table>
       <div data-code style="display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:16px">
         <div style="background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:11px;align-items:flex-start"><button class="btn btn-primary btn-sm">Save</button><div class="eyebrow">Default</div></div>
         <div style="background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:11px;align-items:flex-start"><button class="btn btn-primary btn-sm" style="background:var(--accent-dark);border-color:var(--accent-dark)">Save</button><div class="eyebrow">Hover</div></div>
@@ -615,19 +652,39 @@
         <div style="background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:11px;align-items:flex-start"><button class="btn btn-primary btn-sm" disabled>Save</button><div class="eyebrow">Disabled</div></div>
         <div style="background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:11px;align-items:flex-start"><button class="btn btn-primary btn-sm loading"><span class="spin"></span> Saving</button><div class="eyebrow">Loading</div></div>
       </div>
+      <table class="bbt" style="margin-bottom:16px">
+        <thead><tr><th>Component</th><th>Hover</th><th>Focus</th><th>Disabled</th><th>Loading</th><th>Empty</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">.btn</td><td class="mono">--accent-dark fill</td><td class="mono">ring</td><td class="mono">opacity .45</td><td class="mono">.loading + .spin</td><td class="mono">n/a</td></tr>
+          <tr><td class="mono">.iconbtn</td><td class="mono">--subtle fill</td><td class="mono">ring</td><td class="mono">n/a</td><td class="mono">n/a</td><td class="mono">n/a</td></tr>
+          <tr><td class="mono">.field input / select / textarea</td><td class="mono">—</td><td class="mono">--accent border + halo</td><td class="mono">native dim (demo above)</td><td class="mono">n/a</td><td class="mono">n/a</td></tr>
+          <tr><td class="mono">.tab</td><td class="mono">--ink text</td><td class="mono">ring</td><td class="mono">n/a</td><td class="mono">n/a</td><td class="mono">n/a</td></tr>
+          <tr><td class="mono">.seg button</td><td class="mono">--subtle fill</td><td class="mono">ring</td><td class="mono">n/a</td><td class="mono">n/a</td><td class="mono">n/a</td></tr>
+          <tr><td class="mono">.menu-item</td><td class="mono">--subtle fill</td><td class="mono">ring</td><td class="mono">n/a</td><td class="mono">n/a</td><td class="mono">n/a</td></tr>
+          <tr><td class="mono">.dlflag</td><td class="mono">inset line</td><td class="mono">ring</td><td class="mono">n/a</td><td class="mono">n/a</td><td class="mono">n/a</td></tr>
+          <tr><td class="mono">.market-row</td><td class="mono">--subtle wash</td><td class="mono">via its controls</td><td class="mono">n/a</td><td class="mono">skeleton rows</td><td><a href="#patterns">&#167;Patterns</a> &#8594; four states</td></tr>
+          <tr><td class="mono">.pagination button</td><td class="mono">--accent border</td><td class="mono">ring</td><td class="mono">opacity .4</td><td class="mono">n/a</td><td class="mono">n/a</td></tr>
+          <tr><td class="mono">table.data row</td><td class="mono">--subtle wash</td><td class="mono">via its controls</td><td class="mono">n/a</td><td class="mono">skeleton rows</td><td><a href="#patterns">&#167;Patterns</a> &#8594; four states</td></tr>
+          <tr><td class="mono">.tb-link</td><td class="mono">#fff text</td><td class="mono">ring</td><td class="mono">n/a</td><td class="mono">n/a</td><td class="mono">n/a</td></tr>
+        </tbody>
+      </table>
+      <div class="bb-note" style="font-size:12px;margin-bottom:16px">Focus for every interactive component is the one global <span class="mono">:focus-visible</span> ring, defined once in app.css. Live variants of every state — in <a href="/_gallery.html">the gallery</a>.</div>
       <h3 class="bb-sub">Field states</h3>
       <div data-code style="display:flex;flex-wrap:wrap;gap:14px;max-width:660px">
         <div class="field" style="flex:1;min-width:128px;margin-bottom:0"><label for="fs-default">Default</label><input id="fs-default" type="text" value="$50M"></div>
         <div class="field" style="flex:1;min-width:128px;margin-bottom:0"><label for="fs-focus">Focus</label><input id="fs-focus" type="text" value="$50M" style="border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)"></div>
         <div class="field invalid" style="flex:1;min-width:128px;margin-bottom:0"><label for="fs-error">Error</label><input id="fs-error" type="text" value="$90K"><div class="error">Below $100K minimum</div></div>
         <div class="field" style="flex:1;min-width:128px;margin-bottom:0"><label for="fs-disabled">Disabled</label><input id="fs-disabled" type="text" value="Locked" disabled></div>
+        <div class="field" style="flex:1;min-width:128px;margin-bottom:0"><label for="fs-select">Select</label><select id="fs-select"><option>Direct</option><option>SPV</option></select></div>
+        <div class="field" style="flex:1 1 100%;margin-bottom:0"><label for="fs-textarea">Textarea</label><textarea id="fs-textarea" rows="2">Notes from the call&#8230;</textarea></div>
       </div>
+      <div class="bb-note" style="font-size:12px;margin-top:8px">Select and textarea inherit the same field chrome and the same states (focus / error / disabled). <span class="mono">.fsel</span> is the compact select for the filter bar (<a href="#patterns">&#167;Patterns</a> &#8594; Filter bar), not for forms. Every control carries <span class="mono">label[for]</span>.</div>
       <h3 class="bb-sub">Status pills</h3>
       <div data-code style="display:flex;gap:8px;flex-wrap:wrap">
         <span class="tag ready"><span class="dot"></span>Ready</span><span class="tag active"><span class="dot"></span>Active</span><span class="tag pending"><span class="dot"></span>Pending</span><span class="tag revoked"><span class="dot"></span>Revoked</span><span class="tag neutral"><span class="dot"></span>Draft</span>
       </div>
       <h3 class="bb-sub">Banner — inline alert <span class="tag neutral" style="margin-left:6px;vertical-align:2px">since 2.1</span></h3>
-      <div class="bb-note" style="margin-bottom:13px">A persistent page-level notice (a toast is transient). Hairline border, a 3px semantic left rule, an icon and plain prose — never a saturated fill.</div>
+      <div class="bb-note" style="margin-bottom:13px">A persistent page-level notice (a toast is transient). Hairline border, a 3px semantic left rule, an icon and plain prose — never a saturated fill. Injected dynamically it carries <span class="mono">role="status"</span> (<span class="mono">.bad</span> — <span class="mono">role="alert"</span>); present at load it needs no role.</div>
       <div data-code style="display:flex;flex-direction:column;gap:10px;max-width:660px">
         <div class="banner"><span data-ic="info"></span><div><span class="bt">Sync scheduled.</span> The next Notion push is scheduled for 6:00 PST.</div></div>
         <div class="banner ok"><span data-ic="check"></span><div><span class="bt">Backfill complete.</span> 412 rows updated; the audit log has the diff.</div></div>
@@ -651,19 +708,19 @@
       </div>
 
       <h3 class="bb-sub">Tooltip <span class="tag neutral" style="margin-left:6px;vertical-align:2px">since 2.1</span></h3>
-      <div class="bb-note" style="margin-bottom:13px">A short label on hover/focus via <span class="mono">data-tip</span> — for icon buttons and truncated values. One line only; anything longer belongs in a <span class="mono">.hint</span> or the page itself.</div>
+      <div class="bb-note" style="margin-bottom:13px">A short label on hover/focus via <span class="mono">data-tip</span> — for icon buttons and truncated values. One line only; anything longer belongs in a <span class="mono">.hint</span> or the page itself. The tip is bound via <span class="mono">aria-describedby</span>, stays visible while hovered and dismisses on Esc (WCAG 1.4.13).</div>
       <div data-code style="padding:34px 0 4px;display:flex;gap:12px;align-items:center">
         <button class="btn btn-ghost btn-sm" data-tip="Refresh the feed">Hover me</button>
         <button class="iconbtn" data-ic="download" data-tip="Download CSV"></button>
       </div>
 
       <h3 class="bb-sub">Stepper <span class="tag neutral" style="margin-left:6px;vertical-align:2px">since 2.1</span></h3>
-      <div class="bb-note" style="margin-bottom:13px">Linear multi-step progress — onboarding, e-sign, wizards. Done steps get the positive wash, the current step the accent; future steps stay quiet.</div>
+      <div class="bb-note" style="margin-bottom:13px">Linear multi-step progress — onboarding, e-sign, wizards. Done steps get the positive wash, the current step the accent; future steps stay quiet. The current step carries <span class="mono">aria-current="step"</span>.</div>
       <div data-code style="max-width:560px">
         <div class="steps">
           <div class="step done"><span class="n" data-ic="check"></span>Terms</div>
           <div class="step done"><span class="n" data-ic="check"></span>Documents</div>
-          <div class="step on"><span class="n">3</span>Signatures</div>
+          <div class="step on" aria-current="step"><span class="n">3</span>Signatures</div>
           <div class="step"><span class="n">4</span>Funding</div>
         </div>
       </div>
@@ -696,9 +753,9 @@
       </div>
 
       <h3 class="bb-sub">Pagination <span class="tag neutral" style="margin-left:6px;vertical-align:2px">since 2.3</span></h3>
-      <div class="bb-note" style="margin-bottom:13px">Numbered pages with Prev/Next and a range readout; the current page carries the navy fill. Page state lives in the URL (&#167;URLs).</div>
+      <div class="bb-note" style="margin-bottom:13px">Numbered pages with Prev/Next and a range readout; the current page carries the navy fill. Page state lives in the URL (<a href="#urls-addressable-state">&#167;URLs</a>). Wrap in <span class="mono">nav[aria-label="Pagination"]</span>; the current page carries <span class="mono">aria-current="page"</span>.</div>
       <div data-code style="max-width:560px">
-        <div class="pagination"><button disabled>Prev</button><button class="on">1</button><button>2</button><button>3</button><span class="pinfo">1&#8211;50 of 128</span><button>Next</button></div>
+        <div class="pagination"><button disabled>Prev</button><button class="on" aria-current="page">1</button><button>2</button><button>3</button><span class="pinfo">1&#8211;50 of 128</span><button>Next</button></div>
       </div>
 
       <h3 class="bb-sub">Tabs <span class="tag neutral" style="margin-left:6px;vertical-align:2px">since 2.3</span></h3>
@@ -711,15 +768,17 @@
         </div>
       </div>
 
-      <h3 class="bb-sub">Switch &amp; checkbox <span class="tag neutral" style="margin-left:6px;vertical-align:2px">since 2.3</span></h3>
-      <div class="bb-note" style="margin-bottom:13px">A switch flips a setting immediately; a checkbox is a form value submitted later. Both are real inputs — the switch input is visually hidden, the <span class="mono">.track</span> is the pill; focus rings per &#167;05.</div>
+      <h3 class="bb-sub">Switch, checkbox &amp; radio <span class="tag neutral" style="margin-left:6px;vertical-align:2px">since 2.3</span></h3>
+      <div class="bb-note" style="margin-bottom:13px">A switch flips a setting immediately; a checkbox is a form value submitted later. Both are real inputs — the switch input is visually hidden, the <span class="mono">.track</span> is the pill; focus rings per <a href="#access">&#167;Accessibility</a>. Radio is one choice from 2&#8211;5 visible options (more — a select); a radio group is wrapped in <span class="mono">fieldset</span> with a <span class="mono">legend</span>.</div>
       <div data-code style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
         <label class="switch"><input type="checkbox" checked aria-label="Auto-sync"><span class="track"></span></label>
         <label class="chk"><input type="checkbox" checked> View only</label>
+        <label class="chk"><input type="radio" name="ds-r" checked> Primary</label>
+        <label class="chk"><input type="radio" name="ds-r"> Secondary</label>
       </div>
 
       <h3 class="bb-sub">Chip &amp; toggle tag <span class="tag neutral" style="margin-left:6px;vertical-align:2px">since 2.3</span></h3>
-      <div class="bb-note" style="margin-bottom:13px"><span class="mono">.chip</span> is a quiet inline descriptor (applied filter, source). <span class="mono">.dlflag</span> is a clickable on/off tag for per-row settings — accent wash on, muted off.</div>
+      <div class="bb-note" style="margin-bottom:13px"><span class="mono">.chip</span> is a quiet inline descriptor (applied filter, source). <span class="mono">.dlflag</span> is a clickable on/off tag for per-row settings — accent wash on, muted off. <span class="mono">role="button"</span> on <span class="mono">.dlflag</span> implies <span class="mono">tabindex="0"</span> and Enter/Space activation.</div>
       <div data-code style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span class="chip">Imported</span>
         <span class="tag dlflag on" role="button" tabindex="0">Download</span>
@@ -776,11 +835,11 @@
         </div>
       </div>
       <div class="bb-rule" style="margin-top:16px"><span class="ic" data-ic="check"></span><div><b>Drawer anatomy</b> — navy header (logo + close), a labelled nav list (pinned items such as Fund Admin first, the active item carries an accent left-rule and wash), and a footer with the user name, role and sign-out.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>One trigger, one drawer.</b> Never a second horizontal nav or a competing dropdown. On mobile the drawer is the whole navigation; on documentation pages a sticky left TOC is added.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>One trigger, one drawer.</b> Never a second horizontal nav or a competing dropdown. On mobile the drawer is the whole navigation; on documentation pages a sticky left TOC is added. The doctrine governs the application chrome; the public (marketing) chrome is the single sanctioned exception — its visible menu bar and mega panels are defined in <a href="#public-site">&#167;Public site</a> and never appear inside the app.</div></div>
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>The drawer is a true dialog.</b> <span class="mono">role="dialog"</span>; Esc closes; on open focus enters the <b>panel</b> (<span class="mono">tabindex="-1"</span>) — not the close button, so the close shows no ring at rest — and returns to the burger on close; the close shows its focus ring only on genuine keyboard Tab; the trigger carries <span class="mono">aria-expanded</span>.</div></div>
 
       <h3 class="bb-sub">Menu trigger &amp; close button — exact build (reproduce verbatim)</h3>
-      <div class="bb-note" style="margin-bottom:14px">The burger (menu trigger, <span class="mono">.tb-burger</span>) and the drawer close (<span class="mono">.oc-close</span>) are the navigation's two icon controls. Build them to the table below to the letter — these exact values are what make them render as crisp squares with the correct icon weight on every page. The three recurring mistakes: a host <span class="mono">&lt;button&gt;</span> padding deforming the square into a rectangle, a hand-drawn icon instead of the canonical glyph, and a missing focus ring.</div>
+      <div class="bb-note" style="margin-bottom:14px">The burger (menu trigger, <span class="mono">.tb-burger</span>) and the drawer close (<span class="mono">.oc-close</span>) are the navigation's two icon controls. Build them to the table below to the letter — these exact values are what make them render as crisp squares with the correct icon weight on every page. Three defects to check before shipping: a host <span class="mono">&lt;button&gt;</span> padding deforming the square into a rectangle, a hand-drawn icon instead of the canonical glyph, and a missing focus ring.</div>
       <table class="bbt">
         <thead><tr><th>Property</th><th>Menu trigger — burger</th><th>Close — X</th></tr></thead>
         <tbody>
@@ -790,16 +849,16 @@
           <tr><td>Icon (geometry)</td><td class="mono">ICON.menu — lines x1=3→x2=21 at y 6 / 12 / 18</td><td class="mono">ICON.x — (18,6)-(6,18) + (6,6)-(18,18)</td></tr>
           <tr><td>Icon size · stroke</td><td class="mono">26×26 · stroke 2 · round cap+join</td><td class="mono">20×20 · stroke 2 · round cap</td></tr>
           <tr><td>Icon colour</td><td class="mono">var(--on-navy), hover #fff</td><td class="mono">var(--on-navy-muted), hover #fff</td></tr>
-          <tr><td>Focus (both)</td><td colspan="2" class="mono">§05 ring — outline 2px var(--accent), offset 2px + box-shadow 0 0 0 3px var(--accent-soft)</td></tr>
+          <tr><td>Focus (both)</td><td colspan="2" class="mono"><a href="#access">&#167;Accessibility</a> ring — outline 2px var(--accent), offset 2px + box-shadow 0 0 0 3px var(--accent-soft)</td></tr>
         </tbody>
       </table>
-      <div class="bb-rule" style="margin-top:14px"><span class="ic" data-ic="check"></span><div><b>Both controls are perfect squares.</b> Always set <span class="mono">box-sizing:border-box; padding:0</span> on them. Without it a host page's <span class="mono">&lt;button&gt;</span> padding — often asymmetric (more horizontal than vertical) — stretches the square into a rectangle. This is the single most common defect.</div></div>
+      <div class="bb-rule" style="margin-top:14px"><span class="ic" data-ic="check"></span><div><b>Both controls are perfect squares.</b> Always set <span class="mono">box-sizing:border-box; padding:0</span> on them. Host-page <span class="mono">&lt;button&gt;</span> padding — often asymmetric — is the most common cause of a deformed square.</div></div>
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Icons are the exact <span class="mono">ICON.menu</span> / <span class="mono">ICON.x</span></b> from <span class="mono">ui.js</span> — never hand-drawn. Same line coordinates, <span class="mono">stroke-width 2</span>, round caps; rendered at 26px (burger) and 20px (close) so the stroke reads at full weight.</div></div>
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>The drawer header carries the 2px accent line</b> — <span class="mono">border-bottom:2px solid var(--accent)</span> on <span class="mono">.oc-hdr</span> — a sanctioned accent strip marking the drawer header.</div></div>
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>The current route is the active nav item</b> — <span class="mono">.oc-link.active</span>: accent text, an <span class="mono">--accent-soft</span> wash and a 2px accent left-rule (matched on the longest <span class="mono">href</span> prefix of the current path).</div></div>
 
       <h3 class="bb-sub">Social brand marks</h3>
-      <div class="bb-note" style="margin-bottom:14px">The public-site header's right slot carries the brand's social marks — the canonical <span class="mono">window.SOCIAL</span> set (the recognizable simple-icons brand glyphs). Reproduce them from that source — never hand-draw a brand mark (a hand-built LinkedIn read as a bare "in" and looked wrong).</div>
+      <div class="bb-note" style="margin-bottom:14px">The public-site header's right slot carries the brand's social marks — the canonical <span class="mono">window.SOCIAL</span> set (the recognisable simple-icons brand glyphs). Reproduce them from that source — never hand-draw a brand mark: hand-drawn marks lose the licensed geometry and read as generic glyphs.</div>
       <div data-code style="background:var(--navy);border-radius:6px;padding:16px 20px;display:flex;align-items:center;justify-content:flex-end">
         <div id="ds-social-row" class="tb-social"></div>
       </div>
@@ -815,8 +874,18 @@
           <tr><td class="mono">SOCIAL.LinkedIn · .Facebook · .X · .Instagram · .YouTube</td><td>simple-icons brand glyphs (CC0) — 24-grid, single <span class="mono">&lt;path&gt;</span>, <span class="mono">fill=currentColor</span></td><td class="mono">.tb-social (navy header) · .oc-social (white drawer footer)</td></tr>
         </tbody>
       </table>
-      <div class="bb-rule" style="margin-top:14px"><span class="ic" data-ic="check"></span><div><b>Social marks come from <span class="mono">window.SOCIAL</span> — never hand-drawn.</b> They are the recognizable simple-icons glyphs (the LinkedIn mark is the boxed "in", not a loose glyph). Filled, monochrome <span class="mono">currentColor</span>: <span class="mono">var(--on-navy)</span>→#fff on the navy header, <span class="mono">var(--muted-2)</span>→accent in the white drawer footer. 18px.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Brand marks are the one filled-icon exception.</b> Everywhere else icons are stroke line-icons (§06); social/brand logos cannot be reproduced as thin strokes, so they are filled glyphs — kept monochrome and single-colour so they still read as one restrained family.</div></div>
+      <div class="bb-rule" style="margin-top:14px"><span class="ic" data-ic="check"></span><div><b>Social marks come from <span class="mono">window.SOCIAL</span> — never hand-drawn.</b> They are the recognisable simple-icons glyphs (the LinkedIn mark is the boxed "in", not a loose glyph). Filled, monochrome <span class="mono">currentColor</span>: <span class="mono">var(--on-navy)</span>→#fff on the navy header, <span class="mono">var(--muted-2)</span>→accent in the white drawer footer. 18px.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Brand marks are the one filled-icon exception.</b> Everywhere else icons are stroke line-icons (<a href="#icons">&#167;Iconography</a>); social/brand logos cannot be reproduced as thin strokes, so they are filled glyphs — kept monochrome and single-colour so they still read as one restrained family.</div></div>
+
+      <h3 class="bb-sub">Footer</h3>
+      <div class="bb-note" style="margin-bottom:13px">Every page closes on the navy footer — the canonical artefact behind rule R-4 (<a href="#govern">&#167;Governance</a>). The platform footer is the truncated form of the <a href="#public-site">&#167;Public site</a> footer: one navy strip — reversed logo, the legal line, quiet links — no link columns.</div>
+      <div data-code style="background:var(--navy);border-radius:6px;padding:16px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;color:var(--on-navy-muted);font-size:12px">
+        <img src="https://platform.siliconvalleyinvestclub.com/brandbook-logo-full.png" alt="Silicon Valley Investclub" style="height:14px;filter:brightness(0) invert(1)">
+        <span>&#169; 2026 Silicon Valley Investclub. All rights reserved.</span>
+        <span style="margin-left:auto;display:flex;gap:14px"><a href="#" style="color:var(--on-navy-muted);text-decoration:none">Privacy</a><a href="#" style="color:var(--on-navy-muted);text-decoration:none">Terms</a><a href="#" style="color:var(--on-navy-muted);text-decoration:none">Disclosures</a></span>
+      </div>
+      <div class="bb-rule" style="margin-top:14px"><span class="ic" data-ic="check"></span><div><b>The legal line is mandatory.</b> The footer is the canonical home of the &#169; line and the broker-dealer / 15a-6 / Finalis disclosure on every public page — regulatory copy verbatim, never paraphrased (<a href="#voice">&#167;Content &amp; numbers</a>).</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Anatomy &amp; a11y.</b> <span class="mono">&lt;footer role="contentinfo"&gt;</span>; reversed logo, links in <span class="mono">--on-navy-muted</span> on navy, hairline in <span class="mono">rgba(255,255,255,.12)</span>; the dark theme keeps the same navy tokens — nothing new.</div></div>
 
       <h3 class="bb-sub">URLs &amp; addressable state</h3>
       <div class="bb-note" style="margin-bottom:14px">Every distinct view and every meaningful piece of state has its own URL. A screen is never a dead end you can only reach by clicking — it is a place you can link to, bookmark, share and reopen exactly as it was. State that changes what is shown lives in the path or the query string, not only in memory.</div>
@@ -829,7 +898,7 @@
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Deep links open in context.</b> Loading a deal/record URL opens that item inside its list with the surrounding filters intact — never a bare modal with no way back to the list.</div></div>
 
       <h3 class="bb-sub">Top-of-viewport preloader</h3>
-      <div class="bb-note" style="margin-bottom:14px">Everywhere, a 2px line pinned to the <b>very top of the viewport — above the top bar</b> is the global load indicator (<span class="mono">#ds-loader</span>: <span class="mono">position:fixed;top:0;left:0;right:0</span>, created by <span class="mono">loader.js</span>). It draws left to right as a page or fetch progresses (<span class="mono">--page-progress</span> 0 to 100%), then completes and clears. No spinners thrown over content for page-level loads. Drive it with <span class="mono">startProgress()</span> / <span class="mono">doneProgress()</span> from <span class="mono">ui.js</span>.</div>
+      <div class="bb-note" style="margin-bottom:14px">Full behaviour, milestones and API: <a href="#contract">&#167;Layout contract</a> &#8594; Top-line preloader (R-11).</div>
       <div data-code style="border:1px solid var(--line);border-radius:6px;overflow:hidden">
         <div style="height:2px;background:var(--accent-track)"><div style="height:2px;width:62%;background:var(--accent)"></div></div>
         <div class="topbar" style="position:static">
@@ -842,7 +911,7 @@
     </section>
 
         <section class="bb-sec" id="patterns">
-      <div class="eyebrow">12 — Components</div>
+      <div class="eyebrow">11 — Components</div>
       <h2>Patterns</h2>
       <div class="lead">Patterns are how components combine to solve a recurring job — a form, a list, a filter, a moment of waiting. They are not new components; they are agreed compositions, so the same job looks the same on every screen.</div>
 
@@ -867,14 +936,14 @@
       </tbody></table></div>
 
       <h3 class="bb-sub">Filter bar</h3>
-      <div class="bb-note" style="margin-bottom:13px">Search, facet selectors, removable applied-filter chips and a clear-all — with the result count always in view. Every part of this state lives in the URL (§URLs).</div>
+      <div class="bb-note" style="margin-bottom:13px">Search, facet selectors, removable applied-filter chips and a clear-all — with the result count always in view. Every part of this state lives in the URL (<a href="#urls-addressable-state">&#167;URLs</a>).</div>
       <div class="page-head" data-code style="position:static;border:1px solid var(--line);border-radius:6px;overflow:hidden">
         <div class="controls">
           <div class="search"><span data-ic="search"></span><input type="search" placeholder="Search deals" aria-label="Search deals"></div>
           <select class="fsel" aria-label="Side filter"><option>Side: Sell</option><option>Side: Buy</option></select>
           <select class="fsel" aria-label="Structure filter"><option>Structure: Direct</option><option>Structure: SPV</option></select>
-          <span class="tag neutral">Anthropic <span style="color:var(--muted-2)">&#215;</span></span>
-          <span class="tag neutral">&gt; $10M <span style="color:var(--muted-2)">&#215;</span></span>
+          <span class="tag neutral">Anthropic <button aria-label="Remove filter: Anthropic" style="background:none;border:0;padding:0;font:inherit;color:var(--muted-2);cursor:pointer">&#215;</button></span>
+          <span class="tag neutral">&gt; $10M <button aria-label="Remove filter: over $10M" style="background:none;border:0;padding:0;font:inherit;color:var(--muted-2);cursor:pointer">&#215;</button></span>
           <span class="spacer"></span>
           <span style="font-size:12px;color:var(--muted-2)">128 results</span>
         </div>
@@ -891,11 +960,11 @@
     </section>
 
         <section class="bb-sec" id="charts">
-      <div class="eyebrow">13 — System</div>
+      <div class="eyebrow">12 — System</div>
       <h2>Data visualisation</h2>
       <div class="lead">Charts stay in a controlled blue-to-grey family — never a rainbow. Sequential data uses a navy→pale-blue ramp; categorical series use the set below (max five; beyond that, group into "Other").</div>
       <h3 class="bb-sub">Sequential ramp</h3>
-      <div class="ramp"><div style="background:#0a1733"></div><div style="background:#143a6b"></div><div style="background:#0a64bc"></div><div style="background:#5b9bd5"></div><div style="background:#a9c9e8"></div><div style="background:#e3eef8"></div></div>
+      <div class="ramp"><div style="background:var(--navy-900)"></div><div style="background:var(--navy-700)"></div><div style="background:var(--blue-600)"></div><div style="background:var(--blue-400)"></div><div style="background:var(--blue-200)"></div><div style="background:var(--blue-050)"></div></div>
       <h3 class="bb-sub">Categorical set</h3>
       <div class="catpal">
         <div><span class="dotc" style="background:var(--chart-1)"></span>Accent <span class="mono" style="color:var(--muted-2)">--chart-1 · #0A64BC</span></div>
@@ -910,7 +979,7 @@
       <div class="bb-rule" style="margin-top:16px"><span class="ic" data-ic="check"></span><div>Thin gridlines in <span class="mono">line</span>, labels in <span class="mono">muted-2</span>, values tabular. No 3D, no fills under lines beyond a faint accent-soft.</div></div>
 
       <h3 class="bb-sub">Diverging scale — gain / loss</h3>
-      <div class="ramp"><div style="background:#a32a30"></div><div style="background:#d98a8d"></div><div style="background:#eef1f6"></div><div style="background:#7fb79a"></div><div style="background:#0f7a52"></div></div>
+      <div class="ramp"><div style="background:var(--red-600)"></div><div style="background:var(--red-300)"></div><div style="background:var(--grey-100)"></div><div style="background:var(--green-300)"></div><div style="background:var(--green-600)"></div></div>
       <div class="bb-note" style="margin-top:8px">Performance, P&amp;L and any signed value use a muted red → neutral → green diverging scale, anchored at zero. Green is gain, red is loss — never reversed, and never the blue accent for direction. The accent stays for interaction, not for value sign.</div>
 
       <h3 class="bb-sub">Chart catalogue — pick by the question being asked</h3>
@@ -955,19 +1024,13 @@
 
       <h3 class="bb-sub">Do &amp; don't</h3>
       <div class="two">
-        <div class="bb-card" style="border:1px solid var(--line);border-radius:6px;padding:16px 18px">
-          <div class="eyebrow" style="color:var(--ok)">Do</div>
-          <div class="bb-note" style="margin-top:8px">One ink per series from the controlled family · gridlines in hairline only · direct value labels · green=gain / red=loss · group the long tail into "Other".</div>
-        </div>
-        <div class="bb-card" style="border:1px solid var(--line);border-radius:6px;padding:16px 18px">
-          <div class="eyebrow" style="color:var(--bad)">Don't</div>
-          <div class="bb-note" style="margin-top:8px">Rainbow categoricals · 3D or shadows · gradient fills · dual axes · pies with eight slices · the blue accent used to mean up/down · cropped baselines that flatter a number.</div>
-        </div>
+        <div class="copygood"><div class="copy-lbl">Do</div>One ink per series from the controlled family &#183; gridlines in hairline only &#183; direct value labels &#183; green=gain / red=loss &#183; group the long tail into &#171;Other&#187;.</div>
+        <div class="copybad"><div class="copy-lbl">Don't</div>Rainbow categoricals &#183; 3D or shadows &#183; gradient fills &#183; dual axes &#183; pies with eight slices &#183; the blue accent used to mean up/down &#183; cropped baselines that flatter a number.</div>
       </div>
     </section>
 
         <section class="bb-sec" id="motion">
-      <div class="eyebrow">14 — System</div>
+      <div class="eyebrow">13 — System</div>
       <h2>Motion</h2>
       <div class="lead">Motion is quiet and functional — it confirms, it never entertains. One ease, short durations, nothing bounces or travels far.</div>
       <table class="bbt">
@@ -986,26 +1049,34 @@
     </section>
 
             <section class="bb-sec" id="elevation">
-      <div class="eyebrow">15 — System</div>
+      <div class="eyebrow">14 — System</div>
       <h2>Elevation &amp; layering</h2>
       <div class="lead">Depth is order, not shadow. Surfaces are separated by hairlines; the only things that float are overlays, and they stack in one fixed order.</div>
       <h3 class="bb-sub">Z-index scale</h3>
-      <table class="bbt"><thead><tr><th>Layer</th><th>Token</th><th>z-index</th><th>What</th></tr></thead><tbody>
-        <tr><td>Base</td><td class="mono">—</td><td class="mono">1</td><td>In-flow content.</td></tr>
-        <tr><td>Sticky table head</td><td class="mono">—</td><td class="mono">5</td><td>Column headers pinned inside a scrolling table.</td></tr>
-        <tr><td>Sticky page head</td><td class="mono">--z-sticky</td><td class="mono">90</td><td>The list-page control bar pinned under the top bar.</td></tr>
-        <tr><td>Top bar</td><td class="mono">--z-topbar</td><td class="mono">1000</td><td>The global navigation bar.</td></tr>
-        <tr><td>Drawer scrim</td><td class="mono">--z-scrim</td><td class="mono">4000</td><td>The dimmed backdrop behind the drawer.</td></tr>
-        <tr><td>Drawer</td><td class="mono">--z-drawer</td><td class="mono">4001</td><td>The slide-in detail / nav drawer.</td></tr>
-        <tr><td>Modal</td><td class="mono">--z-modal</td><td class="mono">5000</td><td>Dialogs (overlay + dialog), above an open drawer.</td></tr>
-        <tr><td>Toast</td><td class="mono">--z-toast</td><td class="mono">6000</td><td>Transient confirmation, above everything.</td></tr>
+      <table class="bbt"><thead><tr><th>Layer</th><th>Token</th><th>z-index</th><th>Shadow</th><th>What</th></tr></thead><tbody>
+        <tr><td>Base</td><td class="mono">—</td><td class="mono">1</td><td class="mono">none</td><td>In-flow content.</td></tr>
+        <tr><td>Sticky table head</td><td class="mono">—</td><td class="mono">5</td><td class="mono">none</td><td>Column headers pinned inside a scrolling table.</td></tr>
+        <tr><td>Sticky page head</td><td class="mono">--z-sticky</td><td class="mono">90</td><td class="mono">none</td><td>The list-page control bar pinned under the top bar.</td></tr>
+        <tr><td>Top bar</td><td class="mono">--z-topbar</td><td class="mono">1000</td><td class="mono">none</td><td>The global navigation bar.</td></tr>
+        <tr><td>Drawer scrim</td><td class="mono">--z-scrim</td><td class="mono">4000</td><td class="mono">none</td><td>The dimmed backdrop behind the drawer.</td></tr>
+        <tr><td>Menu / popover</td><td class="mono">--z-drawer</td><td class="mono">4001</td><td class="mono">overlay</td><td>The dropdown menu and any popover.</td></tr>
+        <tr><td>Drawer</td><td class="mono">--z-drawer</td><td class="mono">4001</td><td class="mono">drawer</td><td>The slide-in detail / nav drawer.</td></tr>
+        <tr><td>Modal</td><td class="mono">--z-modal</td><td class="mono">5000</td><td class="mono">modal</td><td>Dialogs (overlay + dialog), above an open drawer.</td></tr>
+        <tr><td>Toast</td><td class="mono">--z-toast</td><td class="mono">6000</td><td class="mono">toast</td><td>Transient confirmation, above everything.</td></tr>
       </tbody></table>
-      <div class="bb-rule" style="margin-top:18px"><span class="ic" data-ic="check"></span><div><b>No drop shadows on content.</b> A card never floats; it is bounded by a hairline. The only dimming is the modal/drawer scrim — a translucent navy wash, not a glow.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>One sanctioned gradient.</b> The navy confidential cover (§Colour) is the single gradient surface in the system; nothing else.</div></div>
+      <h3 class="bb-sub">Overlay shadows — the named values</h3>
+      <table class="bbt"><thead><tr><th>Name</th><th>Canonical value (app.css)</th><th>Carried by</th></tr></thead><tbody>
+        <tr><td class="mono">overlay</td><td class="mono">0 14px 40px rgba(10,23,51,.14)</td><td class="mono">.menu-list</td></tr>
+        <tr><td class="mono">drawer</td><td class="mono">-24px 0 60px rgba(10,23,51,.12)</td><td class="mono">.drawer</td></tr>
+        <tr><td class="mono">modal</td><td class="mono">0 30px 70px rgba(10,23,51,.35)</td><td class="mono">.modal</td></tr>
+        <tr><td class="mono">toast</td><td class="mono">0 16px 40px rgba(10,23,51,.4)</td><td class="mono">#toast</td></tr>
+      </tbody></table>
+      <div class="bb-rule" style="margin-top:18px"><span class="ic" data-ic="check"></span><div><b>No drop shadows on content.</b> A card never floats; it is bounded by a hairline. The only dimming is the modal/drawer scrim — a translucent navy wash, not a glow. Shadow is a property of the layer, not the surface: an overlay takes its named shadow from the tables above; content takes none.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>One sanctioned gradient.</b> The navy confidential cover (<a href="#color">&#167;Colour</a>) is the single gradient surface in the system; nothing else.</div></div>
     </section>
 
     <section class="bb-sec" id="voice">
-      <div class="eyebrow">16 — Reference</div>
+      <div class="eyebrow">15 — Reference</div>
       <h2>Content &amp; numbers</h2>
       <div class="lead">Plain, precise, professional — the register of a deal memo. Short sentences, no exclamation marks, no em-dash tells, no marketing adjectives. Labels are nouns; actions are verbs.</div>
       <div class="two" style="margin-bottom:22px">
@@ -1030,11 +1101,16 @@
         <dt>Accent</dt><dd>The single brand blue <span class="mono">#0A64BC</span>. Interactive cue only.</dd>
         <dt>Hairline</dt><dd>A 1px <span class="mono">#E6EAF1</span> rule — the system's only divider.</dd>
         <dt>Eyebrow</dt><dd>The small uppercase over-line label above a heading.</dd>
-        <dt>Pill</dt><dd>A status tag with a coloured dot and soft background.</dd><dt>SPV</dt><dd>A special-purpose vehicle pooling investors into one position.</dd><dt>Direct</dt><dd>A direct secondary transfer of shares, with no SPV in between.</dd><dt>Post-money</dt><dd>The only valuation shown — company value including the latest raise.</dd><dt>Implied valuation</dt><dd>Valuation derived from a per-share price; always labelled, never blended with pre-money.</dd>
+        <dt>Pill</dt><dd>A status tag with a coloured dot and soft background.</dd>
+        <dt>Canonical</dt><dd>The single defined source of an artefact; every reproduction copies it verbatim.</dd>
+        <dt>Frozen canon</dt><dd>A measured third-party structure (<a href="#skinning">&#167;Skinning</a>) the system re-themes but never re-lays-out.</dd>
+        <dt>Sanctioned</dt><dd>A named, singular exception to a standing prohibition.</dd>
+        <dt>Normative</dt><dd>Binding; deviation is a defect, not a preference.</dd><dt>SPV</dt><dd>A special-purpose vehicle pooling investors into one position.</dd><dt>Direct</dt><dd>A direct secondary transfer of shares, with no SPV in between.</dd><dt>Post-money</dt><dd>The only valuation shown — company value including the latest raise.</dd><dt>Implied valuation</dt><dd>Valuation derived from a per-share price; always labelled, never blended with pre-money.</dd>
       </dl>
       <h3 class="bb-sub">Capitalisation &amp; tone</h3>
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Sentence case everywhere.</b> Headings, buttons and labels read like prose — <span class="mono">Add deal</span>, not <span class="mono">Add Deal</span>. The only uppercase is the eyebrow over-line.</div></div>
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Abbreviate by audience.</b> Expand for clients (Series B, preferred); keep desk shorthand (X/Y/Z, B/M) only broker-to-broker.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>British spelling in prose.</b> Colour, visualisation, behaviour, artefact — throughout the copy. Code stays canonical: CSS properties (<span class="mono">color:</span>), token names and class names are never respelled.</div></div>
       <h3 class="bb-sub">System &amp; error messages</h3>
       <div class="two" style="margin-bottom:22px">
         <div class="copygood"><div class="copy-lbl">Do</div>Could not reach the feed. Retry, or check the connection.</div>
@@ -1049,7 +1125,7 @@
     </section>
 
         <section class="bb-sec" id="insitu">
-      <div class="eyebrow">17 — Reference</div>
+      <div class="eyebrow">16 — Reference</div>
       <h2>In situ</h2>
       <div class="lead">The system applied to a real surface — a fund overview. Every token, type role and component above, working together.</div>
       <div class="mock">
@@ -1072,7 +1148,7 @@
     </section>
 
             <section class="bb-sec" id="docs">
-      <div class="eyebrow">18 — Reference</div>
+      <div class="eyebrow">17 — Reference</div>
       <h2>Documents &amp; email</h2>
       <div class="lead">The system carries off-screen too. Email and PDF wear the same restraint and the same confidentiality — no marketing skin, no second voice.</div>
       <h3 class="bb-sub">Email</h3>
@@ -1087,66 +1163,10 @@
       <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Download is per document.</b> Each file is view-only or downloadable by its own flag; every downloaded PDF carries the recipient&#8217;s watermark.</div></div>
     </section>
 
-    <section class="bb-sec" id="dodont">
-      <div class="eyebrow">19 — Reference</div>
-      <h2>Do &amp; don't</h2>
-      <div class="lead">The fastest check: place a screen next to blackrock.com or macquarie.com. If ours looks brighter, busier or denser, it has regressed.</div>
-      <div class="dd-grid">
-        <div class="dd yes"><div class="canvas"><span class="tag ready"><span class="dot"></span>Ready</span></div><div class="hd"><span data-ic="check"></span>Do — muted status pill</div><div class="txt">Status as a small pill with a dot and soft background.</div></div>
-        <div class="dd no"><div class="canvas"><span style="background:#16a34a;color:#fff;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700">READY</span></div><div class="hd"><span data-ic="x"></span>Don't — loud fill</div><div class="txt">No saturated, full-colour, heavy badges.</div></div>
-        <div class="dd yes"><div class="canvas"><button class="btn btn-primary btn-sm">Save</button></div><div class="hd"><span data-ic="check"></span>Do — one blue accent</div><div class="txt">A single blue for the primary action.</div></div>
-        <div class="dd no"><div class="canvas"><span style="width:22px;height:22px;border-radius:6px;background:#8b5cf6"></span><span style="width:22px;height:22px;border-radius:6px;background:#f59e0b"></span><span style="width:22px;height:22px;border-radius:6px;background:#06b6d4"></span></div><div class="hd"><span data-ic="x"></span>Don't — many accents</div><div class="txt">No purple/teal/orange decorative colours.</div></div>
-        <div class="dd yes"><div class="canvas"><div style="background:#fff;border:1px solid var(--line);border-radius:5px;padding:10px 16px;font-size:12px;color:var(--ink)">Card · hairline</div></div><div class="hd"><span data-ic="check"></span>Do — hairline borders</div><div class="txt">Structure with 1px lines.</div></div>
-        <div class="dd no"><div class="canvas"><div class="shadow-demo">Card · shadow</div></div><div class="hd"><span data-ic="x"></span>Don't — drop shadows</div><div class="txt">No shadows on content; no bubbly 14px+ radii.</div></div>
-      </div>
-    </section>
 
-        <section class="bb-sec" id="govern">
-      <div class="eyebrow">20 — Operating</div>
-      <h2>Governance &amp; enforcement</h2>
-      <div class="lead">The design system is not advisory — it is the code, and it is enforced mechanically so it cannot erode across sessions.</div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>One source of truth.</b> All tokens and components live in <span class="mono">/app.css</span> + <span class="mono">/ui.js</span>. New screens inherit them; they never invent local colours, radii or fonts.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Pre-deploy lint.</b> A build step rejects any new page that uses a gradient, an inline drop-shadow, an emoji, a second accent, native <span class="mono">alert/confirm/prompt</span>, or a radius over 8px.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Vision QA — pixel-match against this page, before every deploy.</b> Always, before any deploy, render the change in a real browser, screenshot it, and compare the resulting pixels against the canonical rendering on this design-system page — <b>this page is the reference</b>. If they do not match (wrong icon weight, broken proportions, a colour or spacing drift), it is a regression: <b>redo and re-shoot until the pixels match.</b> Never ship on a code review alone — code can pass while the render is wrong; the rendered pixels are the contract.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Changing the system.</b> A new component is added to <span class="mono">/app.css</span> once, documented here, then reused — never a one-off in a page.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Versioning.</b> The system carries a version; material changes bump it and note the date.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Contribution.</b> Need a component the system lacks? Add it to <span class="mono">/app.css</span> with all states, document it here, then use it — never a one-off in a page.</div></div>
-      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Deprecation.</b> A retired pattern is marked here, kept working one release, then removed from <span class="mono">/app.css</span> in the next.</div></div>
-      <h3 class="bb-sub" style="margin-top:22px">The prohibitions (normative) — and the lint that enforces each</h3>
-      <table class="bbt">
-        <thead><tr><th>#</th><th>Forbidden</th><th>Enforced by</th></tr></thead>
-        <tbody>
-          <tr><td class="mono">R-1</td><td>Visual constructs outside <span class="mono">app.css / ui.js / skin-wp.css</span> — a page style may only combine existing classes and tokens</td><td class="mono">0dt + review</td></tr>
-          <tr><td class="mono">R-2</td><td>Sizes off the scales — font-size and containers linted on every page; radius via 0dq; padding/gap follow the <span class="mono">--sp-*</span> guidance scale (not yet machine-enforced)</td><td class="mono">0ds (new pages strict, legacy shrink-only baseline) · 0dq</td></tr>
-          <tr><td class="mono">R-3</td><td>Containers outside the whitelist (<span class="mono">--w-app/read/form/wide</span>)</td><td class="mono">0ds</td></tr>
-          <tr><td class="mono">R-4</td><td>Own headers / menus / footers — only the canonical artifacts (or the re-skinned native one on skin surfaces)</td><td class="mono">0dt (.topbar clone scan)</td></tr>
-          <tr><td class="mono">R-5</td><td>A skin hiding or removing any functional block</td><td class="mono">parity checklist (96 blocks) + Vision QA</td></tr>
-          <tr><td class="mono">R-6</td><td>A new component without intake: into <span class="mono">app.css/ui.js</span> + documented here + example in the gallery, one PR</td><td class="mono">0dt + review</td></tr>
-          <tr><td class="mono">R-7</td><td>Colours outside tokens; a second accent on a screen</td><td class="mono">0dq, 0dr (incl. skin-wp.css)</td></tr>
-          <tr><td class="mono">R-8</td><td>Duplicating an existing component with "your own version" (escape: <span class="mono">/* DS-OVERRIDE: reason */</span> — legacy only, converge at next change)</td><td class="mono">0dt</td></tr>
-          <tr><td class="mono">R-9</td><td>Icons outside <span class="mono">ICON{}</span>; fonts beyond the self-hosted pair</td><td class="mono">0dq (emoji/Poppins) + review</td></tr>
-          <tr><td class="mono">R-10</td><td>A page not started from a skeleton (&#167;Layout contract)</td><td class="mono">review + 0ds catches drift</td></tr>
-          <tr><td class="mono">R-11</td><td>A page without the top-line preloader; own progress bars</td><td class="mono">0du</td></tr>
-        </tbody>
-      </table>
-      <div class="bb-note" style="margin:10px 0 18px"><b>Beyond this repo:</b> the same checks ship as a standalone core (<span class="mono">scripts/design-lint-core.js</span>) and gate the Cloudflare-worker deploys of skin surfaces (testnew-edge <span class="mono">deploy.sh</span>) — the system is enforced on every SVIC property, not only the platform.</div>
-
-      <h3 class="bb-sub" style="margin-top:22px">Building a new page — the whole process</h3>
-      <div class="bb-note">1&#41; Pick a skeleton (&#167;Layout contract &#8594; gallery#skeletons). 2&#41; Assemble from documented components only; text styles from the type scale; container from the whitelist; the canonical topbar; <span class="mono">/loader.js</span> included. 3&#41; Need something the system lacks? Intake first (R-6). 4&#41; Run the pre-deploy lint — it must pass with zero new baseline entries. 5&#41; Vision-QA desktop + mobile (&#8804;640) against &#167;Principles. A page built this way takes under an hour and is indistinguishable in grid and type from the rest of the platform — that is the point.</div>
-
-      <h3 class="bb-sub" style="margin-top:22px">Changelog</h3>
-      <table class="bbt"><thead><tr><th>Version</th><th>Date</th><th>Change</th></tr></thead><tbody>
-        <tr><td class="mono">2.3</td><td class="mono">Jun 10, 2026</td><td>Audit pass 3: dark-theme AA (--on-accent), visible 2px focus ring, modal/menu/toast/sortable keyboard+ARIA, preloader on all pages via loader.js, pre-paint OS theme on token-complete pages (data-theme-auto), search ranking + deep-linkable h3 anchors, clean section renumbering 01&#8211;22, enforcement extended to linked CSS/&lt;style&gt;/JS with shrink-only baselines, tokens.json full W3C export.</td></tr>
-        <tr><td class="mono">2.2</td><td class="mono">Jun 10, 2026</td><td>Hardening: numeric layout contract (Layout contract, now &#167;08 — container whitelist, grid, rhythm, type scale, skeletons); mandatory top-line preloader on every page (R-11, loader.js); skinning &amp; frozen canons (&#167;21 — media grid + marketplace, skin-wp.css); prohibitions R-1&#8211;R-11 each wired to a lint step (0ds/0dt/0du, 0dr extended to the skin); lint core shipped to non-platform repos.</td></tr>
-        <tr><td class="mono">2.1</td><td class="mono">Jun 10, 2026</td><td>Truth pass: files unified to /app.css + /ui.js; one breakpoint set (640/900); z-scale matches code; focus-visible, reduced-motion, disabled/loading/skeleton implemented; primitives tier + spacing/radius/motion/z tokens; label contrast raised to AA; theme follows the OS and persists; lint extended to every page (ratchet).</td></tr>
-        <tr><td class="mono">2.0</td><td class="mono">May 31, 2026</td><td>Becomes a design system: token tiers + dark theme, Patterns, component states, deeper accessibility, content &amp; numbers, this governance.</td></tr>
-        <tr><td class="mono">1.0</td><td class="mono">May 31, 2026</td><td>First brand book — principles, identity, colour, type, components, data-viz, motion.</td></tr>
-      </tbody></table>
-          <div class="bb-note" style="margin-top:8px"><b>Public-site gates (2026-07-05).</b> (a) <b>Inline-JS parse gate</b> — every script string injected into served HTML must parse standalone (<span class="mono">node --check</span>) before deploy: a slash-regex cooked through a template literal becomes <span class="mono">//</span> and silently kills the whole script (three bites in one day). (b) <b>Numeric render-verify</b> — a change is «done» only after a real-engine render (desktop 1440, mobile 390, WebKit/iOS) passes MEASURED probes (aspect, gaps, baselines) — §Public&nbsp;site P-40. (c) <b>Video defects are judged on PLAYING frames</b>, never on markup or a single poster frame.</div>
-    </section>
 
         <section class="bb-sec" id="skinning">
-      <div class="eyebrow">21 — System · normative</div>
+      <div class="eyebrow">18 — System · normative</div>
       <h2>Skinning third-party markup &amp; frozen canons</h2>
       <div class="lead">Some SVIC surfaces are not built from app.css — the WP media site and the marketplace app. Their grids are <b>frozen canons</b>: the structure is measured, documented and immutable. The system re-themes them with one artifact — <span class="mono">skin-wp.css</span> — that changes <b>fonts, colours, lines, radii, shadows and focus only</b>.</div>
 
@@ -1174,96 +1194,178 @@
 
 
         <section class="bb-sec" id="public-site">
-      <div class="eyebrow">22 — System · normative</div>
-      <h2>Public site — home &amp; chrome</h2>
-      <div class="lead">The public home page (etalon: <span class="mono">test3.*</span>, 2026-07-05; destination: <span class="mono">siliconvalleyinvestclub.com</span>) is a <b>frozen canon</b>: this section alone must be sufficient to rebuild the home page UX and the navigation chrome exactly — without access to the stand or its edge repo. Rules are numbered <b>P-1…P-40</b>. Values are tokens or exact numbers; anti-patterns are decisions the owner explicitly rejected — reproducing them is a defect, not taste.</div>
+      <div class="eyebrow">19 — System · normative</div>
+      <h2>Public site</h2>
+      <div class="lead">The public surfaces — the home page today, every marketing and content page tomorrow — are built from the blocks on this page and nowhere else. The living reference is the public stand; this section is the <b>foundation</b>: the principles that make a page read as SVIC, and the block catalogue those pages are assembled from. It deliberately does not script any one page.</div>
 
-      <h3 class="bb-sub" id="p-chrome">Chrome — topbar with visible menu (P-1…P-8)</h3>
-      <div class="bb-note"><b>P-1 Inventory.</b> burger (38px square, <span class="mono">--r-control</span>, data-URI line icon) · brand (monogram 26px + wordmark) · visible primary nav · US region control · Login. Navy bar, hairlines <span class="mono">rgba(255,255,255,.18)</span>, height <span class="mono">--topbar-h</span>. The visible nav is the SAME parsed tree as the drawer — one navigation system surfaced twice, never a second hand-typed menu.</div>
-      <div class="bb-note"><b>P-2 Menu provenance.</b> Items come ONLY from the WP <span class="mono">menu-main</span> tree (parseNav): dead <span class="mono">href="#"</span> children are dropped at parse; curated placeholders render as non-linking <span class="mono">.tb-dd-soon</span> labels (owner 06-17: «чтобы выглядело солидно»). A hard-coded internal href in the topbar is a build failure (provenance gate).</div>
-      <div class="bb-note"><b>P-3 Dropdown geometry.</b> Panels: flat list · 2-col · 3-level mega. Column head 11px/600/<span class="mono">.1em</span> uppercase; links 13px/500, padding 8-9px&#215;12; panel offset <span class="mono">top:calc(100% + 1px)</span>. Opening is pure CSS <span class="mono">:hover/:focus-within</span> — JS never toggles it. <b>No-pin canon</b> (owner 06-17): <span class="mono">mousedown&#8594;preventDefault()</span> on nav links so a click never pins a panel. Anti-pattern: hover-intent transition-delays (rejected 07-05).</div>
-      <div class="bb-note"><b>P-4 US region mega.</b> Fixed, centered, 1160px wide, intro label «Regions» (<span class="mono">.16em</span>); columns = the region subtree of Latest&nbsp;Deals; a Language column is LAST (owner 07-04). The trigger label is the 2-letter country code of the current page resolved from the region tree (depth-1 ancestor), default <span class="mono">US</span>.</div>
-      <div class="bb-note"><b>P-5 Login mega.</b> Exactly two groups, order fixed (owner 07-05): <b>Members &amp; Partners first</b>, then Data &amp; Trading; six links total.</div>
-      <div class="bb-note"><b>P-6 Smart-hide.</b> The networker algorithm verbatim: <span class="mono">scrollPoint=200</span>, <span class="mono">scrollPrev</span> seeded 200, an upward-scroll accumulator (<span class="mono">scrollUpAmount</span>) restores the bar; classes <span class="mono">.svic-hidden</span> on the bar + a mirror class on <span class="mono">&lt;html&gt;</span> drive the sticky-rail var <span class="mono">--rail-top: 82px &#8596; 20px</span> (.28s). Guard: the bar never hides while the drawer or the mobile region sheet is open.</div>
-      <div class="bb-note"><b>P-7 Caret.</b> Rotates 180&#176; with <span class="mono">--t-fast</span>; its COLOUR snaps instantly (background-image kept out of the transition list) — the canonical instant-hover-feedback idiom.</div>
-      <div class="bb-note"><b>P-8 Favicon.</b> The single source is <span class="mono">/brandbook-favicon.png</span> (this document’s own icon), served byte-identical; any change requires a version-busted link (<span class="mono">?v=N</span>) because tabs cache favicons sticky.</div>
+      <h3 class="bb-sub" id="ps-principles">Principles of the public surface</h3>
+      <div data-code style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden">
+        <div style="background:var(--panel);padding:18px 20px"><div class="eyebrow" style="margin-bottom:6px">One navigation</div><div style="font-size:13.5px;color:var(--muted)">A single parsed menu tree feeds every chrome surface — visible bar, megas, drawer, footer. A second hand-typed menu is a defect, not a shortcut.</div></div>
+        <div style="background:var(--panel);padding:18px 20px"><div class="eyebrow" style="margin-bottom:6px">Calm chrome</div><div style="font-size:13.5px;color:var(--muted)">Menus open under intent and never pin on click; the bar hides on read and returns on an accumulated up-scroll. No hover circus, no delays, no flourish.</div></div>
+        <div style="background:var(--panel);padding:18px 20px"><div class="eyebrow" style="margin-bottom:6px">Content-first media</div><div style="font-size:13.5px;color:var(--muted)">All large media share one 16:9 frame. On phones the caption sits <b>under</b> the frame — type never has to survive on top of a moving image.</div></div>
+        <div style="background:var(--panel);padding:18px 20px"><div class="eyebrow" style="margin-bottom:6px">Faces, not centres</div><div style="font-size:13.5px;color:var(--muted)">Cover crops follow detected faces (the whole group when it fits, the densest cluster when it can't) — a portrait is never beheaded by a geometric crop.</div></div>
+        <div style="background:var(--panel);padding:18px 20px"><div class="eyebrow" style="margin-bottom:6px">Motion is utility</div><div style="font-size:13.5px;color:var(--muted)">Video plays one-at-a-time, muted, looped, and yields to <span class="mono">prefers-reduced-motion</span>. Chrome motion exists to serve reading, never to decorate.</div></div>
+        <div style="background:var(--panel);padding:18px 20px"><div class="eyebrow" style="margin-bottom:6px">Depth by lines</div><div style="font-size:13.5px;color:var(--muted)">Sections, cards and rails separate with hairlines and air — identical gaps, level rules — never with shadows, tints or boxes.</div></div>
+      </div>
 
-      <h3 class="bb-sub" id="p-drawer">Chrome — drawer &amp; mobile bar (P-9…P-14)</h3>
-      <div class="bb-note"><b>P-9 Drawer list.</b> The canonical <span class="mono">.oc-*</span> offcanvas carries ONE flat list — no group headings — in this exact order (owner 07-04): Members &#183; Funds &amp; Institutions &#183; Brokers &amp; Intermediaries &#183; Trade Desk &#183; Research &amp; Market Alerts &#183; Companies Data. The Region row is hidden at ALL widths (US lives in the bar).</div>
-      <div class="bb-note"><b>P-10 Login dock.</b> A navy button (<span class="mono">--navy</span>, <span class="mono">--r-control</span>) pinned above the drawer footer; its sheet opens UPWARD: the collapse is absolutely positioned <span class="mono">bottom:100%</span> in BOTH states (position only when open makes the button jump — incident 07-01), <span class="mono">max-height:min(64vh,500px)</span>, hairline only when open. Touch de-tint exempts this button (it must stay navy when tapped).</div>
-      <div class="bb-note"><b>P-11 Touch hygiene.</b> <span class="mono">-webkit-tap-highlight-color: transparent</span> across chrome; instant pressed feedback via an added class mirroring <span class="mono">:active</span>; theme button radius is neutralised to 0 on drawer level heads (the WP theme paints 4px on generic buttons — skin-fix, discovered by probe 07-04).</div>
-      <div class="bb-note"><b>P-12 Mobile bar.</b> Burger left, brand ABSOLUTELY centered, quiet «US» text control right (transparent in all states).</div>
-      <div class="bb-note"><b>P-13 Region sheet.</b> A clone of the US mega under the bar: language CHIPS (inline-flex, hairline border, radius 4, 13px, left-aligned, <span class="mono">margin:0 8px 8px 0</span>); regions are exclusive accordions (chevron <span class="mono">::after</span> rotates); inter-column top margins are zeroed so rows centre vertically (incident 07-04). Scrim starts below the bar: <span class="mono">inset: var(--topbar-h) 0 0 0</span>.</div>
-      <div class="bb-note"><b>P-14 Mutual exclusion.</b> Opening the sheet closes the drawer and vice-versa.</div>
+      <h3 class="bb-sub" id="ps-topbar">Block — public topbar</h3>
+      <div class="bb-note" style="margin-bottom:13px">The institutional pattern: the menu is <b>visible</b> on the bar (structure signals seriousness), with the region selector and Login on the utility side. Same navy, same hairlines as the app topbar (<a href="#components">&#167;Components</a>); the burger and drawer remain for overflow and mobile.</div>
+      <div data-code style="background:var(--navy);border-radius:6px;padding:0 18px;display:flex;align-items:center;gap:22px;height:56px;overflow-x:auto">
+        <span style="display:inline-flex;align-items:center;gap:9px;color:#fff;font-weight:600;font-size:14px;white-space:nowrap"><span style="width:24px;height:24px;border:1.5px solid rgba(255,255,255,.7);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700">SV</span>Silicon Valley Investclub</span>
+        <span style="width:1px;height:22px;background:rgba(255,255,255,.18)"></span>
+        <nav style="display:flex;gap:18px;font-size:13.5px;white-space:nowrap">
+          <a href="#ps-topbar" style="color:#fff;text-decoration:none">Marketplace</a>
+          <a href="#ps-topbar" style="color:rgba(255,255,255,.75);text-decoration:none">Media <span style="font-size:9px">&#9662;</span></a>
+          <a href="#ps-topbar" style="color:rgba(255,255,255,.75);text-decoration:none">Industries <span style="font-size:9px">&#9662;</span></a>
+          <a href="#ps-topbar" style="color:rgba(255,255,255,.75);text-decoration:none">About <span style="font-size:9px">&#9662;</span></a>
+        </nav>
+        <span style="margin-left:auto;display:flex;gap:18px;font-size:13.5px;white-space:nowrap">
+          <a href="#ps-topbar" style="color:rgba(255,255,255,.75);text-decoration:none">US <span style="font-size:9px">&#9662;</span></a>
+          <a href="#ps-topbar" style="color:rgba(255,255,255,.75);text-decoration:none">Login <span style="font-size:9px">&#9662;</span></a>
+        </span>
+      </div>
+      <div class="bb-note" style="margin-top:8px">Menu items descend from the one parsed tree; a not-yet-built section renders as a quiet non-link label. Mega panels are flat, 2-column or 3-level; the region mega is a centred grid of region columns with Language last; Login holds exactly two groups — Members &amp; Partners first.</div>
 
-      <h3 class="bb-sub" id="p-home">Home — layout &amp; rhythm (P-15…P-24)</h3>
-      <div class="bb-note"><b>P-15 Hero row.</b> Two columns <b>50/50</b> (a 58/42 rebalance was rejected). Left — the video hero (P-25); right — two satellite cards in a grid, gap 40px desktop. Satellite anatomy: kicker 11px/600/<span class="mono">.14em</span> muted &#8594; serif title 1.25rem &#8594; date 13px muted. <b>Anti-patterns (owner 07-05):</b> stretching satellites to the hero baseline (dates pushed to the row bottom) and adding excerpts to satellites — both rejected with «верни как было».</div>
-      <div class="bb-note"><b>P-16 16:9 canon (approved 07-05).</b> ALL large media are 16:9 on desktop AND mobile: overlay tiles via <span class="mono">::before{padding-bottom:56.25%}</span>, plain images via <span class="mono">aspect-ratio:16/9</span> + cover. Exclusions: the square rail thumbs (horizontal-type-2) and square/original ratio classes. The ratio class lives on the OUTER overlay element (the hero is ratio-stretch &#8594; needs height:auto + its ::before) — putting it on the inner thumbnail collapses the hero (incident 07-05 «обрезало первый блок»).</div>
-      <div class="bb-note"><b>P-17 Desktop rhythm.</b> Site content 28px top / 40 bottom; sections <span class="mono">margin-top:44</span> (first — 0); posts area 18 below its heading; pagination 32.</div>
-      <div class="bb-note"><b>P-18 Mobile rhythm.</b> 12 / 28 / 14 / 24 (+28 pre-footer). The hero&#8594;satellites junction is normalised to the 24px token by zeroing the theme’s stacked column paddings (20+20), the hero block’s own bottom padding AND a legacy 14px margin-top on the satellites’ posts-area (computed-chain probe 07-05). Feature-grid gap on mobile: 24px.</div>
-      <div class="bb-note"><b>P-19 Mobile card format (approved 07-05).</b> Every overlay card moves kicker/title/date UNDER the media, inserted as a SIBLING caption after the tile (inserting inside breaks ratio/stretch geometry — incident). Caption: kicker block 11px/<span class="mono">.14em</span>; serif title 1.35rem/1.35 ink; date 13px muted 8px above nothing below; list bullets and indents neutralised; the emptied overlay content is hidden and its scrim removed. The date-colour sampler is unnecessary &#8804;640 (the date is off-media).</div>
-      <div class="bb-note"><b>P-20 Unicorn rail (3&#215;3).</b> Mobile: ALL nine cards separated identically — 40px slots with the hairline centered (20/20); column junctions are rebuilt to mirror the in-block pairs, line indented to the text column (thumb 70px + 2rem). Desktop: a <b>row equalizer</b> — per horizontal row, each cell’s content min-height = the row maximum, so the dividers sit level (probe canon: bottoms equal across the three columns); recompute on resize.</div>
-      <div class="bb-note"><b>P-21 Load more (approved 07-05).</b> The final grid collapses to 12 cards; each click reveals +12; when the DOM is exhausted it FETCHES older posts via REST (<span class="mono">per_page=12, offset=rendered-count, _embed media+term</span>) down to the earliest post; dedup by link; the button disappears when a page returns &lt;12. New cards clone the last card and swap title/href/date (en-US long)/kicker/cover (CDN resize 760&#215;428, q82). Button: navy outline, radius 4, uppercase <span class="mono">.06em</span>.</div>
-      <div class="bb-note"><b>P-22 Body sanitation.</b> Mandatory transforms of the public output: drop the «Uncategorised» housekeeping term; «Browsing Category»&#8594;«Category»; «.&amp;hellip;»&#8594;«&amp;hellip;»; images without alt get <span class="mono">alt=""</span>; the home page carries a visually-hidden <span class="mono">&lt;h1&gt;</span> («Silicon Valley Investclub — Private Markets Deal Flow»); the theme’s own offcanvas and smart-navbar body classes are dismantled.</div>
-      <div class="bb-note"><b>P-23 Footer.</b> Navy; brand column (inverted logo 26px, tagline «Private markets, institutional discipline.», social row 19px); link columns from the SAME parsed nav tree; legal line: &#169; + Privacy/Terms/Legal/Disclosures (placeholders until approved); hairline <span class="mono">rgba(255,255,255,.12)</span>; 12.5px.</div>
-      <div class="bb-note"><b>P-24 Social set.</b> Order fixed by serial-position (owner 07-01): YouTube, LinkedIn, X, Telegram, Instagram, Facebook, Substack — same order in bar and footer.</div>
+      <h3 class="bb-sub" id="ps-drawer">Block — drawer &amp; mobile chrome</h3>
+      <div class="bb-note" style="margin-bottom:13px">On phones the bar keeps only burger &#183; centred brand &#183; region code. The drawer carries the SAME tree as one flat list; the Login group docks at the bottom as the drawer's single navy action and its sheet opens upward, so the control never moves.</div>
+      <div data-code style="display:flex;gap:14px;flex-wrap:wrap">
+        <div style="flex:0 0 236px;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden">
+          <div style="padding:13px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:13px">Menu</span><span style="color:var(--muted);font-size:15px">&#215;</span></div>
+          <div style="font-size:13.5px">
+            <div style="padding:11px 16px;border-bottom:1px solid var(--line)">Members</div>
+            <div style="padding:11px 16px;border-bottom:1px solid var(--line)">Funds &amp; Institutions</div>
+            <div style="padding:11px 16px;border-bottom:1px solid var(--line)">Brokers &amp; Intermediaries</div>
+            <div style="padding:11px 16px;border-bottom:1px solid var(--line)">Trade Desk</div>
+            <div style="padding:11px 16px;border-bottom:1px solid var(--line)">Research &amp; Market Alerts</div>
+            <div style="padding:11px 16px">Companies Data</div>
+          </div>
+          <div style="padding:12px 16px;border-top:1px solid var(--line)">
+            <div style="background:var(--navy);color:#fff;border-radius:4px;padding:10px 0;text-align:center;font-size:13px;font-weight:600">Login <span style="font-size:9px">&#9652;</span></div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:220px">
+          <div class="bb-note">One flat list — no group headings on a phone. The region selector lives on the bar, not in the drawer. Tap feedback is instant (pressed state), tap targets are honest, and the sheet direction (upward) keeps the thumb anchor still.</div>
+        </div>
+      </div>
 
-      <h3 class="bb-sub" id="p-media">Home — video cards (P-25…P-30)</h3>
-      <div class="bb-note"><b>P-25 Clips.</b> Same-origin <span class="mono">/svic-video/*.mp4</span>, PROGRESSIVE (faststart). Fragmented MP4 is FORBIDDEN: iOS reads the short moov and loops ~3s (root-cause canon 07-04). Poster = frame one.</div>
-      <div class="bb-note"><b>P-26 Governor.</b> One active clip by visibility with hysteresis; it may ONLY pause/play — never touch <span class="mono">src</span> (stripping src resets currentTime: the «restarts at 2s» incident). A re-kick pass re-initialises the player if wrappers exist but no video mounted.</div>
-      <div class="bb-note"><b>P-27 Loop.</b> Clips are always <span class="mono">loop=true</span> (guard on mount and on <span class="mono">ended</span> — restart from 0; owner 07-05 «видео остановилось»).</div>
-      <div class="bb-note"><b>P-28 Title plate.</b> Desktop overlay plate <span class="mono">rgba(10,23,51,.62)</span>, aligned to the longest line (fitPlates), title 1.5rem; the location eyebrow over video is hidden.</div>
-      <div class="bb-note"><b>P-29 Adaptive date.</b> The on-media date samples the frame region (x 58–100%, y 0–26%): start dark when luminance &gt;140, hysteresis 150/126; the white state carries shadow <span class="mono">rgba(10,23,51,.85)</span>. Applies to fine pointers and to coarse &gt;640; not needed &#8804;640 (P-19).</div>
-      <div class="bb-note"><b>P-30 Controls.</b> The theme hides its video controls permanently; surfacing a pause control is PREVIEW-ONLY until approved — do not ship by default.</div>
+      <h3 class="bb-sub" id="ps-cards">Block — the card family</h3>
+      <div class="bb-note" style="margin-bottom:13px">Four cards cover every public listing surface. All large media are 16:9; type scale steps 1.5 &#8594; 1.35 &#8594; 1.25rem serif; kickers are 11px/600/<span class="mono">.14em</span> uppercase; dates 13px muted. On phones the video card converts to the photo-card anatomy (caption under the frame).</div>
+      <div data-code style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px">
+        <div>
+          <div style="aspect-ratio:16/9;background:var(--navy);border-radius:4px;position:relative;overflow:hidden">
+            <span style="position:absolute;top:9px;right:10px;color:#fff;font-size:10.5px;opacity:.85">June 1, 2026</span>
+            <span style="position:absolute;left:0;bottom:18px;background:rgba(10,23,51,.62);color:#fff;font-family:var(--serif);font-size:13px;padding:7px 10px;max-width:85%">Base Power to Raise $1 Billion&#8230;</span>
+            <span style="position:absolute;right:10px;bottom:10px;width:22px;height:22px;border-radius:4px;background:rgba(10,23,51,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center">&#10074;&#10074;</span>
+          </div>
+          <div class="eyebrow" style="margin-top:8px">Video card &#183; desktop</div>
+        </div>
+        <div>
+          <div style="aspect-ratio:16/9;background:var(--subtle);border:1px solid var(--line);border-radius:4px"></div>
+          <div style="margin-top:10px"><div class="eyebrow" style="letter-spacing:.14em">United States</div><div style="font-family:var(--serif);font-size:15.5px;line-height:1.35;margin:4px 0 6px">Anthropic Raises $65 Billion at a $965 Billion Valuation</div><div style="font-size:12px;color:var(--muted)">May 29, 2026</div></div>
+          <div class="eyebrow" style="margin-top:8px">Photo / mobile card</div>
+        </div>
+        <div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="flex:0 0 52px;aspect-ratio:1;background:var(--subtle);border:1px solid var(--line);border-radius:4px"></div>
+            <div style="font-family:var(--serif);font-size:13.5px;line-height:1.4">Nyobolt Raises $60 Million and Hits Unicorn Status&#8230;</div>
+          </div>
+          <div style="border-top:1px solid var(--line);margin:12px 0 0 64px"></div>
+          <div class="eyebrow" style="margin-top:8px">Rail row &#183; equal slots, level rules</div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line);padding-bottom:8px"><span style="font-family:var(--serif);font-size:17px">New Unicorn Companies</span><a href="#ps-cards" style="margin-left:auto;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-decoration:none">View all</a></div>
+          <div style="margin:12px 0 0"><button class="btn btn-ghost btn-sm" style="text-transform:uppercase;letter-spacing:.06em">Load more deals</button></div>
+          <div class="eyebrow" style="margin-top:10px">Section heading + Load more</div>
+        </div>
+      </div>
+      <div class="bb-note" style="margin-top:8px">The section heading owns an optional quiet «View all»; the list grows with «Load more» that first reveals rendered rows, then pages the archive — a public page never dead-ends into a hundred-screen scroll.</div>
 
-      <h3 class="bb-sub" id="p-faces">Home — face-centred crops (P-31…P-34)</h3>
-      <div class="bb-note"><b>P-31 Principle.</b> Every cover carries <span class="mono">object-position</span> from a face-focus map so cover-crops follow FACES, not the geometric centre.</div>
-      <div class="bb-note"><b>P-32 Rule v5 (etalon 07-05).</b> (1) focus = area-weighted centre of all faces; (2) vertical thirds-lift of −6% ONLY when the largest face &lt; 35% of frame height — tight portraits stay dead-centre, the forehead is never cropped harder than the original (Nyobolt canon); (3) when the face-group spread exceeds what the narrowest frame sees (1:1 sees h/w of the width, threshold &#215;0.92) choose the <b>densest window</b> — the crop position covering the maximum summed face area, partial coverage pro-rata, vertical recomputed over the window’s faces (claroty canon; a lone-largest-face jump is the degenerate case — Render canon); (4) clamps x&nbsp;5–95, y&nbsp;5–85. Regression triple: Nyobolt 46/44 · claroty 48/52 · Render 28/21.</div>
-      <div class="bb-note"><b>P-33 Pipeline.</b> Open detector YuNet (opencv_zoo, Apache-2.0) in CI; sources = home page + the FULL archive via REST featured-media (~1.2k covers); weekly cron — new photos need no human. Map format <span class="mono">{path:{pos,f,top,fh}}</span>, delivered as a release asset, edge-injected by upload-path match, cached 6h; a rule change bumps the cache key. The image CDN blocks datacenter IPs — fetch originals through our own edge.</div>
-      <div class="bb-note"><b>P-34 Tester.</b> <span class="mono">/__faces</span> — four columns per cover (original+focus dot, 16:9 by map, 16:9 centre, 1:1 rail) — the mandatory render-verify surface for any rule change.</div>
+      <h3 class="bb-sub" id="ps-footer">Block — public footer</h3>
+      <div data-code style="background:var(--navy);border-radius:6px;padding:20px 22px;color:rgba(231,237,246,.75);font-size:12.5px">
+        <div style="display:flex;gap:34px;flex-wrap:wrap">
+          <div style="min-width:170px"><div style="color:#fff;font-weight:600;font-size:13px;margin-bottom:5px">Silicon Valley Investclub</div><div>Private markets, institutional discipline.</div></div>
+          <div><div style="color:#fff;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;margin-bottom:7px">Media</div>Interviews &#183; Podcasts &#183; Videos</div>
+          <div><div style="color:#fff;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;margin-bottom:7px">Industries</div>AI &#183; FinTech &#183; Energy</div>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,.12);margin-top:16px;padding-top:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><span>&#169; 2026 Silicon Valley Investclub. All rights reserved.</span><span>Privacy &#183; Terms &#183; Legal &#183; Disclosures</span></div>
+      </div>
+      <div class="bb-note" style="margin-top:8px">The footer mirrors the one nav tree in columns and closes with the legal line. The social row repeats the fixed order used on the bar.</div>
 
-      <h3 class="bb-sub" id="p-accept">Acceptance — blind-rebuild checklist (P-40)</h3>
-      <div class="bb-note">A rebuild «from this document alone» is accepted ONLY when a real render (desktop 1440 + mobile 390 + WebKit/iOS engine) passes every probe below. Numbers are measured, not eyeballed.</div>
+      <h3 class="bb-sub" id="ps-specs">The numbers that keep it one style</h3>
       <table class="bbt">
-        <thead><tr><th>#</th><th>Probe (measured on the live render)</th><th>Expected</th></tr></thead>
+        <thead><tr><th>Surface</th><th>Constant</th></tr></thead>
         <tbody>
-          <tr><td class="mono">1</td><td>Hero tile aspect, mobile &amp; desktop</td><td class="mono">1.778 &#177;0.01</td></tr>
-          <tr><td class="mono">2</td><td>Hero row columns (desktop)</td><td class="mono">50/50</td></tr>
-          <tr><td class="mono">3</td><td>Satellite bottoms vs hero bottom (desktop)</td><td>NOT equalised (P-15 anti-pattern)</td></tr>
-          <tr><td class="mono">4</td><td>Satellite anatomy</td><td>kicker/title/date — no excerpt</td></tr>
-          <tr><td class="mono">5</td><td>Mobile overlay cards</td><td>caption UNDER media, plate absent</td></tr>
-          <tr><td class="mono">6</td><td>Mobile hero&#8594;satellite junction</td><td class="mono">24px</td></tr>
-          <tr><td class="mono">7</td><td>Rail gaps, mobile (8 of them)</td><td class="mono">8 &#215; 40px</td></tr>
-          <tr><td class="mono">8</td><td>Rail divider bottoms per row, desktop</td><td>equal across 3 columns</td></tr>
-          <tr><td class="mono">9</td><td>Final grid initial cards</td><td class="mono">12</td></tr>
-          <tr><td class="mono">10</td><td>Load-more reaches archive end</td><td>REST pages until &lt;12 returned</td></tr>
-          <tr><td class="mono">11</td><td>Covers with detected faces carry object-position</td><td>&#8805;95%</td></tr>
-          <tr><td class="mono">12</td><td>Regression triple (P-32)</td><td class="mono">46/44 &#183; 48/52 &#183; 28/21</td></tr>
-          <tr><td class="mono">13</td><td>Clips: container format</td><td>progressive, moov first, loop=true</td></tr>
-          <tr><td class="mono">14</td><td>Off-screen clips after governor</td><td>paused; active plays</td></tr>
-          <tr><td class="mono">15</td><td>Date colour over bright frame (desktop)</td><td>navy (sampler live)</td></tr>
-          <tr><td class="mono">16</td><td>Smart-hide restore</td><td>accumulated up-scroll, thresholds 200</td></tr>
-          <tr><td class="mono">17</td><td>Drawer list</td><td>6 items, exact P-9 order, no groups</td></tr>
-          <tr><td class="mono">18</td><td>Login sheet direction</td><td>upward, button stationary</td></tr>
-          <tr><td class="mono">19</td><td>US mega Language column</td><td>last</td></tr>
-          <tr><td class="mono">20</td><td>Login mega group order</td><td>Members &amp; Partners first</td></tr>
-          <tr><td class="mono">21</td><td>Favicon bytes</td><td>= /brandbook-favicon.png</td></tr>
-          <tr><td class="mono">22</td><td>Social order (bar+footer)</td><td>P-24 sequence</td></tr>
-          <tr><td class="mono">23</td><td>Injected scripts parse standalone</td><td>node --check clean (Governance gate)</td></tr>
-          <tr><td class="mono">24</td><td>Home &lt;h1&gt;</td><td>visually-hidden, exact P-22 text</td></tr>
-          <tr><td class="mono">25</td><td>«Uncategorised» / «Browsing Category» / «.&amp;hellip;»</td><td>absent / replaced / fixed</td></tr>
-          <tr><td class="mono">26</td><td>Mobile bar brand</td><td>absolutely centered</td></tr>
-          <tr><td class="mono">27</td><td>Region sheet chips</td><td>left-aligned, accordions exclusive</td></tr>
-          <tr><td class="mono">28</td><td>Dropdown pinning on click</td><td>none (no-pin)</td></tr>
-          <tr><td class="mono">29</td><td>Hover transition-delays on menus</td><td>0ms (rejected pattern absent)</td></tr>
-          <tr><td class="mono">30</td><td>Console on load</td><td>no 404 / no JS errors from chrome</td></tr>
+          <tr><td>Large media frame</td><td class="mono">16:9 (56.25%) — desktop &amp; mobile; square rail thumbs exempt</td></tr>
+          <tr><td>Card type scale</td><td class="mono">serif 1.5 / 1.35 / 1.25rem &#183; kicker 11px/600/.14em &#183; date 13px</td></tr>
+          <tr><td>Section rhythm</td><td class="mono">desktop 44px between sections &#183; mobile card gap 24px</td></tr>
+          <tr><td>Rail slots</td><td class="mono">40px with the hairline centred; rows levelled across columns</td></tr>
+          <tr><td>Bar auto-hide</td><td class="mono">hide past 200px; return on accumulated up-scroll (200)</td></tr>
+          <tr><td>Video title plate</td><td class="mono">rgba(10,23,51,.62), aligned to the longest line</td></tr>
+          <tr><td>On-media date</td><td class="mono">adapts to frame luminance (&gt;140 &#8594; navy; hysteresis 150/126)</td></tr>
+          <tr><td>Clips</td><td class="mono">same-origin, progressive (faststart), muted, looped, one active</td></tr>
+          <tr><td>Cover focus</td><td class="mono">face map: group centre &#8594; densest cluster; tight portraits stay centred</td></tr>
+          <tr><td>Favicon</td><td class="mono">/brandbook-favicon.png — byte-identical everywhere</td></tr>
         </tbody>
       </table>
-      <div class="bb-note" style="margin-top:8px"><b>Out of canon</b> (pending owner approval — do NOT reproduce by default): the ?__plan preview pack (regional links, language labels, unfurl, de-CMS, fine-print, a11y focus pack), the live-hover cinemagraphs, video pause controls.</div>
+      <div class="bb-note" style="margin-top:8px"><b>Scope.</b> The living etalon is the public stand; extensions to any public page reuse these blocks and pass the Governance gates (<a href="#govern">&#167;Governance</a>) — including the numeric render-verify on both viewports. Experimental packs (link resolution, unfurl metadata, hover cinemagraphs, the a11y focus pack) stay out of this canon until approved.</div>
+    </section>
+
+<section class="bb-sec" id="govern">
+      <div class="eyebrow">20 — Operating</div>
+      <h2>Governance &amp; enforcement</h2>
+      <div class="lead">The design system is not advisory — it is the code, and it is enforced mechanically so it cannot erode across sessions.</div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>One source of truth.</b> All tokens and components live in <span class="mono">/app.css</span> + <span class="mono">/ui.js</span>. New screens inherit them; they never invent local colours, radii or fonts.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Pre-deploy lint.</b> A build step rejects any new page that uses a gradient, an inline drop-shadow, an emoji, a second accent, native <span class="mono">alert/confirm/prompt</span>, or a radius over 8px.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Vision QA — pixel-match against this page, before every deploy.</b> Always, before any deploy, render the change in a real browser, screenshot it, and compare the resulting pixels against the canonical rendering on this design-system page — <b>this page is the reference</b>. If they do not match (wrong icon weight, broken proportions, a colour or spacing drift), it is a regression: <b>correct the build and re-verify until the renders match.</b> Never ship on a code review alone — code can pass while the render is wrong; the rendered pixels are the contract.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Adding a component — definition of done.</b> Into <span class="mono">/app.css</span> / <span class="mono">ui.js</span> once — never a one-off in a page. Ships with every state (default / hover / focus / disabled / loading), both themes and mobile &#8804;640; keyboard + ARIA per <a href="#access">&#167;Accessibility</a>; documented here with a <span class="mono">since x.y</span> tag, a live example in <a href="/_gallery.html">the gallery</a> and a changelog line — one PR, and 0dt passes with zero new baseline entries.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Versioning.</b> Semver-lite: removing or renaming a shipped class or token bumps the major; a new component, token or pattern bumps the minor; doc-text-only edits change the date, not the version. A bump lands in three places at once — the hero meta, the top changelog row and the <a href="#resources">&#167;Resources</a> footer stamp — and the drift audit (Step 0dr) fails the build if the hero and the top changelog row disagree. Token changes regenerate <span class="mono">/tokens.json</span> (<span class="mono">scripts/build-design-tokens.js</span>); a stale export also fails 0dr. &#171;One release&#187; in the deprecation rule below means one minor or major bump.</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Deprecation.</b> A retired pattern is marked here first — its <a href="#components">&#167;Components</a> subheading carries <span class="tag warn">deprecated x.y &#8594; use Z</span> next to its &#171;since&#187; tag, and its rule in <span class="mono">/app.css</span> gets <span class="mono">/* @deprecated use Z */</span> — kept working one release, then removed from <span class="mono">/app.css</span> in the next, with a changelog line. New pages never use a deprecated class (review; on the first real deprecation the class name joins the 0dt scan).</div></div>
+      <div class="bb-rule"><span class="ic" data-ic="check"></span><div><b>Documentation register.</b> Guidance here states the rule and its reason — never the incident that produced it.</div></div>
+      <h3 class="bb-sub" style="margin-top:22px">The prohibitions (normative) — and the lint that enforces each</h3>
+      <table class="bbt">
+        <thead><tr><th>#</th><th>Forbidden</th><th>Enforced by</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">R-1</td><td>Visual constructs outside <span class="mono">app.css / ui.js / skin-wp.css</span> — a page style may only combine existing classes and tokens</td><td class="mono">0dt + review</td></tr>
+          <tr><td class="mono">R-2</td><td>Sizes off the scales — font-size and containers linted on every page; radius via 0dq; padding/gap follow the <span class="mono">--sp-*</span> guidance scale (not yet machine-enforced)</td><td class="mono">0ds (new pages strict; legacy pinned in design-scale-baseline.txt, shrink-only) · 0dq</td></tr>
+          <tr><td class="mono">R-3</td><td>Containers outside the whitelist (<span class="mono">--w-app/read/form/wide</span>)</td><td class="mono">0ds</td></tr>
+          <tr><td class="mono">R-4</td><td>Own headers / menus / footers — only the canonical artefacts (topbar, drawer and footer per <a href="#components">&#167;Components</a>, or the re-skinned native one on skin surfaces)</td><td class="mono">0dt (.topbar clone scan)</td></tr>
+          <tr><td class="mono">R-5</td><td>A skin hiding or removing any functional block</td><td class="mono">parity checklist (96 blocks) + Vision QA</td></tr>
+          <tr><td class="mono">R-6</td><td>A new component without intake — the &#171;definition of done&#187; above, in one PR</td><td class="mono">0dt + review</td></tr>
+          <tr><td class="mono">R-7</td><td>Colours outside tokens; a second accent on a screen</td><td class="mono">0dq, 0dr (incl. skin-wp.css)</td></tr>
+          <tr><td class="mono">R-8</td><td>Duplicating an existing component with "your own version" (escape: <span class="mono">/* DS-OVERRIDE: reason */</span> — legacy only, converge at next change)</td><td class="mono">0dt</td></tr>
+          <tr><td class="mono">R-9</td><td>Icons outside <span class="mono">ICON{}</span>; fonts beyond the self-hosted pair</td><td class="mono">0dq (emoji/Poppins) + review</td></tr>
+          <tr><td class="mono">R-10</td><td>A page not started from a skeleton (<a href="#contract">&#167;Layout contract</a>)</td><td class="mono">review + 0ds catches drift</td></tr>
+          <tr><td class="mono">R-11</td><td>A page without the top-line preloader; own progress bars</td><td class="mono">0du</td></tr>
+        </tbody>
+      </table>
+      <div class="bb-note" style="margin:10px 0 18px"><b>Beyond this repo:</b> the same checks ship as a standalone core (<span class="mono">scripts/design-lint-core.js</span>) and gate the Cloudflare-worker deploys of skin surfaces (testnew-edge <span class="mono">deploy.sh</span>) — the system is enforced on every SVIC property, not only the platform.</div>
+
+      <h3 class="bb-sub" style="margin-top:22px">Building a new page — the whole process</h3>
+      <div class="bb-note">1&#41; Pick a skeleton (&#167;Layout contract &#8594; gallery#skeletons). 2&#41; Assemble from documented components only; text styles from the type scale; container from the whitelist; the canonical topbar; <span class="mono">/loader.js</span> included. 3&#41; Need something the system lacks? Intake first (R-6). 4&#41; Run the pre-deploy lint — it must pass with zero new baseline entries. 5&#41; Vision-QA desktop + mobile (&#8804;640) against &#167;Principles. A page built this way takes under an hour and is indistinguishable in grid and type from the rest of the platform — that is the point.</div>
+
+      <h3 class="bb-sub" style="margin-top:22px">Changelog</h3>
+      <table class="bbt"><thead><tr><th>Version</th><th>Date</th><th>Change</th></tr></thead><tbody>
+        <tr><td class="mono">2.3</td><td class="mono">Jun 10, 2026</td><td>Audit pass 3: dark-theme AA (--on-accent), visible 2px focus ring, modal/menu/toast/sortable keyboard+ARIA, preloader on all pages via loader.js, pre-paint OS theme on token-complete pages (data-theme-auto), search ranking + deep-linkable h3 anchors, clean section renumbering 01&#8211;22, enforcement extended to linked CSS/&lt;style&gt;/JS with shrink-only baselines, tokens.json full W3C export.</td></tr>
+        <tr><td class="mono">2.2</td><td class="mono">Jun 10, 2026</td><td>Hardening: numeric layout contract (Layout contract, now &#167;08 — container whitelist, grid, rhythm, type scale, skeletons); mandatory top-line preloader on every page (R-11, loader.js); skinning &amp; frozen canons (now &#167;Skinning — media grid + marketplace, skin-wp.css); prohibitions R-1&#8211;R-11 each wired to a lint step (0ds/0dt/0du, 0dr extended to the skin); lint core shipped to non-platform repos.</td></tr>
+        <tr><td class="mono">2.1</td><td class="mono">Jun 10, 2026</td><td>Truth pass: files unified to /app.css + /ui.js; one breakpoint set (640/900); z-scale matches code; focus-visible, reduced-motion, disabled/loading/skeleton implemented; primitives tier + spacing/radius/motion/z tokens; label contrast raised to AA; theme follows the OS and persists; lint extended to every page (ratchet).</td></tr>
+        <tr><td class="mono">2.0</td><td class="mono">May 31, 2026</td><td>Becomes a design system: token tiers + dark theme, Patterns, component states, deeper accessibility, content &amp; numbers, this governance.</td></tr>
+        <tr><td class="mono">1.0</td><td class="mono">May 31, 2026</td><td>First brand book — principles, identity, colour, type, components, data-viz, motion.</td></tr>
+      </tbody></table>
+          <div class="bb-note" style="margin-top:8px"><b>Public-site gates (2026-07-05).</b> (a) <b>Inline-JS parse gate</b> — every script string injected into served HTML must parse standalone (<span class="mono">node --check</span>) before deploy: a slash-regex cooked through a template literal becomes <span class="mono">//</span> and silently kills the whole script (three bites in one day). (b) <b>Numeric render-verify</b> — a change is «done» only after a real-engine render (desktop 1440, mobile 390, WebKit/iOS) passes MEASURED probes (aspect, gaps, baselines) — §Public&nbsp;site P-40. (c) <b>Video defects are judged on PLAYING frames</b>, never on markup or a single poster frame.</div>
+      <h3 class="bb-sub">Lint legend — what each gate checks</h3>
+      <table class="bbt"><thead><tr><th>Gate</th><th>Checks</th></tr></thead><tbody>
+        <tr><td class="mono">0cs</td><td>doc pages carry the system (loader, tokens, no rogue styles)</td></tr>
+        <tr><td class="mono">0dq</td><td>every page carries the system; the allowlist only shrinks</td></tr>
+        <tr><td class="mono">0ds</td><td>type &amp; container sizes come from the published scales only</td></tr>
+        <tr><td class="mono">0dt</td><td>no local clones of canonical components</td></tr>
+        <tr><td class="mono">0du</td><td>loader.js present on every page (R-11)</td></tr>
+        <tr><td class="mono">0dr</td><td>token drift: app.css &#8596; this document &#8596; tokens.json</td></tr>
+      </tbody></table>
+      <div class="bb-note" style="margin-top:8px">Run locally: <span class="mono">bash scripts/lint-pre-deploy.sh</span> — the deploy queue runs the same chain on the merged tree.</div>
     </section>
 
     <section class="bb-sec" id="resources">
-      <div class="eyebrow">23 — Operating</div>
+      <div class="eyebrow">21 — Operating</div>
       <h2>Resources</h2>
       <div class="lead">Live assets and references. Everything here is the production source, not a copy. Every sub-section heading in this document carries a stable anchor — the doc is linkable below section level.</div>
       <div class="res">
@@ -1273,9 +1375,9 @@
         <a href="https://platform.siliconvalleyinvestclub.com/app.css" target="_blank"><div class="rt"><span data-ic="file"></span>Design tokens &amp; components</div><div class="rd">/app.css · the source of truth</div></a>
         <a href="https://platform.siliconvalleyinvestclub.com/ui.js" target="_blank"><div class="rt"><span data-ic="file"></span>ui.js</div><div class="rd">icons · modal · toast · menu · sortable · progress</div></a>
         <a href="https://platform.siliconvalleyinvestclub.com/loader.js" target="_blank"><div class="rt"><span data-ic="file"></span>loader.js</div><div class="rd">top-line preloader + pre-paint theme · mandatory on every page (R-11)</div></a>
-        <a href="https://platform.siliconvalleyinvestclub.com/skin-wp.css" target="_blank"><div class="rt"><span data-ic="file"></span>skin-wp.css</div><div class="rd">the one artifact that re-themes skin surfaces (&#167;21)</div></a>
-        <a href="https://github.com/xqtrn/svic-visio-test/releases/download/faces/faces.json" target="_blank"><div class="rt"><span data-ic="file"></span>faces.json</div><div class="rd">face-focus map (&#167;22 P-31…P-33) &#183; rebuilt weekly by CI</div></a>
-        <a href="https://github.com/xqtrn/svic-visio-test/releases/tag/clips" target="_blank"><div class="rt"><span data-ic="external"></span>Progressive clips</div><div class="rd">faststart remuxes of the cover videos (&#167;22 P-25) &#183; weekly CI</div></a>
+        <a href="https://platform.siliconvalleyinvestclub.com/skin-wp.css" target="_blank"><div class="rt"><span data-ic="file"></span>skin-wp.css</div><div class="rd">the one artifact that re-themes skin surfaces (<a href="#skinning">&#167;Skinning</a>)</div></a>
+        <a href="https://github.com/xqtrn/svic-visio-test/releases/download/faces/faces.json" target="_blank"><div class="rt"><span data-ic="file"></span>faces.json</div><div class="rd">face-focus map (<a href="#public-site">&#167;Public site</a>) &#183; rebuilt weekly by CI</div></a>
+        <a href="https://github.com/xqtrn/svic-visio-test/releases/tag/clips" target="_blank"><div class="rt"><span data-ic="external"></span>Progressive clips</div><div class="rd">faststart remuxes of the cover videos (<a href="#public-site">&#167;Public site</a>) &#183; weekly CI</div></a>
         <a href="https://platform.siliconvalleyinvestclub.com/fonts.css" target="_blank"><div class="rt"><span data-ic="file"></span>fonts.css</div><div class="rd">self-hosted Inter + Source Serif 4 via /fonts/</div></a>
         <a href="https://platform.siliconvalleyinvestclub.com/tokens.json" target="_blank"><div class="rt"><span data-ic="file"></span>tokens.json</div><div class="rd">96 tokens, W3C design-tokens format · generated from app.css</div></a>
         <a href="/_gallery.html"><div class="rt"><span data-ic="external"></span>Component gallery</div><div class="rd">live, interactive component set</div></a>
@@ -1305,7 +1407,7 @@
   document.getElementById('icoGrid').innerHTML = picks.map(function(k){ return '<div class="ico-cell">'+(ICON[k]||'')+'<div class="nm">'+k+'</div></div>'; }).join('');
   var dl = document.getElementById('demoLoad');
   if (dl) dl.addEventListener('click', function(){ if (window.startProgress) { startProgress(); setTimeout(function(){ if (window.doneProgress) doneProgress(); }, 1400); } });
-  // §11 live demos — modal / confirm / toast / drawer / tabs / sortable grid
+  // §Components live demos — modal / confirm / toast / drawer / tabs / sortable grid
   var dM = document.getElementById('demoModal');
   if (dM) dM.addEventListener('click', function(){
     showModal('<div class="modal-hd"><h2>New order</h2><button class="modal-x" onclick="closeModal()" aria-label="Close">' + ICON.x + '</button></div>' +
