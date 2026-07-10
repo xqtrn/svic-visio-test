@@ -26,14 +26,16 @@ jobs:
             TYPE=$(node -e "console.log(require('./manifest-missing.json')[$i].type)")
             SRC=$(node -e "console.log(require('./manifest-missing.json')[$i].source)")
             echo "=== [$((i+1))/$N] $KEY ($TYPE) ==="
+            EXIST=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
+            if echo "$EXIST" | grep -qx "$KEY.mp4"; then echo "skip (exists)"; OK=$((OK+1)); continue; fi
             rm -f in.mp4 "$KEY.mp4"
             if [ "$TYPE" = wordpress ]; then
               curl -sL "$SRC" -o in.mp4
             else
               yt-dlp --no-playlist --no-progress --no-warnings \
                 --proxy "$PENGUIN_SOCKS" \
-                --extractor-args "youtube:player_client=web_safari,tv,mweb" \
-                -f 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/b[height<=720]/b' \
+                --extractor-args "youtube:player_client=ios,android,web_safari" \
+                -f 'b[height<=720][ext=mp4]/bv*[height<=720]+ba/b[height<=720]/b' \
                 --merge-output-format mp4 -o in.mp4 "$SRC" || { echo "yt-dlp fail"; FAIL=$((FAIL+1)); continue; }
             fi
             SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0)
