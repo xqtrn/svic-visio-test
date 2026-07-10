@@ -1,0 +1,31 @@
+name: redownload-1080
+on: { workflow_dispatch: {} }
+permissions: { contents: write }
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg && python3 -m pip install --quiet --upgrade yt-dlp
+      - name: redownload youtube at 1080p (bestvideo+bestaudio merged)
+        env: { GH_TOKEN: "${{ github.token }}", PENGUIN_SOCKS: "${{ secrets.PENGUIN_SOCKS }}" }
+        run: |
+          N=$(node -e "console.log(require('./manifest-missing.json').length)")
+          OK=0; FAIL=0
+          for i in $(seq 0 $((N-1))); do
+            KEY=$(node -e "console.log(require('./manifest-missing.json')[$i].key)")
+            SRC=$(node -e "console.log(require('./manifest-missing.json')[$i].source)")
+            echo "=== $KEY ==="; rm -f in.* "$KEY.mp4"
+            yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
+              --extractor-args "youtube:player_client=ios,android,web_safari" \
+              -f 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b' \
+              --merge-output-format mp4 -o in.mp4 "$SRC" || { echo fail; FAIL=$((FAIL+1)); continue; }
+            H=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 in.mp4 2>/dev/null)
+            SZ=$(stat -c%s in.mp4); echo "res=$H size=$SZ"
+            ffmpeg -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "$KEY.mp4" 2>/dev/null \
+              || ffmpeg -hide_banner -loglevel error -i in.mp4 -c:v libx264 -preset veryfast -crf 21 -c:a aac -movflags +faststart "$KEY.mp4"
+            gh release upload clips "$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
+          done
+          echo "=== reuploaded=$OK failed=$FAIL ==="
