@@ -8,31 +8,30 @@ permissions:
 jobs:
   convert:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: scan test3 for clip ids
-        run: |
-          curl -s -H 'Cookie: svic_token=edge-preview' 'https://test3.siliconvalleyinvestclub.com/?scan=1' -o home.html
-          curl -s -H 'Cookie: svic_token=edge-preview' 'https://test3.siliconvalleyinvestclub.com/category/north-america/united-states/?scan=1' -o cat.html
-          grep -hoE 'data-svic-vid="[A-Za-z0-9_-]+"' home.html cat.html | sed -E 's/.*="([^"]+)"/\1/' | sort -u > ids.txt
-          echo "ids:"; cat ids.txt
-      - name: convert missing ids to progressive (remux, lossless)
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: map article vids → native wordpress.com videos (no YouTube)
+        run: node scan-clips.js
+      - name: transfer missing clips (download wordpress mp4 → faststart remux → release)
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-          gh release view clips -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create clips -R "$GITHUB_REPOSITORY" -t "progressive clips" -n "faststart remuxes of /svic-video fMP4s (iOS can't stream fragmented mp4)"
+          gh release view clips -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create clips -R "$GITHUB_REPOSITORY" -t "progressive clips" -n "faststart remuxes of article cover videos (iOS can't stream fragmented mp4)"
           EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' || true)
-          CONVERTED=0
-          while read -r ID; do
-            [ -z "$ID" ] && continue
-            if echo "$EXISTING" | grep -q "^$ID.mp4$"; then echo "skip $ID (exists)"; continue; fi
-            echo "convert $ID"
-            curl -s -H 'Cookie: svic_token=edge-preview' "https://test3.siliconvalleyinvestclub.com/svic-video/$ID.mp4" -o "in.mp4"
-            SIZE=$(stat -c%s in.mp4); [ "$SIZE" -lt 100000 ] && { echo "too small, skip"; continue; }
-            ffmpeg -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "$ID.mp4"
-            ffprobe -v error -show_entries format=duration -of csv=p=0 "$ID.mp4"
-            gh release upload clips "$ID.mp4" -R "$GITHUB_REPOSITORY" --clobber
-            CONVERTED=$((CONVERTED+1))
-          done < ids.txt
-          echo "converted this run: $CONVERTED"
+          CONVERTED=0; SKIP=0; FAIL=0
+          COUNT=$(node -e "console.log(require('./pairs.json').length)")
+          for i in $(seq 0 $((COUNT-1))); do
+            VID=$(node -e "console.log(require('./pairs.json')[$i].vid)")
+            URL=$(node -e "console.log(require('./pairs.json')[$i].url)")
+            if echo "$EXISTING" | grep -qx "$VID.mp4"; then echo "skip $VID (exists)"; SKIP=$((SKIP+1)); continue; fi
+            echo "transfer $VID ← $URL"
+            curl -sL "$URL" -o in.mp4
+            SIZE=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SIZE" -lt 100000 ] && { echo "  too small ($SIZE), skip"; FAIL=$((FAIL+1)); continue; }
+            ffmpeg -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "$VID.mp4" || { echo "  ffmpeg fail"; FAIL=$((FAIL+1)); continue; }
+            gh release upload clips "$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && CONVERTED=$((CONVERTED+1))
+            rm -f in.mp4 "$VID.mp4"
+          done
+          echo "=== transferred=$CONVERTED skipped=$SKIP failed=$FAIL of $COUNT mapped ==="
