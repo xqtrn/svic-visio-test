@@ -11,6 +11,7 @@ jobs:
       - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
       - run: npx playwright install --with-deps chrome webkit
       - run: node ds-shot.js
+      - run: timeout 120 node arx-shot.js || echo ARX_EXIT=$?
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: ds-out, path: out/ }
