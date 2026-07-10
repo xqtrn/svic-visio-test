@@ -1,37 +1,50 @@
 name: convert-clips
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   schedule:
-    - cron: '17 6 * * 1'   # weekly: pick up newly published clips automatically
-permissions:
-  contents: write
+    - cron: '17 6 * * 1'   # weekly Mon 06:17 UTC — self-host new article videos, no one in the loop
+permissions: { contents: write }
 jobs:
-  convert:
+  sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
-      - name: map article vids → native wordpress.com videos (no YouTube)
-        run: node scan-clips.js
-      - name: transfer missing clips (download wordpress mp4 → faststart remux → release)
-        env: { GH_TOKEN: "${{ github.token }}" }
+      - name: tools
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-          gh release view clips -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create clips -R "$GITHUB_REPOSITORY" -t "progressive clips" -n "faststart remuxes of article cover videos (iOS can't stream fragmented mp4)"
-          EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' || true)
-          CONVERTED=0; SKIP=0; FAIL=0
-          COUNT=$(node -e "console.log(require('./pairs.json').length)")
-          for i in $(seq 0 $((COUNT-1))); do
-            VID=$(node -e "console.log(require('./pairs.json')[$i].vid)")
-            URL=$(node -e "console.log(require('./pairs.json')[$i].url)")
-            if echo "$EXISTING" | grep -qx "$VID.mp4"; then echo "skip $VID (exists)"; SKIP=$((SKIP+1)); continue; fi
-            echo "transfer $VID ← $URL"
-            curl -sL "$URL" -o in.mp4
-            SIZE=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SIZE" -lt 100000 ] && { echo "  too small ($SIZE), skip"; FAIL=$((FAIL+1)); continue; }
-            ffmpeg -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "$VID.mp4" || { echo "  ffmpeg fail"; FAIL=$((FAIL+1)); continue; }
-            gh release upload clips "$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && CONVERTED=$((CONVERTED+1))
-            rm -f in.mp4 "$VID.mp4"
+          python3 -m pip install --quiet --upgrade yt-dlp
+      - name: discover missing article videos
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: node weekly-sync.js
+      - name: download (wordpress / youtube via Penguin) + faststart + upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
+        run: |
+          gh release view clips -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create clips -R "$GITHUB_REPOSITORY" -t "progressive clips" -n "article cover/interview videos"
+          N=$(node -e "console.log(require('./manifest-missing.json').length)")
+          echo "missing=$N"; OK=0; FAIL=0
+          for i in $(seq 0 $((N-1))); do
+            KEY=$(node -e "console.log(require('./manifest-missing.json')[$i].key)")
+            TYPE=$(node -e "console.log(require('./manifest-missing.json')[$i].type)")
+            SRC=$(node -e "console.log(require('./manifest-missing.json')[$i].source)")
+            echo "=== $KEY ($TYPE) ==="; rm -f in.mp4 "$KEY.mp4"
+            if [ "$TYPE" = wordpress ]; then curl -sL "$SRC" -o in.mp4
+            else yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
+              --extractor-args "youtube:player_client=ios,android,web_safari" \
+              -f 'b[height<=720][ext=mp4]/bv*[height<=720]+ba/b[height<=720]/b' --merge-output-format mp4 -o in.mp4 "$SRC" || { FAIL=$((FAIL+1)); continue; }; fi
+            SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 50000 ] && { echo "too small"; FAIL=$((FAIL+1)); continue; }
+            ffmpeg -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "$KEY.mp4" 2>/dev/null \
+              || ffmpeg -hide_banner -loglevel error -i in.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "$KEY.mp4"
+            gh release upload clips "$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
           done
-          echo "=== transferred=$CONVERTED skipped=$SKIP failed=$FAIL of $COUNT mapped ==="
+          gh release upload clips cover-slugs.json -R "$GITHUB_REPOSITORY" --clobber || true
+          echo "=== self-hosted=$OK failed=$FAIL of $N ==="
+      - name: persist cover-slugs manifest
+        run: |
+          git config user.email noreply@anthropic.com; git config user.name claude
+          git add cover-slugs.json && git commit -m "weekly-sync: update cover-slugs" || echo "no manifest change"
+          git push || true
