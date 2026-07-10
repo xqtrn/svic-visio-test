@@ -1,0 +1,16 @@
+name: refresh-frontpage
+on:
+  schedule:
+    - cron: '17 13 * * *'   # daily 13:17 UTC (~06:17 PST)
+  workflow_dispatch:
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm init -y >/dev/null 2>&1 && npm i pg >/dev/null 2>&1
+      - run: node refresh-frontpage.js
+        env:
+          DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
