@@ -7,6 +7,19 @@ const { chromium } = require('playwright');
   await pg.goto('https://test3.siliconvalleyinvestclub.com/2026/06/01/base-power-to-raise-1-billion-at-a-12-billion-valuation/?__x=v6', { waitUntil: 'domcontentloaded' });
   await pg.waitForTimeout(7000);
   await pg.screenshot({ path: 'out/arx-v6-top.png' });
+  console.log('CSSDBG2', await pg.evaluate(() => {
+    const w = document.querySelector('.cs-entry__content-wrap');
+    const attr = w.getAttribute('style');
+    let hit = [];
+    for (const sh of document.styleSheets) { let rules; try { rules = sh.cssRules; } catch(e) { continue; }
+      const walk = rs => { for (const r of rs) { if (r.cssRules) { walk(r.cssRules); continue; } if (r.selectorText && r.selectorText.includes('content-wrap') && r.style && r.style.length) hit.push(r.selectorText.slice(-70) + ' {' + r.style.cssText.slice(0, 110) + '}'); } };
+      walk(sh.cssRules); }
+    const before = Math.round(w.getBoundingClientRect().width);
+    w.style.setProperty('width', '768px', 'important');
+    const after = Math.round(w.getBoundingClientRect().width);
+    w.style.removeProperty('width');
+    return JSON.stringify({ attr, before, after, hits: hit.slice(0, 12) });
+  }));
   console.log('CSSDBG', await pg.evaluate(() => {
     const w = document.querySelector('.cs-entry__content-wrap'), c = document.querySelector('.cs-entry__container');
     const cw = getComputedStyle(w), cc = getComputedStyle(c);
