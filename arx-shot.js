@@ -7,6 +7,13 @@ const { chromium } = require('playwright');
   await pg.goto('https://test3.siliconvalleyinvestclub.com/2026/06/01/base-power-to-raise-1-billion-at-a-12-billion-valuation/?__x=v6', { waitUntil: 'domcontentloaded' });
   await pg.waitForTimeout(7000);
   await pg.screenshot({ path: 'out/arx-v6-top.png' });
+  console.log('CHAIN', await pg.evaluate(() => {
+    let e = document.querySelector('.cs-entry__content-wrap'); const out = [];
+    for (let i = 0; i < 6 && e; i++) { const b = e.getBoundingClientRect(), c = getComputedStyle(e);
+      out.push([e.className.split(' ').slice(0,2).join('.') || e.tagName, Math.round(b.left), Math.round(b.width), c.display, c.gridTemplateColumns !== 'none' ? c.gridTemplateColumns : '', c.maxWidth, c.marginLeft]);
+      e = e.parentElement; }
+    return JSON.stringify(out);
+  }));
   console.log('GEO', await pg.evaluate(() => {
     const r = s => { const e = document.querySelector(s); if(!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.width)]; };
     const cw = document.querySelector('.cs-entry__content-wrap');
