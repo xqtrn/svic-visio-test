@@ -11,6 +11,8 @@ async function existing(){ // clip asset names already in release
 }
 (async()=>{
   const have=await existing();
+  let interviews=[]; try{ const r=await fetch('https://github.com/xqtrn/svic-visio-test/releases/download/clips/interview-vids.json',{redirect:'follow'}); if(r.ok) interviews=await r.json(); }catch{}
+  const isInterview=new Set(interviews);
   const posts=await(await fetch(`https://public-api.wordpress.com/wp/v2/sites/${SITE}/posts?after=2026-06-01T23:59:59&per_page=100&_fields=link,slug`)).json();
   const manifest=[], covers={};
   for(const p of posts){
@@ -21,7 +23,7 @@ async function existing(){ // clip asset names already in release
     // preferred company-page slug guesses: exact leading token, first two tokens
     const guesses=[token, seg.split('-').slice(0,2).join('-')];
     if(vid){
-      if(have.has(vid)) continue;                    // already self-hosted
+      if(have.has(vid)||isInterview.has(vid)) continue;   // already self-hosted OR classified interview (youtube embed)
       let wp=null; for(const g of guesses){ wp=await companyVideo(g); if(wp) break; }
       if(wp) manifest.push({key:vid,type:'wordpress',source:wp,slug:seg});
       else manifest.push({key:vid,type:'youtube',source:`https://www.youtube.com/watch?v=${vid}`,slug:seg});
