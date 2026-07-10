@@ -14,6 +14,7 @@ jobs:
       - run: timeout 120 node arx-shot.js || echo ARX_EXIT=$?
       - run: timeout 120 node home-shot.js || echo HOME_EXIT=$?
       - run: timeout 120 node vid-shot.js || echo VID_EXIT=$?
+      - run: timeout 120 node cmp-live.js || echo CMP_EXIT=$?
       - run: timeout 300 node probe-all-videos.js || echo PROBE_EXIT=$?
       - uses: actions/upload-artifact@v4
         if: always()
