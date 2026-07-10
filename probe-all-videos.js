@@ -16,15 +16,16 @@ const SITE='195962263';
       await pg.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
       await pg.waitForTimeout(6000);
       info=await pg.evaluate(()=>{
-        const vids=[...document.querySelectorAll('video')].filter(v=>(v.currentSrc||v.src||'').includes('/svic-video/'));
-        const v=vids[0];
-        return { hasVid:vids.length>0, src:v?(v.currentSrc||v.src).split('/svic-video/')[1]:null, ready:v?v.readyState:0, w:v?v.videoWidth:0 };
+        const heroVid=[...document.querySelectorAll('.cs-entry__media-large video, .cs-video-wrapper video')].filter(v=>(v.currentSrc||v.src||'').includes('/svic-video/'))[0];
+        const heroYt=document.querySelector('.cs-entry__media-large iframe[src*="youtube"], .svic-yt iframe[src*="youtube"]');
+        return { selfhost:heroVid?(heroVid.currentSrc||heroVid.src).split('/svic-video/')[1]:null, ready:heroVid?heroVid.readyState:0, w:heroVid?heroVid.videoWidth:0, youtube: heroYt?heroYt.src.split('/embed/')[1].split('?')[0]:null };
       });
       info.slug=post.slug.slice(0,42);
-      info.ok=info.hasVid&&info.ready>=1&&info.w>0;
+      info.ok = (!!info.selfhost && info.ready>=1 && info.w>0) || !!info.youtube;
+      info.kind = info.youtube ? 'youtube' : (info.selfhost?'selfhost':'NONE');
     }catch(e){ info.err=e.message.slice(0,40); }
     results.push(info);
-    console.log(`${info.ok?'OK  ':'FAIL'} ${info.slug.padEnd(44)} src=${info.src||'-'} ready=${info.ready||0} w=${info.w||0}`);
+    console.log(`${info.ok?'OK  ':'FAIL'} ${info.slug.padEnd(44)} ${info.kind||'-'} ${info.youtube?('yt:'+info.youtube):('src:'+(info.selfhost||'-')+' w='+(info.w||0))}`);
     await pg.close();
   }
   const fail=results.filter(r=>!r.ok);
