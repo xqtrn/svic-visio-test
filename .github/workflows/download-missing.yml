@@ -1,0 +1,47 @@
+name: download-missing-videos
+on: { workflow_dispatch: {} }
+permissions: { contents: write }
+jobs:
+  dl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: tools
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python3 -m pip install --quiet --upgrade yt-dlp
+      - name: download + faststart + upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
+        run: |
+          gh release view clips -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create clips -R "$GITHUB_REPOSITORY" -t "progressive clips" -n "article cover videos"
+          N=$(node -e "console.log(require('./manifest-missing.json').length)")
+          OK=0; FAIL=0
+          for i in $(seq 0 $((N-1))); do
+            KEY=$(node -e "console.log(require('./manifest-missing.json')[$i].key)")
+            TYPE=$(node -e "console.log(require('./manifest-missing.json')[$i].type)")
+            SRC=$(node -e "console.log(require('./manifest-missing.json')[$i].source)")
+            echo "=== [$((i+1))/$N] $KEY ($TYPE) ==="
+            rm -f in.mp4 "$KEY.mp4"
+            if [ "$TYPE" = wordpress ]; then
+              curl -sL "$SRC" -o in.mp4
+            else
+              yt-dlp --no-playlist --no-progress --no-warnings \
+                --proxy "$PENGUIN_SOCKS" \
+                --extractor-args "youtube:player_client=web_safari,tv,mweb" \
+                -f 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/b[height<=720]/b' \
+                --merge-output-format mp4 -o in.mp4 "$SRC" || { echo "yt-dlp fail"; FAIL=$((FAIL+1)); continue; }
+            fi
+            SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0)
+            [ "$SZ" -lt 50000 ] && { echo "too small ($SZ)"; FAIL=$((FAIL+1)); continue; }
+            DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 in.mp4 2>/dev/null)
+            echo "size=$SZ dur=$DUR"
+            ffmpeg -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "$KEY.mp4" 2>/dev/null \
+              || ffmpeg -hide_banner -loglevel error -i in.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "$KEY.mp4"
+            gh release upload clips "$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
+          done
+          echo "=== uploaded=$OK failed=$FAIL of $N ==="
