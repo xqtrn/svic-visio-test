@@ -3,7 +3,7 @@ const { chromium } = require('playwright');
   require('fs').mkdirSync('out', { recursive: true });
   const b = await chromium.launch({ channel: 'chrome' });
   const pg = await (await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 })).newPage();
-  for (const s of ['funds', 'trade-desk', 'research']) {
+  for (const s of ['funds', 'members']) {
     await pg.goto('https://platform.siliconvalleyinvestclub.com/login/' + s + '?v=' + Date.now(), { waitUntil: 'domcontentloaded' });
     await pg.waitForTimeout(3500);
     await pg.screenshot({ path: 'out/gate-' + s + '.png' });
