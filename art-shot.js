@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
   await pg.goto('https://test.siliconvalleyinvestclub.com/2026/07/09/sambanova-raises-1-billion-at-an-11-billion-valuation/?z=' + Date.now(), { waitUntil: 'domcontentloaded' });
   await pg.waitForTimeout(8000);
   await pg.screenshot({ path: 'out/art-top.png' });
-  await pg.evaluate(() => { const t = [...document.querySelectorAll('.entry-content table')][0]; if (t) t.scrollIntoView({ block: 'center' }); });
+  await pg.evaluate(() => { const t = document.querySelector('.entry-content a.profile-btn'); if (t) t.scrollIntoView({ block: 'center' }); });
   await pg.waitForTimeout(1200);
   await pg.screenshot({ path: 'out/art-funding.png' });
   await pg.evaluate(() => document.querySelector('.svic-close').scrollIntoView({ block: 'center' }));
