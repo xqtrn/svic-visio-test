@@ -1,0 +1,14 @@
+name: artshot
+on: { workflow_dispatch: {} }
+jobs:
+  shot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm i playwright >/dev/null 2>&1 && npx playwright install chrome >/dev/null 2>&1
+      - run: node art-shot.js
+      - uses: actions/upload-artifact@v4
+        with: { name: art-out, path: out/ }
