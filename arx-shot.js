@@ -3,8 +3,8 @@ const { chromium } = require('playwright');
   require('fs').mkdirSync('out', { recursive: true });
   const b = await chromium.launch({ channel: 'chrome' });
   const pg = await (await b.newContext({ viewport: { width: 1440, height: 1400 }, deviceScaleFactor: 2 })).newPage();
-  await pg.context().addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test3.siliconvalleyinvestclub.com', path: '/' }]);
-  await pg.goto('https://test3.siliconvalleyinvestclub.com/2026/06/01/base-power-to-raise-1-billion-at-a-12-billion-valuation/?__x=v7', { waitUntil: 'domcontentloaded' });
+  await pg.context().addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test.siliconvalleyinvestclub.com', path: '/' }]);
+  await pg.goto('https://test.siliconvalleyinvestclub.com/2026/06/01/base-power-to-raise-1-billion-at-a-12-billion-valuation/?__x=v7', { waitUntil: 'domcontentloaded' });
   await pg.waitForTimeout(7000);
   await pg.screenshot({ path: 'out/arx-v7-top.png' });
   console.log('CSSDBG2', await pg.evaluate(() => {

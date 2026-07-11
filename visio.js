@@ -12,11 +12,11 @@ const fs = require('fs');
   for (const [vname, path] of variants) {
     for (const [name, vp, mob] of [['desktop', { width: 1440, height: 900 }, false], ['mobile', { width: 390, height: 844 }, true]]) {
       const ctx = await browser.newContext({ viewport: vp, isMobile: mob, hasTouch: mob, deviceScaleFactor: 2 });
-      await ctx.addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test3.siliconvalleyinvestclub.com', path: '/' }]);
+      await ctx.addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test.siliconvalleyinvestclub.com', path: '/' }]);
       const page = await ctx.newPage();
       const errs = [];
       page.on('console', m => { if (m.type() === 'error') errs.push(m.text().slice(0, 140)); });
-      await page.goto('https://test3.siliconvalleyinvestclub.com' + path, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.goto('https://test.siliconvalleyinvestclub.com' + path, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(8000);
       if (vname === 'after' && name === 'mobile') {
         const probe = await page.evaluate(() => {

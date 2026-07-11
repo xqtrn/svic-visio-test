@@ -14,7 +14,7 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0.6478.54 Mobile/15E148 Safari/604.1',
   });
   await ctx.addCookies([
-    { name: 'svic_token', value: 'edge-preview', domain: 'test3.siliconvalleyinvestclub.com', path: '/' },
+    { name: 'svic_token', value: 'edge-preview', domain: 'test.siliconvalleyinvestclub.com', path: '/' },
   ]);
   const page = await ctx.newPage();
   bc('page');
@@ -28,7 +28,7 @@ setInterval(()=>console.log('[hb]',step),15000).unref();
   const errs = [];
   page.on('console', m => { if (m.type() === 'error' || (m.type() === 'warning' && /loadmore|svic|plan/.test(m.text()))) errs.push(m.type()+': '+m.text().slice(0, 160)); });
   bc('goto');
-  await page.goto('https://test3.siliconvalleyinvestclub.com/', { waitUntil: 'commit', timeout: 60000 });
+  await page.goto('https://test.siliconvalleyinvestclub.com/', { waitUntil: 'commit', timeout: 60000 });
   bc('committed');
   await page.waitForLoadState('domcontentloaded', { timeout: 60000 }).catch(e=>console.log('dcl-timeout'));
   bc('dcl');

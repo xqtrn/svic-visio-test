@@ -12,8 +12,8 @@ jobs:
       - run: npx playwright install --with-deps chrome
       - name: probe video from runner
         run: |
-          curl -s -o /dev/null -w 'mp4 no-range: %{http_code} %{size_download}b\n' -H 'Cookie: svic_token=edge-preview' https://test3.siliconvalleyinvestclub.com/svic-video/PkL-NfnsxDk.mp4
-          curl -s -D - -o /dev/null -H 'Cookie: svic_token=edge-preview' -H 'Range: bytes=0-1' https://test3.siliconvalleyinvestclub.com/svic-video/PkL-NfnsxDk.mp4 | head -6
+          curl -s -o /dev/null -w 'mp4 no-range: %{http_code} %{size_download}b\n' -H 'Cookie: svic_token=edge-preview' https://test.siliconvalleyinvestclub.com/svic-video/PkL-NfnsxDk.mp4
+          curl -s -D - -o /dev/null -H 'Cookie: svic_token=edge-preview' -H 'Range: bytes=0-1' https://test.siliconvalleyinvestclub.com/svic-video/PkL-NfnsxDk.mp4 | head -6
       - run: node visio.js
       - uses: actions/upload-artifact@v4
         if: always()

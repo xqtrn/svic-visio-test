@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 COOKIE = 'svic_token=edge-preview'
-HOME = 'https://test3.siliconvalleyinvestclub.com/'
+HOME = 'https://test.siliconvalleyinvestclub.com/'
 
 def fetch(url, binary=False):
     req = urllib.request.Request(url, headers={'Cookie': COOKIE, 'User-Agent': 'svic-faces/1'})
@@ -46,7 +46,7 @@ out = {}
 for p in paths:
     try:
         # Photon 404s from GH-runner IPs — pull originals through our own edge (cookie'd)
-        raw = fetch('https://test3.siliconvalleyinvestclub.com/' + p.split('siliconvalleyinvestclub.com/',1)[1], binary=True)
+        raw = fetch('https://test.siliconvalleyinvestclub.com/' + p.split('siliconvalleyinvestclub.com/',1)[1], binary=True)
         img = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
         if img is None: continue
         if img.shape[1] > 900:
