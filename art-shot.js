@@ -7,6 +7,12 @@ const { chromium } = require('playwright');
   await pg.context().addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test.siliconvalleyinvestclub.com', path: '/' }]);
   await pg.goto(A + Date.now(), { waitUntil: 'domcontentloaded' });
   await pg.waitForTimeout(9000);
+  console.log('ORDER', await pg.evaluate(() => {
+    const h1 = document.querySelector('h1.cs-entry__title');
+    const hero = document.querySelector('.cs-entry__media-large');
+    const lede = document.querySelector('.svic-lede');
+    return JSON.stringify({ h1Top: Math.round(h1.getBoundingClientRect().top + scrollY), heroTop: Math.round(hero.getBoundingClientRect().top + scrollY), ledeTop: Math.round(lede.getBoundingClientRect().top + scrollY), heroW: Math.round(hero.getBoundingClientRect().width) });
+  }));
   console.log('MP', await pg.evaluate(() => JSON.stringify({
     kickers: [...document.querySelectorAll('.post-categories li')].filter(li => getComputedStyle(li).display !== 'none').length,
     meta: (document.querySelector('.svic-meta') || {}).textContent || null,
