@@ -22,6 +22,7 @@ const { chromium } = require('playwright');
       innerPad: innerCS.paddingTop + '/' + innerCS.paddingBottom,
       ledeToCo: co && lede ? co.t - lede.b : null,
       ctaToTags: tags && cta ? tags.t - cta.b : null,
+      chain: ['.cs-site-content','.cs-container','.cs-main-content','.cs-content-area','.cs-entry__wrap','.cs-entry__container','.cs-entry__content-wrap'].map(sel => { const e = document.querySelector(sel); if (!e) return sel + ':none'; const cs = getComputedStyle(e); return sel.replace('.cs-','') + ' mt:' + cs.marginTop + ' pt:' + cs.paddingTop; }),
       tagsToRel: rel && tags ? rel.t - tags.b : null,
     });
   }));
