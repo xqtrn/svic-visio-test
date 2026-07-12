@@ -2,30 +2,29 @@ const { chromium } = require('playwright');
 (async () => {
   require('fs').mkdirSync('out', { recursive: true });
   const b = await chromium.launch({ channel: 'chrome' });
-  const m = await (await b.newContext({ viewport: { width: 390, height: 800 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true })).newPage();
-  await m.context().addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test.siliconvalleyinvestclub.com', path: '/' }]);
-  await m.goto('https://test.siliconvalleyinvestclub.com/2026/07/09/sambanova-raises-1-billion-at-an-11-billion-valuation/?z=' + Date.now(), { waitUntil: 'domcontentloaded' });
-  await m.waitForTimeout(9000);
-  console.log('GAPS', await m.evaluate(() => {
-    const g = s => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { t: Math.round(r.top + scrollY), b: Math.round(r.bottom + scrollY), h: Math.round(r.height) }; };
-    const meta = g('.svic-meta'), hero = g('.cs-entry__media-large'), wrap = g('.cs-entry__media-wrap'),
-          lede = g('.svic-lede'), co = g('.entry-content table'), cta = g('.entry-content a.profile-btn'),
-          tags = g('.cs-entry__tags'), rel = g('.cs-entry__post-related');
-    const heroCS = getComputedStyle(document.querySelector('.cs-entry__media-large'));
-    const innerCS = getComputedStyle(document.querySelector('.cs-entry__media-inner'));
+  const pg = await (await b.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2 })).newPage();
+  await pg.context().addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test.siliconvalleyinvestclub.com', path: '/' }]);
+  await pg.goto('https://test.siliconvalleyinvestclub.com/2026/07/09/sambanova-raises-1-billion-at-an-11-billion-valuation/?z=' + Date.now(), { waitUntil: 'domcontentloaded' });
+  await pg.waitForTimeout(9000);
+  console.log('DGAPS', await pg.evaluate(() => {
+    const g = s => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { t: Math.round(r.top + scrollY), b: Math.round(r.bottom + scrollY) }; };
+    const kick = g('.post-categories'), h1 = g('h1.cs-entry__title'), meta = g('.svic-meta'),
+          hero = g('.cs-entry__media-wrap'), lede = g('.svic-lede'), colabel = g('.entry-content tr > td:only-child'),
+          co = g('.entry-content table:nth-of-type(2)'), quote = g('.entry-content blockquote'),
+          cta = g('.entry-content div:has(> a.profile-btn)'), tags = g('.cs-entry__tags'),
+          relH = g('.cs-entry__post-related'), topbar = g('.topbar') || { b: 64 };
+    const arthead = g('.svic-arthead');
     return JSON.stringify({
+      topbarToKicker: kick && arthead ? kick.t - 64 : null,
+      kickToH1: h1 && kick ? h1.t - kick.b : null,
+      h1ToMeta: meta && h1 ? meta.t - h1.b : null,
       metaToHero: hero && meta ? hero.t - meta.b : null,
-      heroH: hero ? hero.h : null, wrapH: wrap ? wrap.h : null,
       heroToLede: lede && hero ? lede.t - hero.b : null,
-      heroMargins: heroCS.marginTop + '/' + heroCS.marginBottom + ' pad:' + heroCS.paddingTop + '/' + heroCS.paddingBottom,
-      innerH: Math.round(document.querySelector('.cs-entry__media-inner').getBoundingClientRect().height),
-      innerPad: innerCS.paddingTop + '/' + innerCS.paddingBottom,
-      ledeToCo: co && lede ? co.t - lede.b : null,
+      quoteMargins: quote ? 'ok' : null,
       ctaToTags: tags && cta ? tags.t - cta.b : null,
-      chain: ['.cs-site-content','.cs-container','.cs-main-content','.cs-content-area','.cs-entry__wrap','.cs-entry__container','.cs-entry__content-wrap'].map(sel => { const e = document.querySelector(sel); if (!e) return sel + ':none'; const cs = getComputedStyle(e); return sel.replace('.cs-','') + ' mt:' + cs.marginTop + ' pt:' + cs.paddingTop; }),
-      tagsToRel: rel && tags ? rel.t - tags.b : null,
+      tagsToRel: relH && tags ? relH.t - tags.b : null,
     });
   }));
-  await m.screenshot({ path: 'out/mob-rhythm.png' });
+  await pg.screenshot({ path: 'out/dsk-top.png' });
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
