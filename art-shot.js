@@ -16,6 +16,15 @@ const { chromium } = require('playwright');
       rails: document.querySelectorAll('.svic-sec-hero>article:nth-child(n+5)').length,
       moreHead: !!document.querySelector('.svic-sec-more') });
   }));
+  console.log('STACK', await pg.evaluate(() => {
+    const chain = el => { const out = []; let n = el;
+      while (n && n.tagName !== 'BODY') { const cs = getComputedStyle(n);
+        out.push(n.tagName + '.' + String(n.className).split(' ').slice(0, 2).join('.') + '|' + cs.position + '|z:' + cs.zIndex + (cs.transform !== 'none' ? '|T' : '') + (cs.opacity !== '1' ? '|o' + cs.opacity : '') + (cs.isolation === 'isolate' ? '|iso' : ''));
+        n = n.parentElement; } return out; };
+    const v = document.querySelector('.svic-sec-hero>article:first-child video');
+    const pl = document.querySelector('.svic-sec-hero>article:first-child .cs-overlay-content');
+    return JSON.stringify({ video: v ? chain(v).slice(0, 5) : null, plate: pl ? chain(pl).slice(0, 3) : null });
+  }));
   await pg.screenshot({ path: 'out/iv-top.png' });
   const rail = pg.locator('article.cs-entry').nth(5);
   await rail.scrollIntoViewIfNeeded(); await pg.waitForTimeout(600);
