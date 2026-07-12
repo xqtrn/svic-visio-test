@@ -26,5 +26,6 @@ const { chromium } = require('playwright');
       tagsToRel: rel && tags ? rel.t - tags.b : null,
     });
   }));
+  await m.screenshot({ path: 'out/mob-rhythm.png' });
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
