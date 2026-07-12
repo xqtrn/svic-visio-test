@@ -24,15 +24,20 @@ const { chromium } = require('playwright');
   await pg.mouse.move(rb.x + rb.width / 2, rb.y + rb.height / 2, { steps: 8 });
   await pg.waitForTimeout(4500);
   console.log('PLATE', await pg.evaluate(() => {
-    const el = document.querySelector('.svic-sec-hero>article:first-child .cs-overlay-content');
-    if (!el) return 'missing';
-    const r = el.getBoundingClientRect();
-    const top = document.elementFromPoint(r.left + 40, r.top + r.height / 2);
-    return JSON.stringify({ w: Math.round(r.width), h: Math.round(r.height), covered: top ? top.className.toString().slice(0, 40) : null });
+    const sp = document.querySelector('.svic-sec-hero>article:first-child .cs-overlay-content .cs-entry__title span');
+    if (!sp) return 'no-span';
+    const r = sp.getBoundingClientRect(), cs = getComputedStyle(sp);
+    const top = r.width ? document.elementFromPoint(r.left + Math.min(20, r.width / 2), r.top + r.height / 2) : null;
+    return JSON.stringify({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height),
+      color: cs.color, bg: cs.backgroundColor, vis: cs.visibility, fs: cs.fontSize,
+      atPoint: top ? (top.tagName + '.' + String(top.className).slice(0, 30)) : 'offscreen' });
   }));
   console.log('RAILHOVER', await pg.evaluate(() => {
-    const on = [...document.querySelectorAll('video.svic-hv.on')];
-    return JSON.stringify({ on: on.length, playing: on.filter(v => !v.paused && v.readyState >= 2).length });
+    const v = document.querySelector('video.svic-hv.on');
+    if (!v) return 'none';
+    return JSON.stringify({ src: v.currentSrc.split('/').pop(), paused: v.paused, rs: v.readyState, ns: v.networkState,
+      err: v.error ? v.error.code : null, buf: v.buffered.length ? Math.round(v.buffered.end(0)) : 0,
+      w: Math.round(v.getBoundingClientRect().width) });
   }));
 
   const pg2 = await ctx.newPage();
