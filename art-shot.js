@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
   await pg.waitForTimeout(9000);
   const r = await pg.evaluate(() => {
     const btns = [...document.querySelectorAll('button, a')].filter(e => /load more/i.test(e.textContent) && e.offsetParent);
-    return btns.map(e => ({ text: e.textContent.trim(), cls: e.className, tag: e.tagName, parentCls: e.parentElement.className }));
+    return btns.map(e => { const cs = getComputedStyle(e); return { text: e.textContent.trim(), tt: cs.textTransform, ls: cs.letterSpacing, fw: cs.fontWeight }; });
   });
   console.log('BTNS', JSON.stringify(r));
   if (r.length > 1) { await pg.evaluate(y => scrollTo(0, y - 400), r[0].y); await pg.waitForTimeout(900); }
