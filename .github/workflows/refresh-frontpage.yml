@@ -3,6 +3,8 @@ on:
   schedule:
     - cron: '17 13 * * *'   # daily 13:17 UTC (~06:17 PST)
   workflow_dispatch:
+permissions:
+  contents: write   # release upload (tv.json / covers.json)
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -14,3 +16,11 @@ jobs:
       - run: node refresh-frontpage.js
         env:
           DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
+      # манифесты эфира и ховер-обложек — ежедневно, автономно (Артур 2026-07-12:
+      # Moonshot-класс — клип есть, статичный манифест не знал; раньше tv.json обновлялся вручную)
+      - name: rebuild tv.json + covers.json
+        run: |
+          node tv-manifest.js
+          gh release upload clips tv.json covers.json -R "$GITHUB_REPOSITORY" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
