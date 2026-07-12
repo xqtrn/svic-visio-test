@@ -100,7 +100,7 @@ for p in paths:
                 cx, tw = bestc[0], 1.0
                 cy = bestc[2] / bestc[3]
         fx = round(100 * cx / tw); fy = round(100 * cy / tw)
-        top = round(100 * top); fh = round(100 * fhmax); bot = round(100 * bot)
+        top = round(100 * top); fh = round(100 * fhmax); bot = round(100 * bot); gl = round(100 * gleft); gr = round(100 * gright)
         # crop rule v3 (Nyobolt case, Arthur 07-05): (1) horizontally keep the
         # face-group point; (2) vertical thirds-lift ONLY when the face is small
         # (<35% of frame) — tight head-shots keep the face CENTERED (fy), no lift,
@@ -113,7 +113,7 @@ for p in paths:
         if fh >= 50:
             y_anchor = top + round(fh * 0.38)
         x = min(95, max(5, fx)); y = min(85, max(5, y_anchor))
-        out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy], 'top': top, 'fh': fh, 'n': int(len(faces)), 'bot': bot}
+        out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy], 'top': top, 'fh': fh, 'n': int(len(faces)), 'bot': bot, 'gl': gl, 'gr': gr}
     except Exception as e:
         print('skip', p, str(e)[:80], file=sys.stderr)
 
