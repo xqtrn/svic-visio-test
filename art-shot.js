@@ -4,15 +4,14 @@ const { chromium } = require('playwright');
   const b = await chromium.launch({ channel: 'chrome' });
   const pg = await (await b.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2 })).newPage();
   await pg.context().addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test.siliconvalleyinvestclub.com', path: '/' }]);
-  await pg.goto('https://test.siliconvalleyinvestclub.com/2026/07/09/sambanova-raises-1-billion-at-an-11-billion-valuation/?z=' + Date.now(), { waitUntil: 'domcontentloaded' });
+  await pg.goto('https://test.siliconvalleyinvestclub.com/?z=' + Date.now(), { waitUntil: 'domcontentloaded' });
   await pg.waitForTimeout(9000);
-  const before = await pg.evaluate(() => document.querySelectorAll('.cs-entry__post-related article').length);
-  await pg.evaluate(() => document.querySelector('.cs-entry__post-related .svic-load-more').scrollIntoView({ block: 'center' }));
-  await pg.waitForTimeout(700);
-  await pg.click('.cs-entry__post-related .svic-load-more');
-  await pg.waitForTimeout(4500);
-  const after = await pg.evaluate(() => document.querySelectorAll('.cs-entry__post-related article').length);
-  console.log('RELMORE', JSON.stringify({ before, after, btnStill: await pg.evaluate(() => !!document.querySelector('.cs-entry__post-related .svic-load-more')) }));
-  await pg.screenshot({ path: 'out/relmore.png' });
+  const r = await pg.evaluate(() => {
+    const btns = [...document.querySelectorAll('button, a')].filter(e => /load more/i.test(e.textContent) && e.offsetParent);
+    return btns.map(e => { const cs = getComputedStyle(e); const b2 = e.getBoundingClientRect(); return { text: e.textContent.trim(), tt: cs.textTransform, ls: cs.letterSpacing, y: Math.round(b2.top + scrollY) }; });
+  });
+  console.log('BTNS', JSON.stringify(r));
+  if (r.length > 1) { await pg.evaluate(y => scrollTo(0, y - 400), r[0].y); await pg.waitForTimeout(900); }
+  await pg.screenshot({ path: 'out/lm-btn.png' });
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
