@@ -22,7 +22,14 @@ const { chromium } = require('playwright');
   await pg.screenshot({ path: 'out/iv-rails.png' });
   const rb = await rail.locator('img').first().boundingBox();
   await pg.mouse.move(rb.x + rb.width / 2, rb.y + rb.height / 2, { steps: 8 });
-  await pg.waitForTimeout(2200);
+  await pg.waitForTimeout(4500);
+  console.log('PLATE', await pg.evaluate(() => {
+    const el = document.querySelector('.svic-sec-hero>article:first-child .cs-overlay-content');
+    if (!el) return 'missing';
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + 40, r.top + r.height / 2);
+    return JSON.stringify({ w: Math.round(r.width), h: Math.round(r.height), covered: top ? top.className.toString().slice(0, 40) : null });
+  }));
   console.log('RAILHOVER', await pg.evaluate(() => {
     const on = [...document.querySelectorAll('video.svic-hv.on')];
     return JSON.stringify({ on: on.length, playing: on.filter(v => !v.paused && v.readyState >= 2).length });
