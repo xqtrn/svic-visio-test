@@ -1,0 +1,44 @@
+name: iv-covers
+on: { workflow_dispatch: {} }
+permissions: { contents: write }
+jobs:
+  cut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: tools
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python3 -m pip install --quiet --upgrade yt-dlp
+      - name: cut interview preview covers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
+        run: |
+          N=$(node -e "console.log(require('./iv-list.json').length)")
+          echo "interviews=$N"; OK=0; FAIL=0
+          EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
+          for i in $(seq 0 $((N-1))); do
+            VID=$(node -e "console.log(require('./iv-list.json')[$i].v)")
+            S=$(node -e "console.log(require('./iv-list.json')[$i].s)")
+            E=$(node -e "console.log(require('./iv-list.json')[$i].e)")
+            echo "=== $VID [$S..$E] ==="
+            if echo "$EXISTING" | grep -qx "iv-$VID.mp4"; then echo "already in release"; OK=$((OK+1)); continue; fi
+            rm -f in.mp4 "iv-$VID.mp4"
+            yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
+              --extractor-args "youtube:player_client=ios,android,web_safari" \
+              --download-sections "*0-$((E+5))" \
+              -f 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/bv*[height<=720]+ba/b[height<=720][ext=mp4]/b[ext=mp4]/b' \
+              --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" || { FAIL=$((FAIL+1)); continue; }
+            SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 50000 ] && { echo "too small"; FAIL=$((FAIL+1)); continue; }
+            ffmpeg -hide_banner -loglevel error -ss "$S" -to "$E" -i in.mp4 \
+              -c:v libx264 -preset veryfast -crf 23 -an -movflags +faststart "iv-$VID.mp4" || { FAIL=$((FAIL+1)); continue; }
+            gh release upload clips "iv-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
+          done
+          node -e "const l=require('./iv-list.json');require('fs').writeFileSync('interview-covers.json',JSON.stringify(l.map(x=>({u:x.u,v:'iv-'+x.v}))))"
+          gh release upload clips interview-covers.json -R "$GITHUB_REPOSITORY" --clobber
+          echo "=== covers=$OK failed=$FAIL of $N ==="
+          [ "$OK" = "$N" ]
