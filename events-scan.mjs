@@ -30,7 +30,7 @@ Find conferences and research webinars announced for the NEXT 12 MONTHS that are
 Already tracked (do NOT repeat): ${cur.events.map((e) => e.title).join('; ')}
 
 Return ONLY a JSON array (no prose). Each item:
-{"title":"...","organizer":"...","format":"Conference|Webinar","start":"YYYY-MM-DD","end":"YYYY-MM-DD or omit","dateLabel":"EXACT human dates (e.g. \"September 8\u201310, 2026\")","city":"City or Virtual","url":"official event page","blurb":"1-2 sentences IN YOUR OWN WORDS (institutional tone, no marketing copy-paste)","details":"3-4 sentences IN YOUR OWN WORDS for the event page: what happens there, who attends, why it matters for private-markets professionals"}
+{"title":"...","organizer":"...","format":"Conference|Webinar","start":"YYYY-MM-DD","end":"YYYY-MM-DD or omit","dateLabel":"EXACT human dates (e.g. \"September 8\u201310, 2026\")","city":"City or Virtual","url":"official event page","blurb":"1-2 sentences IN YOUR OWN WORDS (institutional tone, no marketing copy-paste)","details":"3-4 sentences IN YOUR OWN WORDS for the event page: what happens there, who attends, why it matters","highlights":["3 short factual bullets"],"audience":"who attends, short","scale":"attendance figure if VERIFIED, else omit"}
 If a confirmed date is unknown, omit the event. If nothing new qualifies, return [].`;
 
 const r = await fetch('https://api.anthropic.com/v1/messages', {
