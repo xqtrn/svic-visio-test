@@ -24,8 +24,8 @@ const { chromium } = require('playwright');
   const card = pg.locator('article.cs-entry').nth(1);
   await card.scrollIntoViewIfNeeded();
   await pg.waitForTimeout(800);
-  const img = card.locator('img').first();
-  await img.hover();
+  const box = await card.locator('img').first().boundingBox();
+  await pg.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 8 });
   await pg.waitForTimeout(2500);
   console.log('HOVER', await pg.evaluate(() => {
     const on = [...document.querySelectorAll('video.svic-hv.on')];
