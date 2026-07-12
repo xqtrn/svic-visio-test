@@ -30,7 +30,7 @@ Find conferences and research webinars announced for the NEXT 12 MONTHS that are
 Already tracked (do NOT repeat): ${cur.events.map((e) => e.title).join('; ')}
 
 Return ONLY a JSON array (no prose). Each item:
-{"title":"...","organizer":"...","format":"Conference|Webinar","start":"YYYY-MM-DD","end":"YYYY-MM-DD or omit","dateLabel":"human dates","city":"City or Virtual","url":"official event page","blurb":"1-2 sentences IN YOUR OWN WORDS (institutional tone, никакого копипаста маркетинга)"}
+{"title":"...","organizer":"...","format":"Conference|Webinar","start":"YYYY-MM-DD","end":"YYYY-MM-DD or omit","dateLabel":"EXACT human dates (e.g. \"September 8\u201310, 2026\")","city":"City or Virtual","url":"official event page","blurb":"1-2 sentences IN YOUR OWN WORDS (institutional tone, no marketing copy-paste)","details":"3-4 sentences IN YOUR OWN WORDS for the event page: what happens there, who attends, why it matters for private-markets professionals"}
 If a confirmed date is unknown, omit the event. If nothing new qualifies, return [].`;
 
 const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -78,9 +78,8 @@ for (const e of found) {
   fresh.push(e);
 }
 
-// прошедшие — вон; новые — в хвост; сортировка по дате
+// прошедшие ОСТАЮТСЯ (архив на странице /events/, Артур 2026-07-12); новые — в хвост
 const events = cur.events
-  .filter((e) => (e.end || e.start || '9999') >= today)
   .concat(fresh)
   .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
 
