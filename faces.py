@@ -105,8 +105,14 @@ for p in paths:
         # face-group point; (2) vertical thirds-lift ONLY when the face is small
         # (<35% of frame) — tight head-shots keep the face CENTERED (fy), no lift,
         # never crop the forehead harder than the original; (3) clamp.
+        # v6 (Positron case, Arthur 07-12): ULTRA-tight portraits (face >=50% of
+        # frame) in a wide 16:9 crop lose the forehead at centre — anchor the crop
+        # to the EYE LINE (top + 38% of face height) so the forehead survives.
         lift = 6 if fh < 35 else 0
-        x = min(95, max(5, fx)); y = min(85, max(5, fy - lift))
+        y_anchor = fy - lift
+        if fh >= 50:
+            y_anchor = top + round(fh * 0.38)
+        x = min(95, max(5, fx)); y = min(85, max(5, y_anchor))
         out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy], 'top': top, 'fh': fh, 'n': int(len(faces)), 'bot': bot}
     except Exception as e:
         print('skip', p, str(e)[:80], file=sys.stderr)
