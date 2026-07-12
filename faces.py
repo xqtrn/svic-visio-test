@@ -113,7 +113,7 @@ for p in paths:
         if fh >= 50:
             y_anchor = top + round(fh * 0.38)
         x = min(95, max(5, fx)); y = min(85, max(5, y_anchor))
-        out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy], 'top': top, 'fh': fh, 'n': int(len(faces)), 'bot': bot, 'gl': gl, 'gr': gr}
+        out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy], 'top': top, 'fh': fh, 'n': int(len(faces)), 'bot': bot, 'gl': gl, 'gr': gr, 'ar': round(1000 * w / h)}
     except Exception as e:
         print('skip', p, str(e)[:80], file=sys.stderr)
 
