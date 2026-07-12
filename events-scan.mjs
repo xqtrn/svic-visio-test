@@ -39,7 +39,6 @@ const r = await fetch('https://api.anthropic.com/v1/messages', {
   body: JSON.stringify({
     model: 'claude-sonnet-5',
     max_tokens: 4000,
-    temperature: 0,
     tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 8 }],
     messages: [{ role: 'user', content: prompt }],
   }),
