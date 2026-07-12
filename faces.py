@@ -57,7 +57,7 @@ for p in paths:
         ok, faces = det.detect(img)
         if faces is None or len(faces) == 0: continue
         # weighted center of all faces (weight = bbox area) + face extent + spread
-        cx = cy = tw = 0.0; top = 1.0; fhmax = 0.0
+        cx = cy = tw = 0.0; top = 1.0; fhmax = 0.0; bot = 0.0
         gleft = 1.0; gright = 0.0; best = None; barea = 0.0
         for f in faces:
             fx, fy, fw, fh = f[0], f[1], f[2], f[3]
@@ -65,7 +65,7 @@ for p in paths:
             cx += (fx + fw / 2) / w * area
             cy += (fy + fh / 2) / h * area
             tw += area
-            top = min(top, fy / h); fhmax = max(fhmax, fh / h)
+            top = min(top, fy / h); fhmax = max(fhmax, fh / h); bot = max(bot, (fy + fh) / h)
             gleft = min(gleft, fx / w); gright = max(gright, (fx + fw) / w)
             if area > barea: barea = area; best = ((fx + fw / 2) / w, (fy + fh / 2) / h)
         # v5 (claroty case, Arthur 07-05): не «прыгать на крупнейшее лицо», а выбрать
@@ -100,14 +100,14 @@ for p in paths:
                 cx, tw = bestc[0], 1.0
                 cy = bestc[2] / bestc[3]
         fx = round(100 * cx / tw); fy = round(100 * cy / tw)
-        top = round(100 * top); fh = round(100 * fhmax)
+        top = round(100 * top); fh = round(100 * fhmax); bot = round(100 * bot)
         # crop rule v3 (Nyobolt case, Arthur 07-05): (1) horizontally keep the
         # face-group point; (2) vertical thirds-lift ONLY when the face is small
         # (<35% of frame) — tight head-shots keep the face CENTERED (fy), no lift,
         # never crop the forehead harder than the original; (3) clamp.
         lift = 6 if fh < 35 else 0
         x = min(95, max(5, fx)); y = min(85, max(5, fy - lift))
-        out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy], 'top': top, 'fh': fh}
+        out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy], 'top': top, 'fh': fh, 'n': int(len(faces)), 'bot': bot}
     except Exception as e:
         print('skip', p, str(e)[:80], file=sys.stderr)
 
