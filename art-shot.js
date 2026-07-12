@@ -42,5 +42,11 @@ const { chromium } = require('playwright');
     return JSON.stringify({ liveMounted: live.length, livePlaying: live.filter(v => !v.paused && v.readyState >= 2).length });
   }));
   await pg2.screenshot({ path: 'out/home-top.png' });
+
+  const m = await (await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })).newPage();
+  await m.context().addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test.siliconvalleyinvestclub.com', path: '/' }]);
+  await m.goto('https://test.siliconvalleyinvestclub.com/interviews/?z=' + Date.now(), { waitUntil: 'domcontentloaded' });
+  await m.waitForTimeout(9000);
+  await m.screenshot({ path: 'out/iv-mobile.png' });
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
