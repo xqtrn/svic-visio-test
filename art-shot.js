@@ -2,14 +2,45 @@ const { chromium } = require('playwright');
 (async () => {
   require('fs').mkdirSync('out', { recursive: true });
   const b = await chromium.launch({ channel: 'chrome' });
-  const pg = await (await b.newContext({ viewport: { width: 1440, height: 1100 }, deviceScaleFactor: 2 })).newPage();
-  await pg.context().addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test.siliconvalleyinvestclub.com', path: '/' }]);
+  const ctx = await b.newContext({ viewport: { width: 1440, height: 1100 }, deviceScaleFactor: 2 });
+  await ctx.addCookies([{ name: 'svic_token', value: 'edge-preview', domain: 'test.siliconvalleyinvestclub.com', path: '/' }]);
+
+  const pg = await ctx.newPage();
   await pg.goto('https://test.siliconvalleyinvestclub.com/interviews/?z=' + Date.now(), { waitUntil: 'domcontentloaded' });
   await pg.waitForTimeout(12000);
   console.log('IVID', await pg.evaluate(() => {
-    const vids = [...document.querySelectorAll('.svic-sec-grid video')];
-    return JSON.stringify({ mounted: vids.length, playing: vids.filter(v => !v.paused && v.readyState >= 2).length });
+    const all = [...document.querySelectorAll('video')];
+    const live = all.filter(v => !v.classList.contains('svic-hv'));
+    return JSON.stringify({
+      liveMounted: live.length,
+      livePlaying: live.filter(v => !v.paused && v.readyState >= 2).length,
+      hoverPool: all.length - live.length,
+      hoverVisible: all.filter(v => v.classList.contains('svic-hv') && v.classList.contains('on')).length
+    });
   }));
-  await pg.screenshot({ path: 'out/intv2.png' });
+  await pg.screenshot({ path: 'out/iv-top.png' });
+
+  // ховер по второй карточке — видео должно включиться поверх фото
+  const card = pg.locator('article.cs-entry').nth(1);
+  await card.scrollIntoViewIfNeeded();
+  await pg.waitForTimeout(800);
+  const img = card.locator('img').first();
+  await img.hover();
+  await pg.waitForTimeout(2500);
+  console.log('HOVER', await pg.evaluate(() => {
+    const on = [...document.querySelectorAll('video.svic-hv.on')];
+    return JSON.stringify({ on: on.length, playing: on.filter(v => !v.paused && v.readyState >= 2).length });
+  }));
+  await pg.screenshot({ path: 'out/iv-hover.png' });
+
+  // главная — для сравнения UX
+  const pg2 = await ctx.newPage();
+  await pg2.goto('https://test.siliconvalleyinvestclub.com/?z=' + Date.now(), { waitUntil: 'domcontentloaded' });
+  await pg2.waitForTimeout(10000);
+  console.log('HOME', await pg2.evaluate(() => {
+    const live = [...document.querySelectorAll('video')].filter(v => !v.classList.contains('svic-hv'));
+    return JSON.stringify({ liveMounted: live.length, livePlaying: live.filter(v => !v.paused && v.readyState >= 2).length });
+  }));
+  await pg2.screenshot({ path: 'out/home-top.png' });
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
