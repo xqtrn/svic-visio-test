@@ -48,5 +48,11 @@ const { chromium } = require('playwright');
   await m.goto('https://test.siliconvalleyinvestclub.com/interviews/?z=' + Date.now(), { waitUntil: 'domcontentloaded' });
   await m.waitForTimeout(9000);
   await m.screenshot({ path: 'out/iv-mobile.png' });
+  console.log('MEX', await m.evaluate(() => {
+    const ex = document.querySelector('.svic-sec-hero>article .cs-entry__excerpt');
+    if (!ex) return 'none';
+    const cs = getComputedStyle(ex), pr = ex.parentElement.getBoundingClientRect(), r = ex.getBoundingClientRect();
+    return JSON.stringify({ w: r.width, pw: pr.width, vw: innerWidth, disp: cs.display, ws: cs.whiteSpace, mr: cs.marginRight, wid: cs.width });
+  }));
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
