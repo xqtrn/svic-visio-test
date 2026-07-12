@@ -30,7 +30,6 @@ jobs:
             rm -f in.mp4 "iv-$VID.mp4"
             yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
               --extractor-args "youtube:player_client=ios,android,web_safari" \
-              --download-sections "*0-$((E+5))" \
               -f 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/bv*[height<=720]+ba/b[height<=720][ext=mp4]/b[ext=mp4]/b' \
               --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" || { FAIL=$((FAIL+1)); continue; }
             SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 50000 ] && { echo "too small"; FAIL=$((FAIL+1)); continue; }
