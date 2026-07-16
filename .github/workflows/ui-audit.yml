@@ -26,7 +26,8 @@ jobs:
         env:
           BASE: ${{ inputs.base }}
           PATHS: ${{ inputs.paths }}
-          COOKIES: ${{ inputs.cookies }}
+          # cookie из секрета — публичный репо, JWT в input светился бы в логах ран-а
+          COOKIES: ${{ inputs.cookies || secrets.UI_AUDIT_COOKIES }}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: ui-audit-out, path: out/ }
