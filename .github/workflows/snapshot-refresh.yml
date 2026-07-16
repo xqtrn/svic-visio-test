@@ -1,0 +1,20 @@
+name: snapshot-refresh
+# Зеркало full_html test-стенда: каждые 30 мин (в :12/:42 — после делта-импорта
+# в контейнере, который тикает в :00/:30) досниываем новые/изменённые страницы
+# с живого WP (Railway-IP на сайте забанен, GH-раннеры проходят) + дрейф-сенсор.
+on:
+  schedule:
+    - cron: '12,42 * * * *'
+  workflow_dispatch:
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm init -y >/dev/null 2>&1 && npm i pg >/dev/null 2>&1
+      - run: node snapshot-delta.mjs
+        env:
+          DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
