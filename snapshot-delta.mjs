@@ -72,7 +72,26 @@ console.log(`[drift] WP=${wpTotal} DB=${dbTotal}`);
 const problems = [];
 if (wpTotal && Math.abs(wpTotal - dbTotal) > 1) problems.push(`посты: WP ${wpTotal} vs зеркало ${dbTotal} (делта-импорт отстаёт)`);
 if (postsRes.fail + pagesRes.fail > 0) problems.push(`снапшоты не снялись: ${postsRes.fail + pagesRes.fail} стр.`);
-if (problems.length) await tg(`⚠️ test-стенд: зеркало WP разошлось.\n${problems.join('\n')}`);
+
+// Здоровье админки (класс «пустая админка», 2026-07-16): статус, публичный
+// site-API и — при заданном PLATFORM_SESSION_SECRET — данные под админ-ролью.
+const PLATFORM_ORIGIN = 'https://svic-platform-production.up.railway.app';
+try {
+  const st = await (await fetch(PLATFORM_ORIGIN + '/api/status')).json();
+  if (!st.ok || !st.db) problems.push('origin /api/status: не ok/db');
+  const ver = await fetch(PLATFORM_ORIGIN + '/api/site/__version');
+  if (ver.status !== 200) problems.push(`/api/site/__version: HTTP ${ver.status}`);
+  if (process.env.PLATFORM_SESSION_SECRET) {
+    const { default: jwt } = await import('jsonwebtoken');
+    const tok = jwt.sign({ userId: 1, telegramUsername: 'sensor', displayName: 'sensor', role: 'admin' }, process.env.PLATFORM_SESSION_SECRET, { expiresIn: '10m' });
+    const r = await fetch(PLATFORM_ORIGIN + '/api/admin/posts?limit=1', { headers: { Cookie: 'svic_token=' + tok } });
+    const total = r.status === 200 ? (await r.json()).total || 0 : 0;
+    if (total < 1000) problems.push(`админка: /api/admin/posts total=${total} (HTTP ${r.status}) — пустая выдача`);
+    else console.log(`[admin] posts total=${total} — ok`);
+  }
+} catch (e) { problems.push('health-пробы упали: ' + e.message); }
+
+if (problems.length) await tg(`⚠️ test-стенд: проблема.\n${problems.join('\n')}`);
 
 await pool.end();
 if (postsRes.fail + pagesRes.fail > 0) process.exit(1);
