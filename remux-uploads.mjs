@@ -53,7 +53,9 @@ function presign(method, key, query = '') {
 // список аплоадов админки (id начинаются с 'u': см. /api/admin/video/presign)
 const listUrl = presign('GET', '/', 'list-type=2&prefix=videos/u');
 const xml = await (await fetch(listUrl)).text();
-const keys = [...xml.matchAll(/<Key>(videos\/u[A-Za-z0-9_-]+\.mp4)<\/Key>/g)].map((m) => m[1]);
+// только формат админ-аплоада u<ts36>-<slug> (см. /api/admin/video/presign);
+// легаси-ролики с YouTube-id на 'u' (11 симв., без такого дефиса) — НЕ наши
+const keys = [...xml.matchAll(/<Key>(videos\/u[a-z0-9]{6,10}-[A-Za-z0-9_-]{1,12}\.mp4)<\/Key>/g)].map((m) => m[1]);
 console.log(`[list] ${keys.length} admin upload(s) in bucket`);
 
 const done = new Set(
@@ -80,11 +82,12 @@ for (const key of pending) {
     console.log(`[remux] ${id}: faststart ok (${out.length}b)`);
   } catch (e) {
     failed++;
-    console.warn(`[remux] ${id} FAIL: ${e.message}`);
+    const detail = ((e.stderr || e.stdout || '').toString().trim().split('\n').pop() || e.message).slice(0, 300);
+    console.warn(`[remux] ${id} FAIL: ${detail}`);
     // фейл тоже фиксируем, чтобы не долбить битый файл каждый час; переснимется при перезаливке
     await pool.query(
       `INSERT INTO audit_log (actor, action, entity_type, after) VALUES ('daemon:video-remux','daemon.remux',$1,$2)`,
-      ['video:' + id, JSON.stringify({ status: 'fail', error: e.message.slice(0, 200) })]).catch(() => {});
+      ['video:' + id, JSON.stringify({ status: 'fail', error: ((e.stderr || '').toString().trim().split('\n').pop() || e.message).slice(0, 200) })]).catch(() => {});
   }
 }
 
