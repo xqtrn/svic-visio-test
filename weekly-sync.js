@@ -23,7 +23,7 @@ async function existing(){ // clip asset names already in release
     // preferred company-page slug guesses: exact leading token, first two tokens
     const guesses=[token, seg.split('-').slice(0,2).join('-')];
     if(vid){
-      if(have.has(vid)||isInterview.has(vid)) continue;   // already self-hosted OR classified interview (youtube embed)
+      if(have.has(vid)) continue;   // уже самохостится; интервью БЕЗ файла теперь тоже в очередь — им нужен 24s превью-клип (2026-07-16)
       let wp=null; for(const g of guesses){ wp=await companyVideo(g); if(wp) break; }
       if(wp) manifest.push({key:vid,type:'wordpress',source:wp,slug:seg});
       else manifest.push({key:vid,type:'youtube',source:`https://www.youtube.com/watch?v=${vid}`,slug:seg});
