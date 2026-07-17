@@ -24,3 +24,17 @@ jobs:
           gh release upload clips tv.json covers.json -R "$GITHUB_REPOSITORY" --clobber
         env:
           GH_TOKEN: ${{ github.token }}
+      # отчёт о прогоне — админка стенда показывает работу демона (дашборд)
+      - name: report run
+        if: always()
+        run: |
+          node -e "
+          const pg = require('pg');
+          const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+          pool.query(\"INSERT INTO audit_log (actor, action, entity_type, after) VALUES ('daemon:frontpage','daemon.run','daemon:frontpage', \$1)\",
+            [JSON.stringify({ status: process.env.JOB_STATUS === 'success' ? 'ok' : 'warn', scope: 'homepage snapshot + tv/covers manifests' })])
+            .then(() => pool.end()).catch(e => { console.warn(e.message); process.exit(0); });
+          "
+        env:
+          DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
+          JOB_STATUS: ${{ job.status }}
