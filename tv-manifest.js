@@ -6,7 +6,7 @@ const CK={'Cookie':'svic_token=edge-preview','User-Agent':'Mozilla/5.0'};
   const have=new Set((rel.assets||[]).map(a=>a.name.replace(/\.mp4$/,'')).filter(n=>!n.endsWith('.json')));
   console.error('clips in release:',have.size);
   const out=[], covers=[]; // covers: ВСЕ статьи с data-svic-vid (и вне релиза — их играет S3-фолбэк воркера); класс «клип есть — манифест не знает» (Moonshot 2026-07-12)
-  for(let page=1;page<=3;page++){
+  for(let page=1;page<=15;page++){ // вся история (1243 статьи; Артур 2026-07-16: ховер должен жить и на старых карточках)
     const r=await fetch(`https://public-api.wordpress.com/wp/v2/sites/${SITE}/posts?per_page=100&page=${page}&_fields=link,title,date`);
     if(!r.ok)break; const posts=await r.json(); if(!posts.length)break;
     for(const p of posts){
