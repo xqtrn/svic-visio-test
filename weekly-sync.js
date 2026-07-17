@@ -18,7 +18,8 @@ async function existing(){ // clip asset names already in release
   for(const p of posts){
     const url=p.link.replace(LIVE,TEST); const s=await txt(url,{headers:CK});
     if(!s) continue;
-    const vid=(s.match(/data-svic-vid="([A-Za-z0-9_-]+)"/)||[])[1]||null;
+    // интервью: воркер переписывает data-svic-vid → data-video-id (канон плеера) — ловим оба
+    const vid=(s.match(/data-(?:svic-vid|video-id)="([A-Za-z0-9_-]{6,})"/)||[])[1]||null;
     const seg=p.slug; const token=seg.split('-')[0];
     // preferred company-page slug guesses: exact leading token, first two tokens
     const guesses=[token, seg.split('-').slice(0,2).join('-')];
