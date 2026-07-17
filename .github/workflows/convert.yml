@@ -35,22 +35,28 @@ jobs:
             if [ "$TYPE" = wordpress ]; then curl -sL "$SRC" -o in.mp4
             else
               DUR=$(yt-dlp --no-warnings --skip-download --print duration --proxy "$PENGUIN_SOCKS" --extractor-args "youtube:player_client=ios,android,web_safari" "$SRC" 2>/dev/null | head -1)
-              SECTIONS=""
+              PREVIEW=""
               if [ -n "$DUR" ] && [ "${DUR%.*}" -gt 120 ]; then
                 # интервью: полный ролик остаётся на YouTube (канон 2026-07-10), но карточкам
-                # нужен ховер/обложка → самохостим 24s ПРЕВЬЮ-фрагмент (Артур 2026-07-16)
+                # нужен ховер/обложка → самохостим 24s ПРЕВЬЮ. --download-sections не годится:
+                # его резка идёт через ffmpeg, который качает googlevideo МИМО прокси → 403;
+                # качаем целиком через прокси, режем локально (-t 24) на faststart-этапе.
                 echo "interview (${DUR}s > 120) → 24s preview self-host; full stays on YouTube"
                 node -e "const fs=require('fs');let a=[];try{a=JSON.parse(fs.readFileSync('interview-vids.json','utf8'))}catch{};if(!a.includes('$KEY'))a.push('$KEY');fs.writeFileSync('interview-vids.json',JSON.stringify(a))"
                 gh release upload clips interview-vids.json -R "$GITHUB_REPOSITORY" --clobber || true
-                SECTIONS='--download-sections *0-24 --force-keyframes-at-cuts'
+                PREVIEW=1
               fi
-              yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" $SECTIONS \
+              yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
               --extractor-args "youtube:player_client=ios,android,web_safari" \
               -f 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b' --merge-output-format mp4 -o in.mp4 "$SRC" || { FAIL=$((FAIL+1)); continue; }
             fi
             SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 50000 ] && { echo "too small"; FAIL=$((FAIL+1)); continue; }
-            ffmpeg -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "$KEY.mp4" 2>/dev/null \
-              || ffmpeg -hide_banner -loglevel error -i in.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "$KEY.mp4"
+            if [ -n "$PREVIEW" ]; then
+              ffmpeg -hide_banner -loglevel error -ss 0 -t 24 -i in.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "$KEY.mp4"
+            else
+              ffmpeg -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "$KEY.mp4" 2>/dev/null \
+                || ffmpeg -hide_banner -loglevel error -i in.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "$KEY.mp4"
+            fi
             gh release upload clips "$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
           done
           gh release upload clips cover-slugs.json -R "$GITHUB_REPOSITORY" --clobber || true
