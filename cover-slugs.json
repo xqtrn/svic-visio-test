@@ -1,5 +1,6 @@
 {
   "supabase": "cs-supabase",
   "redo": "cs-redo",
-  "helsing": "cs-helsing"
+  "helsing": "cs-helsing",
+  "airwallex": "cs-airwallex"
 }
