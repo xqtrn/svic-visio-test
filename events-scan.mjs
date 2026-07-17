@@ -6,6 +6,25 @@
 
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
+import pg from 'pg';
+
+// SOT событий с 2026-07-16 — site_blocks.events в БД стенда (правится админкой);
+// релиз остаётся fallback-датасетом воркера и хранилищем лого. Демон ЧИТАЕТ
+// админ-блок (уже отслеженное + надгробия removed), ДОБАВЛЯЕТ новое туда и в
+// релиз, существующие записи не трогает (правки админа всегда старше). Каждый
+// прогон отчитывается в audit_log (action='daemon.run') — админка показывает
+// работу демона. БД недоступна → работаем по-старому через релиз (fail-open).
+const pool = process.env.DATABASE_URL
+  ? new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+  : null;
+async function reportRun(after){
+  if (!pool) return;
+  try {
+    await pool.query(
+      "INSERT INTO audit_log (actor, action, entity_type, after) VALUES ('daemon:events-scan','daemon.run','daemon:events',$1)",
+      [JSON.stringify(after)]);
+  } catch (e) { console.warn('[report] failed:', e.message); }
+}
 
 const REL = 'https://github.com/xqtrn/svic-visio-test/releases/download/events/events.json';
 const API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -21,13 +40,20 @@ const TIER = [
 ];
 
 const cur = await (await fetch(REL)).json();
-const have = new Set(cur.events.map((e) => e.title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()));
+let adminBlock = null;
+if (pool) {
+  try { adminBlock = (await pool.query("SELECT value FROM site_blocks WHERE key='events'")).rows[0]?.value || null; }
+  catch (e) { console.warn('[db] read failed:', e.message); }
+}
+const tracked = (adminBlock && Array.isArray(adminBlock.items) && adminBlock.items.length) ? adminBlock.items : cur.events;
+const removedIds = new Set(((adminBlock && adminBlock.removed) || []).map(String));
+const have = new Set(tracked.map((e) => e.title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()));
 
 const prompt = `Today is ${today}. You are the events curator for an institutional private-markets investment desk (pre-IPO secondaries, unicorn coverage).
 
 Find conferences and research webinars announced for the NEXT 12 MONTHS that are TOP-TIER only: hosted by bulge-bracket banks (Goldman Sachs, J.P. Morgan, Morgan Stanley), Milken Institute, Informa/SuperReturn, IPEM, iConnections, CNBC, Bloomberg, PitchBook/NVCA, Preqin/BlackRock, Forge, Nasdaq or equivalent. Institutional audience only — no vendor pitches, no local meetups, no paid-speaker mills.
 
-Already tracked (do NOT repeat): ${cur.events.map((e) => e.title).join('; ')}
+Already tracked (do NOT repeat): ${tracked.map((e) => e.title).join('; ')}
 
 Return ONLY a JSON array (no prose). Each item:
 {"title":"...","organizer":"...","format":"Conference|Webinar","start":"YYYY-MM-DD","end":"YYYY-MM-DD or omit","dateLabel":"EXACT human dates (e.g. \"September 8\u201310, 2026\")","city":"City or Virtual","url":"official event page","blurb":"1-2 sentences IN YOUR OWN WORDS (institutional tone, no marketing copy-paste)","details":"3-4 sentences IN YOUR OWN WORDS for the event page: what happens there, who attends, why it matters","highlights":["3 short factual bullets"],"audience":"who attends, short","scale":"attendance figure if VERIFIED, else omit"}
@@ -78,15 +104,45 @@ for (const e of found) {
   fresh.push(e);
 }
 
+// надгробия: удалённое админом руками демон не возвращает (ни в БД, ни в релиз)
+const freshKept = fresh.filter((e) => !removedIds.has(e.id));
+
 // прошедшие ОСТАЮТСЯ (архив на странице /events/, Артур 2026-07-12); новые — в хвост
 const events = cur.events
-  .concat(fresh)
+  .concat(freshKept)
   .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
 
-const changed = fresh.length || events.length !== cur.events.length;
-if (!changed) { console.log('no changes'); process.exit(0); }
+// merge в БД (только добавление; существующие записи — собственность админа)
+let dbAdded = 0;
+if (pool && adminBlock) {
+  try {
+    const ids = new Set((adminBlock.items || []).map((e) => e.id));
+    const add = freshKept.filter((e) => !ids.has(e.id));
+    if (add.length) {
+      const merged = (adminBlock.items || []).concat(add)
+        .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+      await pool.query(
+        "UPDATE site_blocks SET value = jsonb_set(value, '{items}', $1::jsonb), updated_by='daemon:events-scan', updated_at=now() WHERE key='events'",
+        [JSON.stringify(merged)]);
+      await pool.query(
+        "INSERT INTO settings (key, value) VALUES ('content_version', '1') ON CONFLICT (key) DO UPDATE SET value = (COALESCE(settings.value::text, '0')::int + 1)::text::jsonb, updated_at = now()");
+      dbAdded = add.length;
+      console.log('[db] merged +' + add.length + ' into site_blocks.events');
+    }
+  } catch (e) { console.warn('[db] merge failed:', e.message); }
+}
+
+const changed = freshKept.length || events.length !== cur.events.length;
+if (!changed) {
+  console.log('no changes');
+  await reportRun({ status: 'ok', found: fresh.length, added: 0, db_added: dbAdded, total: tracked.length });
+  if (pool) await pool.end();
+  process.exit(0);
+}
 
 fs.writeFileSync('events.json', JSON.stringify({ updated: today, source: 'seed+daemon', events }, null, 1));
-const assets = ['events.json'].concat(fresh.filter((e) => e.logo).map((e) => e.logo));
+const assets = ['events.json'].concat(freshKept.filter((e) => e.logo).map((e) => e.logo));
 execSync('gh release upload events ' + assets.join(' ') + ' --clobber', { stdio: 'inherit' });
 console.log('published: +' + fresh.length + ' new, total ' + events.length);
+await reportRun({ status: 'ok', found: fresh.length, added: freshKept.length, db_added: dbAdded, total: (adminBlock && adminBlock.items ? adminBlock.items.length + dbAdded : events.length) });
+if (pool) await pool.end();
