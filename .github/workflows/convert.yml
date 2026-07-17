@@ -31,11 +31,13 @@ jobs:
             KEY=$(node -e "console.log(require('./manifest-missing.json')[$i].key)")
             TYPE=$(node -e "console.log(require('./manifest-missing.json')[$i].type)")
             SRC=$(node -e "console.log(require('./manifest-missing.json')[$i].source)")
+            OLD=$(node -e "console.log(require('./manifest-missing.json')[$i].old||0)")
             echo "=== $KEY ($TYPE) ==="; rm -f in.mp4 "$KEY.mp4"
             if [ "$TYPE" = wordpress ]; then curl -sL "$SRC" -o in.mp4
             else
               DUR=$(yt-dlp --no-warnings --skip-download --print duration --proxy "$PENGUIN_SOCKS" --extractor-args "youtube:player_client=ios,android,web_safari" "$SRC" 2>/dev/null | head -1)
               PREVIEW=""
+              [ "$OLD" = "1" ] && PREVIEW=1   # старым карточкам хватает 24s ховер-превью
               if [ -n "$DUR" ] && [ "${DUR%.*}" -gt 120 ]; then
                 # интервью: полный ролик остаётся на YouTube (канон 2026-07-10), но карточкам
                 # нужен ховер/обложка → самохостим 24s ПРЕВЬЮ. --download-sections не годится:
