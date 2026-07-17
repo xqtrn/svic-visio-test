@@ -2,7 +2,7 @@ name: convert-clips
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '17 6 * * 1'   # weekly Mon 06:17 UTC — self-host new article videos, no one in the loop
+    - cron: '17 6 * * *'   # ежедневно 06:17 UTC — новые статьи получают самохостинг-ролик за часы, не за неделю (Артур 2026-07-16: «почему без видео»)
 permissions: { contents: write }
 jobs:
   sync:
