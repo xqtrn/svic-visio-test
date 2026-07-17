@@ -93,5 +93,12 @@ try {
 
 if (problems.length) await tg(`⚠️ test-стенд: проблема.\n${problems.join('\n')}`);
 
+// отчёт о прогоне — админка показывает работу демона (раздел Posts/Pages, дашборд)
+try {
+  await pool.query(
+    "INSERT INTO audit_log (actor, action, entity_type, after) VALUES ('daemon:wp-snapshot','daemon.run','daemon:wp-snapshot',$1)",
+    [JSON.stringify({ status: problems.length ? 'warn' : 'ok', pages: pagesRes, posts: postsRes, wp: wpTotal, db: dbTotal, problems })]);
+} catch (e) { console.warn('[report] failed:', e.message); }
+
 await pool.end();
 if (postsRes.fail + pagesRes.fail > 0) process.exit(1);
