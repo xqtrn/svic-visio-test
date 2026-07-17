@@ -32,7 +32,7 @@ jobs:
             TYPE=$(node -e "console.log(require('./manifest-missing.json')[$i].type)")
             SRC=$(node -e "console.log(require('./manifest-missing.json')[$i].source)")
             OLD=$(node -e "console.log(require('./manifest-missing.json')[$i].old||0)")
-            echo "=== $KEY ($TYPE) ==="; rm -f in.mp4 "$KEY.mp4"
+            echo "=== $KEY ($TYPE) ==="; rm -f in.mp4 "./$KEY.mp4"
             if [ "$TYPE" = wordpress ]; then curl -sL "$SRC" -o in.mp4
             else
               DUR=$(yt-dlp --no-warnings --skip-download --print duration --proxy "$PENGUIN_SOCKS" --extractor-args "youtube:player_client=ios,android,web_safari" "$SRC" 2>/dev/null | head -1)
@@ -57,14 +57,14 @@ jobs:
             # 24-62MB — тяжёлый декод + голодание полосы на прогреве = зависания (Артур 2026-07-16)
             H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 in.mp4 2>/dev/null | head -1)
             if [ -n "$PREVIEW" ]; then
-              ffmpeg -nostdin -hide_banner -loglevel error -ss 0 -t 24 -i in.mp4 -vf "scale=-2:min(1080\,ih)" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "$KEY.mp4"
+              ffmpeg -nostdin -hide_banner -loglevel error -ss 0 -t 24 -i in.mp4 -vf "scale=-2:min(1080\,ih)" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "./$KEY.mp4"
             elif [ -n "$H" ] && [ "$H" -gt 1080 ]; then
-              ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -vf scale=-2:1080 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "$KEY.mp4"
+              ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -vf scale=-2:1080 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "./$KEY.mp4"
             else
-              ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "$KEY.mp4" 2>/dev/null \
-                || ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "$KEY.mp4"
+              ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "./$KEY.mp4" 2>/dev/null \
+                || ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "./$KEY.mp4"
             fi
-            gh release upload clips "$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
+            gh release upload clips "./$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
           done
           gh release upload clips cover-slugs.json -R "$GITHUB_REPOSITORY" --clobber || true
           echo "=== self-hosted=$OK failed=$FAIL of $N ==="
