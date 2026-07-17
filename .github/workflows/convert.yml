@@ -35,13 +35,16 @@ jobs:
             if [ "$TYPE" = wordpress ]; then curl -sL "$SRC" -o in.mp4
             else
               DUR=$(yt-dlp --no-warnings --skip-download --print duration --proxy "$PENGUIN_SOCKS" --extractor-args "youtube:player_client=ios,android,web_safari" "$SRC" 2>/dev/null | head -1)
+              SECTIONS=""
               if [ -n "$DUR" ] && [ "${DUR%.*}" -gt 120 ]; then
-                echo "interview (${DUR}s > 120) → youtube embed, not self-hosting"
+                # интервью: полный ролик остаётся на YouTube (канон 2026-07-10), но карточкам
+                # нужен ховер/обложка → самохостим 24s ПРЕВЬЮ-фрагмент (Артур 2026-07-16)
+                echo "interview (${DUR}s > 120) → 24s preview self-host; full stays on YouTube"
                 node -e "const fs=require('fs');let a=[];try{a=JSON.parse(fs.readFileSync('interview-vids.json','utf8'))}catch{};if(!a.includes('$KEY'))a.push('$KEY');fs.writeFileSync('interview-vids.json',JSON.stringify(a))"
                 gh release upload clips interview-vids.json -R "$GITHUB_REPOSITORY" --clobber || true
-                continue
+                SECTIONS='--download-sections *0-24 --force-keyframes-at-cuts'
               fi
-              yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
+              yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" $SECTIONS \
               --extractor-args "youtube:player_client=ios,android,web_safari" \
               -f 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b' --merge-output-format mp4 -o in.mp4 "$SRC" || { FAIL=$((FAIL+1)); continue; }
             fi
