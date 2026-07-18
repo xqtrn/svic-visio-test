@@ -17,16 +17,24 @@ jobs:
         run: |
           gh release view clips -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > all.txt
           grep -E '\.mp4$' all.txt | grep -vE '\.(720|480)\.mp4$' > bases.txt
+          # постоянный skip-список: базы с исходником <=720/<=480 — вариантов не положено;
+          # без него каждый прогон заново скачивал низкорослые превью (remaining не падал)
+          curl -sL "https://github.com/$GITHUB_REPOSITORY/releases/download/clips/variants-skip.json" -o skip.json || echo '[]' > skip.json
+          python3 -c "import json;print('\n'.join(json.load(open('skip.json'))))" 2>/dev/null > skip.txt || : > skip.txt
           MADE=0; SKIP=0; TODO=0
           while read -r F <&3; do
             B="${F%.mp4}"
+            grep -qxF "$B" skip.txt && { SKIP=$((SKIP+1)); continue; }
             H720=$(grep -cxF "$B.720.mp4" all.txt || true); H480=$(grep -cxF "$B.480.mp4" all.txt || true)
             [ "$H720" -ge 1 ] && [ "$H480" -ge 1 ] && { SKIP=$((SKIP+1)); continue; }
+            [ "$H480" -ge 1 ] && grep -qxF "$B:no720" skip.txt && { SKIP=$((SKIP+1)); continue; }
             TODO=$((TODO+1)); [ "$MADE" -ge 150 ] && continue
             rm -f in.mp4
             gh release download clips -R "$GITHUB_REPOSITORY" -p "$F" -O in.mp4 2>/dev/null || continue
             SH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 in.mp4 2>/dev/null | head -1)
             [ -z "$SH" ] && continue
+            [ "$SH" -le 480 ] && echo "$B" >> skip.txt
+            [ "$SH" -le 720 ] && [ "$SH" -gt 480 ] && echo "$B:no720" >> skip.txt
             for QH in 720 480; do
               [ "$SH" -le "$QH" ] && continue
               HAVE=$(grep -cxF "$B.$QH.mp4" all.txt || true); [ "$HAVE" -ge 1 ] && continue
@@ -35,4 +43,6 @@ jobs:
             done
             MADE=$((MADE+1))
           done 3< bases.txt
+          sort -u skip.txt | python3 -c "import json,sys;json.dump([l.strip() for l in sys.stdin if l.strip()],open('variants-skip.json','w'))"
+          gh release upload clips variants-skip.json -R "$GITHUB_REPOSITORY" --clobber || true
           echo "=== variants: processed=$MADE already-done=$SKIP remaining=$((TODO-MADE)) ==="
