@@ -2,8 +2,11 @@ name: convert-clips
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '17 6 * * *'   # ежедневно 06:17 UTC — новые статьи получают самохостинг-ролик за часы, не за неделю (Артур 2026-07-16: «почему без видео»)
+    - cron: '17 */2 * * *'  # каждые 2 часа — статья, импортированная днём, получает ролик в пределах ~2ч, не назавтра (Артур 2026-07-17, Fireworks: дневной импорт ждал ночного прогона)
 permissions: { contents: write }
+concurrency:
+  group: convert-clips
+  cancel-in-progress: false
 jobs:
   sync:
     runs-on: ubuntu-latest
