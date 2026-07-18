@@ -2,11 +2,8 @@ name: convert-clips
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '17 */2 * * *'  # каждые 2 часа — статья, импортированная днём, получает ролик в пределах ~2ч, не назавтра (Артур 2026-07-17, Fireworks: дневной импорт ждал ночного прогона)
+    - cron: '17 6 * * *'   # ежедневно 06:17 UTC — новые статьи получают самохостинг-ролик за часы, не за неделю (Артур 2026-07-16: «почему без видео»)
 permissions: { contents: write }
-concurrency:
-  group: convert-clips
-  cancel-in-progress: false
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -67,6 +64,12 @@ jobs:
               ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "./$KEY.mp4" 2>/dev/null \
                 || ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "./$KEY.mp4"
             fi
+            # варианты качества для плеера (Артур 2026-07-18): 720p/480p рядом с базой
+            for QH in 720 480; do
+              SH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "./$KEY.mp4" 2>/dev/null | head -1)
+              [ -n "$SH" ] && [ "$SH" -gt "$QH" ] && ffmpeg -nostdin -hide_banner -loglevel error -i "./$KEY.mp4" -vf scale=-2:$QH -c:v libx264 -preset veryfast -crf 24 -c:a aac -movflags +faststart "./$KEY.$QH.mp4" \
+                && gh release upload clips "./$KEY.$QH.mp4" -R "$GITHUB_REPOSITORY" --clobber && rm -f "./$KEY.$QH.mp4"
+            done
             gh release upload clips "./$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
           done
           gh release upload clips cover-slugs.json -R "$GITHUB_REPOSITORY" --clobber || true
