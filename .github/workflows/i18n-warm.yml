@@ -1,0 +1,61 @@
+name: i18n-warm
+# Демон переводов стенда test.* (Артур 2026-07-24: «все переводы делаем демоном
+# сами, без GTranslate»). Прогревает словарь воркера для всех языков переключателя:
+# страница, у которой контент не менялся, пропускается (ответ cached:true) — API
+# тратится только на новое. Первый прогон собирает весь набор, дальше — дельта.
+on:
+  schedule:
+    - cron: '40 12 * * *'   # ежедневно 12:40 UTC (~05:40 PST), до утреннего просмотра
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'пересобрать даже неизменившиеся страницы (1 = да)'
+        required: false
+        default: '0'
+      langs:
+        description: 'коды языков через пробел (пусто = все)'
+        required: false
+        default: ''
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 5          # воркер зовёт наш LLM — не долбим его 14 потоками
+      matrix:
+        lang: [es, fr, de, it, pt, ru, hi, ja, ar, ko, id, tr, vi, pl]
+    steps:
+      - name: warm ${{ matrix.lang }}
+        env:
+          KEY: ${{ secrets.SVIC_I18N_KEY }}
+          FORCE: ${{ github.event.inputs.force || '0' }}
+          ONLY: ${{ github.event.inputs.langs || '' }}
+          LANG_CODE: ${{ matrix.lang }}
+        run: |
+          set -u
+          if [ -n "$ONLY" ] && ! echo " $ONLY " | grep -q " $LANG_CODE "; then
+            echo "skip $LANG_CODE (не в списке)"; exit 0
+          fi
+          HOST=https://test.siliconvalleyinvestclub.com
+          # Канон-набор страниц стенда: главная, медиа-раздел, ДС-страницы, разделы.
+          # Статьи переводятся по первому заходу читателя и живут в той же памяти.
+          PAGES="/ /videos/ /events/ /research/ /newsletter/ /contact/ /tv /marketplace \
+                 /interviews/ /careers/ /careers/overview/ /life-at-the-club/ /internships/ \
+                 /benefits/ /our-firm/ /our-approach/ /newsroom/ /responsibility/ /legal/"
+          fail=0; built=0; cached=0
+          for P in $PAGES; do
+            for try in 1 2; do
+              R=$(curl -sS --max-time 300 -H "Cookie: svic_token=edge-preview" \
+                   "$HOST/__i18n/warm?k=$KEY&lang=$LANG_CODE&path=$P&force=$FORCE") || R=''
+              case "$R" in
+                *'"cached":true'*) cached=$((cached+1)); echo "· $LANG_CODE $P — уже собрано"; break ;;
+                *'"ok":true'*)     built=$((built+1));  echo "✓ $LANG_CODE $P — $R"; break ;;
+                *) if [ "$try" = 2 ]; then fail=$((fail+1)); echo "✗ $LANG_CODE $P — $R"; else sleep 10; fi ;;
+              esac
+            done
+          done
+          echo "итог $LANG_CODE: собрано=$built, из кэша=$cached, ошибок=$fail"
+          # частичная неудача не роняет прогон целиком: недостающее доберётся завтра
+          # или при первом заходе читателя (воркер собирает недостающую карту сам)
+          [ "$fail" -lt 5 ] || exit 1
