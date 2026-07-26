@@ -1,0 +1,58 @@
+name: platform-health
+# Здоровье стенда без WordPress (Артур 2026-07-26: сайт стал основным, копирование
+# из WP удалено). Проверяет наш origin и админку; при проблеме — алерт в Телеграм.
+on:
+  schedule:
+    - cron: '25 * * * *'
+  workflow_dispatch:
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm init -y >/dev/null 2>&1 && npm i pg jsonwebtoken >/dev/null 2>&1
+      - name: probe
+        env:
+          DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          PLATFORM_SESSION_SECRET: ${{ secrets.PLATFORM_SESSION_SECRET }}
+        run: |
+          cat > health.mjs <<'JS'
+          import pg from 'pg';
+          const ORIGIN = 'https://svic-platform-production.up.railway.app';
+          const TG_CHAT = '305112149';
+          const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+          const problems = [];
+          try {
+            const st = await (await fetch(ORIGIN + '/api/status')).json();
+            if (!st.ok || !st.db) problems.push('origin /api/status: не ok/db');
+            const ver = await fetch(ORIGIN + '/api/site/__version');
+            if (ver.status !== 200) problems.push(`/api/site/__version: HTTP ${ver.status}`);
+            if (process.env.PLATFORM_SESSION_SECRET) {
+              const { default: jwt } = await import('jsonwebtoken');
+              const tok = jwt.sign({ userId: 1, telegramUsername: 'sensor', displayName: 'sensor', role: 'admin' }, process.env.PLATFORM_SESSION_SECRET, { expiresIn: '10m' });
+              const r = await fetch(ORIGIN + '/api/admin/posts?limit=1', { headers: { Cookie: 'svic_token=' + tok } });
+              const total = r.status === 200 ? (await r.json()).total || 0 : 0;
+              if (total < 1000) problems.push(`админка: /api/admin/posts total=${total} (HTTP ${r.status}) — пустая выдача`);
+            }
+          } catch (e) { problems.push('health-пробы упали: ' + e.message); }
+          // контент на месте: снимки опубликованных статей не должны исчезать
+          try {
+            const { rows } = await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish' AND (full_html IS NULL OR full_html='')`);
+            if (rows[0].c > 0) problems.push(`${rows[0].c} опубликованных статей без готовой страницы`);
+          } catch (e) { problems.push('проверка снимков упала: ' + e.message); }
+          if (problems.length && process.env.TELEGRAM_BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: TG_CHAT, text: `⚠️ Платформа: проблема.\n${problems.join('\n')}` }),
+            }).catch(() => {});
+          }
+          try {
+            await pool.query("INSERT INTO audit_log (actor, action, entity_type, after) VALUES ('daemon:platform-health','daemon.run','daemon:platform-health',$1)",
+              [JSON.stringify({ status: problems.length ? 'warn' : 'ok', problems })]);
+          } catch {}
+          await pool.end();
+          console.log(problems.length ? '⚠️ ' + problems.join(' | ') : '✅ платформа здорова');
+          JS
+          node health.mjs
