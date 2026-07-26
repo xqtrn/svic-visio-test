@@ -1,4 +1,4 @@
-name: refresh-frontpage
+name: video-manifests
 on:
   schedule:
     - cron: '17 13 * * *'   # daily 13:17 UTC (~06:17 PST)
@@ -13,9 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
       - run: npm init -y >/dev/null 2>&1 && npm i pg >/dev/null 2>&1
-      - run: node refresh-frontpage.js
-        env:
-          DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
+      # Снапшот главной с WordPress удалён 2026-07-26 (Артур: сайт стал основным).
+      # Карточки главной пересобирает сама платформа из БД при каждой публикации.
       # манифесты эфира и ховер-обложек — ежедневно, автономно (Артур 2026-07-12:
       # Moonshot-класс — клип есть, статичный манифест не знал; раньше tv.json обновлялся вручную)
       - name: rebuild tv.json + covers.json
