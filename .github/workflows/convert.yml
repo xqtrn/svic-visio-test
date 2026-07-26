@@ -26,7 +26,7 @@ jobs:
         run: |
           gh release view clips -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create clips -R "$GITHUB_REPOSITORY" -t "progressive clips" -n "article cover/interview videos"
           N=$(node -e "console.log(require('./manifest-missing.json').length)")
-          echo "missing=$N"; OK=0; FAIL=0
+          echo "missing=$N"; OK=0; FAIL=0; BOTFAIL=0
           for i in $(seq 0 $((N-1))); do
             KEY=$(node -e "console.log(require('./manifest-missing.json')[$i].key)")
             TYPE=$(node -e "console.log(require('./manifest-missing.json')[$i].type)")
@@ -48,9 +48,11 @@ jobs:
                 gh release upload clips interview-vids.json -R "$GITHUB_REPOSITORY" --clobber || true
                 PREVIEW=1
               fi
+              sleep 12   # пауза перед YouTube: ~130 подряд без пауз включили анти-бот «Sign in to confirm» (2026-07-25)
               yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
               --extractor-args "youtube:player_client=ios,android,web_safari" \
-              -f 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b' --merge-output-format mp4 -o in.mp4 "$SRC" || { FAIL=$((FAIL+1)); continue; }
+              -f 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b' --merge-output-format mp4 -o in.mp4 "$SRC" || { FAIL=$((FAIL+1)); BOTFAIL=$((BOTFAIL+1)); [ "$BOTFAIL" -ge 8 ] && { echo "8 YouTube-отказов подряд — анти-бот активен, партию сворачиваем (WP-часть уже залита)"; break; }; continue; }
+              BOTFAIL=0
             fi
             SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 50000 ] && { echo "too small"; FAIL=$((FAIL+1)); continue; }
             # карточные клипы всегда <=1080p: 4K-исходники (fallback /b в yt-dlp) давали
