@@ -25,23 +25,32 @@ async function existing(){
     const seenV=new Set(covers.map(c=>c.v));
     for(const a of arch) if(a.v&&!seenV.has(a.v)) covers.push(a);
   }catch(e){}
-  const manifest=[];
+  // Очередь строим БЕЗ fetch'ей; companyVideo резолвим только для партии
+  // (2026-07-25: WP-источник ПЕРВЫМ для всех, не только свежих — YouTube после
+  // ~130 скачиваний включает анти-бот «Sign in to confirm», а ролики с наших
+  // страниц компаний качаются без YouTube вовсе). Ротация партии по номеру
+  // прогона: застрявшие на боте YouTube-хвосты не голодают остальную очередь.
+  const queue=[];
   for(const c of covers){
     const vid=c.v; if(!vid||have.has(vid)) continue;
     const old=(Date.now()-new Date(c.d).getTime())>60*86400e3?1:0;
     const seg=(c.u||'').split('/').filter(Boolean).pop()||'';
-    let wp=null;
-    if(!old){ // свежим — WP companyVideo приоритетом (полный клип с сайта компании)
-      const token=seg.split('-')[0];
-      for(const g of [token, seg.split('-').slice(0,2).join('-')]){ wp=await companyVideo(g); if(wp) break; }
-    }
-    if(wp) manifest.push({key:vid,type:'wordpress',source:wp,slug:seg,old});
-    else manifest.push({key:vid,type:'youtube',source:`https://www.youtube.com/watch?v=${vid}`,slug:seg,old});
+    queue.push({vid,old,seg});
   }
-  const batch=manifest.slice(0,60); // партия на прогон; ежедневный крон добивает хвост
+  const off=queue.length?((+(process.env.GITHUB_RUN_ID||0))*60)%queue.length:0;
+  const slice=queue.slice(off,off+60).concat(queue.slice(0,Math.max(0,off+60-queue.length)));
+  const manifest=[];
+  for(const q of slice){
+    let wp=null;
+    const token=q.seg.split('-')[0];
+    for(const g of [token, q.seg.split('-').slice(0,2).join('-')]){ wp=await companyVideo(g); if(wp) break; }
+    if(wp) manifest.push({key:q.vid,type:'wordpress',source:wp,slug:q.seg,old:q.old});
+    else manifest.push({key:q.vid,type:'youtube',source:`https://www.youtube.com/watch?v=${q.vid}`,slug:q.seg,old:q.old});
+  }
+  const batch=manifest; // партия на прогон; ежедневный крон добивает хвост
   require('fs').writeFileSync('manifest-missing.json',JSON.stringify(batch,null,2));
   // cover-slugs.json больше не пополняем тут (нет скана) — существующий не трогаем
   try{ require('fs').accessSync('cover-slugs.json'); }catch{ require('fs').writeFileSync('cover-slugs.json','{}'); }
-  console.error(`missing=${batch.length} (wp=${batch.filter(m=>m.type==='wordpress').length} yt=${batch.filter(m=>m.type==='youtube').length}) очередь_всего=${manifest.length}`);
+  console.error(`missing=${batch.length} (wp=${batch.filter(m=>m.type==='wordpress').length} yt=${batch.filter(m=>m.type==='youtube').length}) очередь_всего=${queue.length}`);
   for(const m of batch.slice(0,8)) console.error('  ',m.key,m.type,m.old?'preview':'full',m.slug.slice(0,40));
 })().catch(e=>{console.error('FATAL',e);process.exit(1)});
