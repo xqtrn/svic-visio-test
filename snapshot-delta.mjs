@@ -31,6 +31,7 @@ async function fetchHtml(slug) {
 async function snapshotTable(table) {
   const { rows } = await pool.query(
     `SELECT id, slug FROM ${table} WHERE status='publish' AND content_edited = false
+     AND wp_id IS NOT NULL -- ручной режим 2026-07-25: записи без wp_id собирает платформа, у WP их нет
      AND (full_html IS NULL OR full_html = '' OR full_html_at IS NULL OR updated_at > full_html_at) ORDER BY id`);
   let done = 0, gone = 0, fail = 0;
   const queue = [...rows];
@@ -66,7 +67,7 @@ const postsRes = await snapshotTable('posts');
 // Дрейф: живой WP vs БД (только posts — pages почти статичны)
 const head = await fetch(`${ORIGIN}/wp-json/wp/v2/posts?per_page=1`, { headers: { 'User-Agent': 'svic-platform-snapshot/1.0' } });
 const wpTotal = parseInt(head.headers.get('x-wp-total') || '0', 10);
-const dbTotal = parseInt((await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish'`)).rows[0].c, 10);
+const dbTotal = parseInt((await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish' AND wp_id IS NOT NULL`)).rows[0].c, 10); // ручные вне сверки: WP о них не знает
 console.log(`[drift] WP=${wpTotal} DB=${dbTotal}`);
 
 const problems = [];
