@@ -15,6 +15,16 @@ async function existing(){
   if(!have.size){ console.error('FATAL: релиз-ассеты не прочитаны'); process.exit(1); }
   let covers=[]; try{ const r=await fetch('https://github.com/xqtrn/svic-visio-test/releases/download/clips/covers.json',{redirect:'follow'}); if(r.ok) covers=await r.json(); }catch{}
   if(!covers.length){ console.error('FATAL: covers.json пуст — прогони refresh-frontpage'); process.exit(1); }
+  // Архивная карта (2026-07-25): covers.json видит только свежую главную (~144
+  // записей), глубь архива — 1135 статей с роликом — была синку невидима, и 494
+  // статьи жили без клипа (ховер-видео молчало). Разовая инвентаризация архива
+  // лежит в archive-vids.json; уже залитое отсеивает have, свежие статьи
+  // по-прежнему приходят через covers.json.
+  try{
+    const arch=JSON.parse(require('fs').readFileSync('archive-vids.json','utf8'));
+    const seenV=new Set(covers.map(c=>c.v));
+    for(const a of arch) if(a.v&&!seenV.has(a.v)) covers.push(a);
+  }catch(e){}
   const manifest=[];
   for(const c of covers){
     const vid=c.v; if(!vid||have.has(vid)) continue;
