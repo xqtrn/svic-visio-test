@@ -1,5 +1,8 @@
 name: ui-audit
 on:
+  push:
+    branches:
+      - codex/development-tasks-webkit-2026-07-27
   workflow_dispatch:
     inputs:
       base:
@@ -24,8 +27,8 @@ jobs:
       - run: sudo apt-get install -y gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad >/dev/null 2>&1 || true
       - run: rm -rf out && node ui-audit.js
         env:
-          BASE: ${{ inputs.base }}
-          PATHS: ${{ inputs.paths }}
+          BASE: ${{ inputs.base || 'https://platform.siliconvalleyinvestclub.com' }}
+          PATHS: ${{ inputs.paths || '/developement' }}
           # cookie из секрета — публичный репо, JWT в input светился бы в логах ран-а
           COOKIES: ${{ inputs.cookies || secrets.UI_AUDIT_COOKIES }}
       - uses: actions/upload-artifact@v4
