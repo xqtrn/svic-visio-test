@@ -13,6 +13,7 @@ const HOST = new URL(BASE).hostname;
 
 if (!SECRET) throw new Error('PLATFORM_SESSION_SECRET is required');
 if (!fs.existsSync(VIDEO_FILE)) throw new Error(`video missing: ${VIDEO_FILE}`);
+fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
 const token = jwt.sign(
@@ -131,7 +132,14 @@ async function inspectEngine(engineName, browserType, articleUrl, legacyCandidat
     page.on('pageerror', (error) => errors.push(String(error)));
 
     await page.goto(`${BASE}${articleUrl}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-    const newPlayer = await waitForNewPlayer(page);
+    let newPlayer;
+    try {
+      newPlayer = await waitForNewPlayer(page);
+    } catch (error) {
+      await page.screenshot({ path: path.join(OUT, `${engineName}-new-failure.png`), fullPage: true }).catch(() => {});
+      fs.writeFileSync(path.join(OUT, `${engineName}-new-failure.html`), await page.content());
+      throw error;
+    }
     await page.screenshot({ path: path.join(OUT, `${engineName}-new-viewport.png`) });
     await page.locator('video.svic-video').first().screenshot({ path: path.join(OUT, `${engineName}-new-player.png`) });
 
@@ -260,4 +268,3 @@ try {
   result.finishedAt = new Date().toISOString();
   fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(result, null, 2));
 }
-
