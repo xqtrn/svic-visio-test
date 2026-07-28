@@ -1,0 +1,263 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import jwt from 'jsonwebtoken';
+import { chromium, webkit } from 'playwright';
+
+const BASE = String(process.env.BASE || 'https://test.siliconvalleyinvestclub.com').replace(/\/$/, '');
+const SECRET = process.env.PLATFORM_SESSION_SECRET || '';
+const VIDEO_FILE = process.env.VIDEO_FILE || 'caption-smoke.mp4';
+const OUT = path.resolve('out');
+const HOST = new URL(BASE).hostname;
+
+if (!SECRET) throw new Error('PLATFORM_SESSION_SECRET is required');
+if (!fs.existsSync(VIDEO_FILE)) throw new Error(`video missing: ${VIDEO_FILE}`);
+fs.mkdirSync(OUT, { recursive: true });
+
+const token = jwt.sign(
+  { userId: 'caption-smoke', role: 'admin', displayName: 'Caption smoke' },
+  SECRET,
+  { expiresIn: '70m' },
+);
+const cookieHeader = `svic_token=${token}`;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const log = (message) => console.log(`[caption-smoke] ${message}`);
+
+async function request(route, { method = 'GET', body, headers = {} } = {}) {
+  const response = await fetch(`${BASE}${route}`, {
+    method,
+    redirect: 'manual',
+    headers: {
+      Cookie: cookieHeader,
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  return { response, data };
+}
+
+async function expectJson(route, options = {}, expected = [200]) {
+  const result = await request(route, options);
+  if (!expected.includes(result.response.status)) {
+    throw new Error(`${options.method || 'GET'} ${route}: HTTP ${result.response.status} ${String(result.data).slice(0, 220)}`);
+  }
+  return result.data;
+}
+
+async function waitForCaptions(id) {
+  const deadline = Date.now() + 55 * 60_000;
+  let previous = '';
+  while (Date.now() < deadline) {
+    const state = await expectJson(`/api/admin/video/${encodeURIComponent(id)}/status`);
+    if (state.captions_status !== previous) {
+      log(`caption state: ${state.captions_status}`);
+      previous = state.captions_status;
+    }
+    if (state.captions_status === 'ready') return state;
+    if (state.captions_status === 'ready_no_speech') throw new Error('recognizer returned ready_no_speech for speech fixture');
+    if (state.captions_status === 'error') throw new Error(`caption worker failed: ${state.error || 'unknown error'}`);
+    await sleep(10_000);
+  }
+  throw new Error('caption worker timeout');
+}
+
+async function waitForNewPlayer(page) {
+  await page.waitForSelector('video.svic-video', { timeout: 45_000 });
+  await page.waitForSelector('.svic-cc-control', { timeout: 45_000 });
+  await page.waitForFunction(() => {
+    const video = document.querySelector('video.svic-video');
+    const button = document.querySelector('.svic-cc-control');
+    if (!video || !button || button.getAttribute('aria-pressed') !== 'true') return false;
+    const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
+    return Boolean(track && track.mode === 'showing' && track.cues && track.cues.length);
+  }, null, { timeout: 45_000 });
+  await page.locator('video.svic-video').first().evaluate(async (video) => {
+    video.currentTime = 0.5;
+    await video.play().catch(() => {});
+  });
+  await page.locator('video.svic-video').first().scrollIntoViewIfNeeded();
+  await page.locator('.cs-entry__overlay-bg').first().hover().catch(() => {});
+  await page.waitForTimeout(1200);
+  return page.evaluate(() => {
+    const video = document.querySelector('video.svic-video');
+    const button = document.querySelector('.svic-cc-control');
+    const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
+    return {
+      ccPressed: button.getAttribute('aria-pressed'),
+      trackMode: track.mode,
+      cueCount: track.cues ? track.cues.length : 0,
+      trackSrc: video.querySelector('track')?.getAttribute('src') || '',
+    };
+  });
+}
+
+async function findLegacyPlayer(page, candidates) {
+  for (const item of candidates.slice(0, 12)) {
+    await page.goto(`${BASE}${item.u}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    try {
+      await page.waitForSelector('video.svic-video', { timeout: 20_000 });
+      await page.waitForFunction(() => {
+        const video = document.querySelector('video.svic-video');
+        return video && video.readyState >= 2;
+      }, null, { timeout: 20_000 });
+      const ccCount = await page.locator('.svic-cc-control').count();
+      const trackCount = await page.locator('video.svic-video track').count();
+      if (ccCount !== 0 || trackCount !== 0) {
+        throw new Error(`legacy player changed: cc=${ccCount}, tracks=${trackCount}`);
+      }
+      await page.locator('video.svic-video').first().scrollIntoViewIfNeeded();
+      await page.waitForTimeout(700);
+      return { id: item.v, url: item.u, ccCount, trackCount };
+    } catch (error) {
+      if (String(error.message || error).startsWith('legacy player changed')) throw error;
+      log(`legacy candidate skipped: ${item.v}`);
+    }
+  }
+  throw new Error('no playable legacy video found');
+}
+
+async function inspectEngine(engineName, browserType, articleUrl, legacyCandidates, contextOptions) {
+  const browser = await browserType.launch();
+  try {
+    const context = await browser.newContext(contextOptions);
+    await context.addCookies([{ name: 'svic_token', value: token, domain: HOST, path: '/' }]);
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (error) => errors.push(String(error)));
+
+    await page.goto(`${BASE}${articleUrl}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    const newPlayer = await waitForNewPlayer(page);
+    await page.screenshot({ path: path.join(OUT, `${engineName}-new-viewport.png`) });
+    await page.locator('video.svic-video').first().screenshot({ path: path.join(OUT, `${engineName}-new-player.png`) });
+
+    const legacy = await findLegacyPlayer(page, legacyCandidates);
+    await page.screenshot({ path: path.join(OUT, `${engineName}-legacy-viewport.png`) });
+    await page.locator('video.svic-video').first().screenshot({ path: path.join(OUT, `${engineName}-legacy-player.png`) });
+
+    if (errors.length) throw new Error(`${engineName} page errors: ${errors.join(' | ').slice(0, 500)}`);
+    return { engine: engineName, newPlayer, legacy };
+  } finally {
+    await browser.close();
+  }
+}
+
+let postId = null;
+const result = {
+  base: BASE,
+  startedAt: new Date().toISOString(),
+  assertions: {},
+  browsers: [],
+};
+
+try {
+  const presign = await expectJson('/api/admin/video/presign', {
+    method: 'POST',
+    body: { filename: `caption-smoke-${Date.now()}.mp4` },
+  });
+  const bytes = fs.readFileSync(VIDEO_FILE);
+  const upload = await fetch(presign.uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'video/mp4' },
+    body: bytes,
+  });
+  if (!upload.ok) throw new Error(`S3 upload failed: HTTP ${upload.status}`);
+  const uploaded = await expectJson('/api/admin/video/uploaded', {
+    method: 'POST',
+    body: { id: presign.id },
+  });
+  result.videoId = presign.id;
+  result.assertions.pipelineStarted = uploaded.optimizing === true;
+  if (!result.assertions.pipelineStarted) throw new Error('video pipeline dispatch did not start');
+
+  const stamp = Date.now();
+  const draft = await expectJson('/api/admin/posts', {
+    method: 'POST',
+    body: {
+      slug: `caption-smoke-${stamp}`,
+      title: `Caption smoke ${stamp}`,
+      excerpt: 'Temporary automated caption verification.',
+      content_html: '<p>Temporary automated caption verification.</p>',
+      author: 'Caption smoke',
+      published_at: new Date().toISOString(),
+      status: 'draft',
+      seo_meta: {},
+      categories: [],
+      tags: [],
+    },
+  }, [201]);
+  postId = draft.id;
+
+  const premature = await request(`/api/admin/posts/${postId}`, {
+    method: 'PUT',
+    body: { status: 'publish', video_id: presign.id },
+  });
+  result.assertions.publishBlockedBeforeCaptions = premature.response.status === 409
+    && premature.data?.error === 'captions_not_ready';
+  if (!result.assertions.publishBlockedBeforeCaptions) {
+    throw new Error(`publish gate failed: HTTP ${premature.response.status}`);
+  }
+
+  const ready = await waitForCaptions(presign.id);
+  result.caption = {
+    status: ready.captions_status,
+    language: ready.captions_language,
+    url: ready.caption_url,
+  };
+  const vtt = await fetch(`${BASE}${ready.caption_url}`, { headers: { Cookie: cookieHeader } });
+  const vttText = await vtt.text();
+  result.assertions.vttServed = vtt.ok && /^WEBVTT\s/m.test(vttText) && /captions/i.test(vttText);
+  if (!result.assertions.vttServed) throw new Error(`VTT verification failed: HTTP ${vtt.status}`);
+
+  const published = await expectJson(`/api/admin/posts/${postId}`, {
+    method: 'PUT',
+    body: { status: 'publish', video_id: presign.id },
+  });
+  result.articleUrl = published.permalink;
+
+  const manifest = await expectJson(`/api/site/video-manifest?smoke=${stamp}`);
+  const current = manifest.covers?.find((item) => item.v === presign.id);
+  result.assertions.manifestHasCaption = current?.caption_url === `/svic-captions/${presign.id}.vtt`;
+  if (!result.assertions.manifestHasCaption) throw new Error('caption metadata missing from video manifest');
+  const legacyCandidates = [...(manifest.tv || []), ...(manifest.covers || [])]
+    .filter((item, index, all) => !item.caption_url && all.findIndex((x) => x.v === item.v) === index);
+  if (!legacyCandidates.length) throw new Error('legacy regression fixture missing');
+
+  result.browsers.push(await inspectEngine(
+    'desktop-chromium',
+    chromium,
+    published.permalink,
+    legacyCandidates,
+    { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
+  ));
+  result.browsers.push(await inspectEngine(
+    'mobile-webkit',
+    webkit,
+    published.permalink,
+    legacyCandidates,
+    {
+      viewport: { width: 390, height: 844 },
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+    },
+  ));
+  result.ok = true;
+} catch (error) {
+  result.ok = false;
+  result.error = String(error.stack || error);
+  throw error;
+} finally {
+  if (postId !== null) {
+    await request(`/api/admin/posts/${postId}`, { method: 'DELETE' }).catch(() => {});
+    await request('/api/admin/frontpage/refresh', { method: 'POST', body: {} }).catch(() => {});
+  }
+  result.finishedAt = new Date().toISOString();
+  fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(result, null, 2));
+}
+
