@@ -309,7 +309,7 @@ try {
     .filter((item, index, all) => !item.caption_url && all.findIndex((x) => x.v === item.v) === index);
   if (!legacyCandidates.length) throw new Error('legacy regression fixture missing');
 
-  result.browsers.push(await inspectEngine(
+  const desktopResult = await inspectEngine(
     'desktop-chromium',
     chromium,
     published.permalink,
@@ -318,12 +318,17 @@ try {
     // Playwright's bundled Linux Chromium does not ship proprietary H.264/AAC
     // codecs. GitHub's Google Chrome does, matching the production browser.
     { channel: 'chrome' },
-  ));
+  );
+  result.browsers.push(desktopResult);
+  const desktopLegacy = legacyCandidates.find((item) => item.v === desktopResult.legacy.id);
+  const mobileLegacyCandidates = desktopLegacy
+    ? [desktopLegacy, ...legacyCandidates.filter((item) => item.v !== desktopLegacy.v)]
+    : legacyCandidates;
   result.browsers.push(await inspectEngine(
     'mobile-webkit',
     webkit,
     published.permalink,
-    legacyCandidates,
+    mobileLegacyCandidates,
     {
       viewport: { width: 390, height: 844 },
       deviceScaleFactor: 2,
