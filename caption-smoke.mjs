@@ -70,6 +70,24 @@ async function waitForCaptions(id) {
 
 async function waitForNewPlayer(page) {
   await page.waitForSelector('video.svic-video', { timeout: 45_000 });
+  await page.locator('video.svic-video').first().evaluate((video) => {
+    window.__captionSmokeMedia = [];
+    const snapshot = (type) => window.__captionSmokeMedia.push({
+      type,
+      at: performance.now(),
+      src: video.currentSrc || video.src,
+      readyState: video.readyState,
+      networkState: video.networkState,
+      currentTime: video.currentTime,
+      paused: video.paused,
+      error: video.error ? { code: video.error.code, message: video.error.message } : null,
+    });
+    [
+      'loadstart', 'loadedmetadata', 'loadeddata', 'canplay', 'playing', 'waiting',
+      'stalled', 'suspend', 'abort', 'emptied', 'ended', 'error',
+    ].forEach((type) => video.addEventListener(type, () => snapshot(type)));
+    snapshot('attached');
+  });
   await page.waitForSelector('.svic-cc-control', { timeout: 45_000 });
   await page.waitForFunction(() => {
     const video = document.querySelector('video.svic-video');
@@ -78,6 +96,20 @@ async function waitForNewPlayer(page) {
     const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
     return Boolean(track && track.mode === 'showing' && track.cues && track.cues.length);
   }, null, { timeout: 45_000 });
+  await page.locator('.svic-cc-control').first().click();
+  await page.waitForFunction(() => {
+    const video = document.querySelector('video.svic-video');
+    const button = document.querySelector('.svic-cc-control');
+    const track = video && [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
+    return Boolean(video && button?.getAttribute('aria-pressed') === 'false' && track?.mode === 'disabled');
+  }, null, { timeout: 10_000 });
+  await page.locator('.svic-cc-control').first().click();
+  await page.waitForFunction(() => {
+    const video = document.querySelector('video.svic-video');
+    const button = document.querySelector('.svic-cc-control');
+    const track = video && [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
+    return Boolean(video && button?.getAttribute('aria-pressed') === 'true' && track?.mode === 'showing');
+  }, null, { timeout: 10_000 });
   await page.locator('video.svic-video').first().evaluate(async (video) => {
     video.currentTime = 0.5;
     await video.play().catch(() => {});
@@ -91,6 +123,7 @@ async function waitForNewPlayer(page) {
     const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
     return {
       ccPressed: button.getAttribute('aria-pressed'),
+      ccToggle: 'off-on',
       trackMode: track.mode,
       cueCount: track.cues ? track.cues.length : 0,
       trackSrc: video.querySelector('track')?.getAttribute('src') || '',
@@ -130,7 +163,27 @@ async function inspectEngine(engineName, browserType, articleUrl, legacyCandidat
     await context.addCookies([{ name: 'svic_token', value: token, domain: HOST, path: '/' }]);
     const page = await context.newPage();
     const errors = [];
+    const mediaResponses = [];
     page.on('pageerror', (error) => errors.push(String(error)));
+    page.on('response', (response) => {
+      if (response.url().includes('/svic-video/') || response.url().includes('/svic-captions/')) {
+        mediaResponses.push({
+          kind: 'response',
+          status: response.status(),
+          url: response.url(),
+          contentType: response.headers()['content-type'] || '',
+        });
+      }
+    });
+    page.on('requestfailed', (request) => {
+      if (request.url().includes('/svic-video/') || request.url().includes('/svic-captions/')) {
+        mediaResponses.push({
+          kind: 'requestfailed',
+          url: request.url(),
+          error: request.failure()?.errorText || '',
+        });
+      }
+    });
 
     await page.goto(`${BASE}${articleUrl}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     let newPlayer;
@@ -139,7 +192,10 @@ async function inspectEngine(engineName, browserType, articleUrl, legacyCandidat
     } catch (error) {
       await page.screenshot({ path: path.join(OUT, `${engineName}-new-failure.png`), fullPage: true }).catch(() => {});
       fs.writeFileSync(path.join(OUT, `${engineName}-new-failure.html`), await page.content());
-      throw error;
+      const mediaDebug = await page.evaluate(() => window.__captionSmokeMedia || []).catch(() => []);
+      throw new Error(
+        `${error.message}\nmediaDebug=${JSON.stringify(mediaDebug)}\nmediaResponses=${JSON.stringify(mediaResponses)}`,
+      );
     }
     await page.screenshot({ path: path.join(OUT, `${engineName}-new-viewport.png`) });
     await page.locator('video.svic-video').first().screenshot({ path: path.join(OUT, `${engineName}-new-player.png`) });
