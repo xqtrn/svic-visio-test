@@ -55,7 +55,7 @@ async function waitForCaptions(id) {
   const deadline = Date.now() + 55 * 60_000;
   let previous = '';
   while (Date.now() < deadline) {
-    const state = await expectJson(`/api/admin/video/${encodeURIComponent(id)}/status`);
+    const state = await expectJson(`/api/admin/video-status/${encodeURIComponent(id)}`);
     if (state.captions_status !== previous) {
       log(`caption state: ${state.captions_status}`);
       previous = state.captions_status;
@@ -211,7 +211,7 @@ try {
   } else if (premature.response.status === 200) {
     // A warm worker can finish this six-second fixture between upload and the
     // first publish request. A 200 is valid only if the asset is already ready.
-    const raced = await expectJson(`/api/admin/video/${encodeURIComponent(presign.id)}/status`);
+    const raced = await expectJson(`/api/admin/video-status/${encodeURIComponent(presign.id)}`);
     if (!['ready', 'ready_no_speech'].includes(raced.captions_status)) {
       throw new Error(`publish gate failed: HTTP 200 while ${raced.captions_status}`);
     }
