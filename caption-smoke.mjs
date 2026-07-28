@@ -156,8 +156,8 @@ async function findLegacyPlayer(page, candidates) {
   throw new Error('no playable legacy video found');
 }
 
-async function inspectEngine(engineName, browserType, articleUrl, legacyCandidates, contextOptions) {
-  const browser = await browserType.launch();
+async function inspectEngine(engineName, browserType, articleUrl, legacyCandidates, contextOptions, launchOptions = {}) {
+  const browser = await browserType.launch(launchOptions);
   try {
     const context = await browser.newContext(contextOptions);
     await context.addCookies([{ name: 'svic_token', value: token, domain: HOST, path: '/' }]);
@@ -307,6 +307,9 @@ try {
     published.permalink,
     legacyCandidates,
     { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
+    // Playwright's bundled Linux Chromium does not ship proprietary H.264/AAC
+    // codecs. GitHub's Google Chrome does, matching the production browser.
+    { channel: 'chrome' },
   ));
   result.browsers.push(await inspectEngine(
     'mobile-webkit',
