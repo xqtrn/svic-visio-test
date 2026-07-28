@@ -207,7 +207,9 @@ async function inspectEngine(engineName, browserType, articleUrl, legacyCandidat
     // The imported legacy theme currently emits this unrelated minified runtime
     // error on otherwise-functional pages. Preserve it in the artifact, while
     // keeping the caption smoke strict for every other page error.
-    const unexpectedErrors = errors.filter((message) => !message.includes('TypeError: t(...) is not a function'));
+    const unexpectedErrors = errors.filter(
+      (message) => !/TypeError: t\((?:\.\.\.)?\) is not a function/.test(message),
+    );
     if (unexpectedErrors.length) {
       throw new Error(`${engineName} page errors: ${unexpectedErrors.join(' | ').slice(0, 500)}`);
     }
