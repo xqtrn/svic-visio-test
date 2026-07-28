@@ -40,6 +40,7 @@ jobs:
         run: node caption-smoke.mjs
         env:
           BASE: ${{ inputs.base }}
+          API_BASE: https://svic-platform-production.up.railway.app
           PLATFORM_SESSION_SECRET: ${{ secrets.PLATFORM_SESSION_SECRET }}
           VIDEO_FILE: caption-smoke.mp4
       - uses: actions/upload-artifact@v4
@@ -48,4 +49,3 @@ jobs:
           name: caption-smoke-out
           path: out/
           if-no-files-found: error
-
