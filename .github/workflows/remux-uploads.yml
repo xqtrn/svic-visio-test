@@ -1,24 +1,36 @@
 name: remux-uploads
-# Аплоады видео из админки test-стенда → lossless faststart-ремукс (iPhone
-# стартует мгновенно). Ежечасно; пустой прогон занимает секунды.
 on:
-  # Запуск ЗАГРУЗКОЙ (Артур 2026-07-26: «это нужно делать в момент, когда мы
-  # вручную загружаем видео»): админка шлёт repository_dispatch сразу после аплоада.
   repository_dispatch:
     types: [video-uploaded]
-  # Ночная подстраховка — на случай, если сигнал не дошёл (сеть, токен, сбой).
   schedule:
     - cron: '25 9 * * *'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: video-captions-${{ github.event.client_payload.id || 'nightly' }}
+  cancel-in-progress: false
+
 jobs:
-  remux:
+  remux-and-caption:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: faster-whisper-small-v1
       - run: npm init -y >/dev/null 2>&1 && npm i pg >/dev/null 2>&1
+      - run: pip install -r requirements-captions.txt
       - run: which ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
       - run: node remux-uploads.mjs
         env:
@@ -27,3 +39,5 @@ jobs:
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_VIDEO_SECRET_ACCESS_KEY }}
           S3_REGION: us-east-1
           S3_BUCKET: svic-video-archive
+          VIDEO_ID: ${{ github.event.client_payload.id }}
+          WHISPER_MODEL: small

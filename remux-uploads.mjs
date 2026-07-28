@@ -1,29 +1,33 @@
 #!/usr/bin/env node
 /**
- * remux-uploads.mjs — оптимизатор видео, загруженных из админки test-стенда.
+ * Event-driven pipeline for admin-uploaded videos only.
  *
- * Аплоады из редактора уходят в S3 (videos/u<ts36>-<slug>.mp4) как есть; без
- * faststart (moov в хвосте) iPhone стартует ролик с задержкой/стопорится.
- * Демон ежечасно: список аплоадов (префикс videos/u) → кто ещё не обработан
- * (audit_log action='daemon.remux') → lossless `ffmpeg -c copy +faststart` →
- * PUT обратно → отчёт per-файл + сводка daemon.run (админка показывает работу).
- *
- * env: DATABASE_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_REGION, S3_BUCKET
+ * video_assets is intentionally not backfilled. Therefore this worker cannot
+ * touch legacy videos with burned-in captions: it processes only explicit rows
+ * created by POST /api/admin/video/uploaded after the caption cutover.
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import { execSync } from 'node:child_process';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
-const AK = process.env.S3_ACCESS_KEY_ID, SK = process.env.S3_SECRET_ACCESS_KEY;
+const AK = process.env.S3_ACCESS_KEY_ID || '';
+const SK = process.env.S3_SECRET_ACCESS_KEY || '';
 const REGION = process.env.S3_REGION || 'us-east-1';
 const BUCKET = process.env.S3_BUCKET || 'svic-video-archive';
+const MODEL = process.env.WHISPER_MODEL || 'small';
 const HOST = `${BUCKET}.s3.${REGION}.amazonaws.com`;
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const requestedId = String(process.env.VIDEO_ID || '').replace(/[^A-Za-z0-9_-]/g, '');
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
-
-// SigV4: presigned URL (GET/PUT, SignedHeaders=host) — тот же приём, что backend/src/lib/s3sign.js
-function presign(method, key, query = '') {
+function presign(method, key, expires = 900) {
   const amz = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
   const date = amz.slice(0, 8);
   const scope = `${date}/${REGION}/s3/aws4_request`;
@@ -33,66 +37,214 @@ function presign(method, key, query = '') {
     'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
     'X-Amz-Credential': `${AK}/${scope}`,
     'X-Amz-Date': amz,
-    'X-Amz-Expires': '900',
+    'X-Amz-Expires': String(expires),
     'X-Amz-SignedHeaders': 'host',
   };
-  for (const part of query.split('&').filter(Boolean)) {
-    const [k, v = ''] = part.split('=');
-    q[decodeURIComponent(k)] = decodeURIComponent(v);
-  }
   const cq = Object.keys(q).sort().map((k) => `${enc(k)}=${enc(q[k])}`).join('&');
-  const creq = `${method}\n${uri || '/'}\n${cq}\nhost:${HOST}\n\nhost\nUNSIGNED-PAYLOAD`;
+  const canonical = `${method}\n${uri}\n${cq}\nhost:${HOST}\n\nhost\nUNSIGNED-PAYLOAD`;
   const hash = (x) => crypto.createHash('sha256').update(x).digest('hex');
-  const sts = `AWS4-HMAC-SHA256\n${amz}\n${scope}\n${hash(creq)}`;
+  const sts = `AWS4-HMAC-SHA256\n${amz}\n${scope}\n${hash(canonical)}`;
   const hmac = (k, d) => crypto.createHmac('sha256', k).update(d).digest();
-  const kS = hmac(hmac(hmac(hmac('AWS4' + SK, date), REGION), 's3'), 'aws4_request');
-  const sig = crypto.createHmac('sha256', kS).update(sts).digest('hex');
-  return `https://${HOST}${uri || '/'}?${cq}&X-Amz-Signature=${sig}`;
+  const signing = hmac(hmac(hmac(hmac('AWS4' + SK, date), REGION), 's3'), 'aws4_request');
+  const sig = crypto.createHmac('sha256', signing).update(sts).digest('hex');
+  return `https://${HOST}${uri}?${cq}&X-Amz-Signature=${sig}`;
 }
 
-// список аплоадов админки (id начинаются с 'u': см. /api/admin/video/presign)
-const listUrl = presign('GET', '/', 'list-type=2&prefix=videos/u');
-const xml = await (await fetch(listUrl)).text();
-// только формат админ-аплоада u<ts36>-<slug> (см. /api/admin/video/presign);
-// легаси-ролики с YouTube-id на 'u' (11 симв., без такого дефиса) — НЕ наши
-const keys = [...xml.matchAll(/<Key>(videos\/u[a-z0-9]{6,10}-[A-Za-z0-9_-]{1,12}\.mp4)<\/Key>/g)].map((m) => m[1]);
-console.log(`[list] ${keys.length} admin upload(s) in bucket`);
+async function s3Get(key) {
+  const r = await fetch(presign('GET', key));
+  if (!r.ok) throw new Error(`S3 GET ${r.status}`);
+  return Buffer.from(await r.arrayBuffer());
+}
 
-const done = new Set(
-  (await pool.query(`SELECT entity_type FROM audit_log WHERE action = 'daemon.remux'`)).rows.map((r) => r.entity_type)
-);
-const pending = keys.filter((k) => !done.has('video:' + k.slice('videos/'.length, -4)));
-console.log(`[pending] ${pending.length}`);
+async function s3Put(key, body, contentType) {
+  const r = await fetch(presign('PUT', key), {
+    method: 'PUT',
+    body,
+    headers: { 'Content-Type': contentType },
+  });
+  if (!r.ok) throw new Error(`S3 PUT ${r.status}`);
+}
 
-let remuxed = 0, failed = 0;
-for (const key of pending) {
-  const id = key.slice('videos/'.length, -4);
+const langCode = (language) => {
+  const k = String(language || '').toLowerCase();
+  const map = {
+    english: 'en', russian: 'ru', spanish: 'es', french: 'fr', german: 'de',
+    italian: 'it', portuguese: 'pt', hindi: 'hi', japanese: 'ja',
+    chinese: 'zh', ukrainian: 'uk', arabic: 'ar',
+  };
+  return map[k] || (/^[a-z]{2,3}(?:-[a-z0-9]+)?$/i.test(k) ? k : 'en');
+};
+
+const cueTime = (seconds) => {
+  const ms = Math.max(0, Math.round(Number(seconds || 0) * 1000));
+  const hh = Math.floor(ms / 3600000);
+  const mm = Math.floor((ms % 3600000) / 60000);
+  const ss = Math.floor((ms % 60000) / 1000);
+  const mmm = ms % 1000;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}.${String(mmm).padStart(3, '0')}`;
+};
+
+function safeText(text) {
+  return String(text || '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/-->/g, '→')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Keep cues readable on mobile. If the recognizer returns a long segment,
+// divide its time proportionally instead of rendering a four-line paragraph.
+function splitSegment(segment, offset) {
+  const text = safeText(segment.text);
+  if (!text) return [];
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    if (current && `${current} ${word}`.length > 72) {
+      lines.push(current);
+      current = word;
+    } else {
+      current += (current ? ' ' : '') + word;
+    }
+  }
+  if (current) lines.push(current);
+  const start = offset + Number(segment.start || 0);
+  const end = Math.max(start + 0.6, offset + Number(segment.end || segment.start || 0));
+  const totalChars = lines.reduce((n, x) => n + x.length, 0) || 1;
+  let cursor = start;
+  return lines.map((line, i) => {
+    const slice = i === lines.length - 1
+      ? end - cursor
+      : (end - start) * (line.length / totalChars);
+    const out = { start: cursor, end: Math.max(cursor + 0.3, cursor + slice), text: line };
+    cursor = out.end;
+    return out;
+  });
+}
+
+function transcribeFiles(files) {
+  const helper = path.join(SCRIPT_DIR, 'caption-transcribe.py');
+  const raw = execFileSync(process.env.PYTHON || 'python3', [helper, ...files], {
+    encoding: 'utf8',
+    env: { ...process.env, WHISPER_MODEL: MODEL },
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  return JSON.parse(raw);
+}
+
+function duration(file) {
+  return Number(execFileSync('ffprobe', [
+    '-v', 'error', '-show_entries', 'format=duration',
+    '-of', 'default=noprint_wrappers=1:nokey=1', file,
+  ], { encoding: 'utf8' }).trim()) || 0;
+}
+
+async function audit(action, id, after) {
+  await pool.query(
+    `INSERT INTO audit_log (actor, action, entity_type, after)
+     VALUES ('daemon:video-captions',$1,$2,$3)`,
+    [action, `video:${id}`, JSON.stringify(after)]);
+}
+
+async function processAsset(asset) {
+  const id = asset.id;
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `svic-caption-${id}-`));
   try {
-    const src = await fetch(presign('GET', key));
-    if (!src.ok) throw new Error('GET ' + src.status);
-    fs.writeFileSync('in.mp4', Buffer.from(await src.arrayBuffer()));
-    execSync('ffmpeg -y -i in.mp4 -c copy -movflags +faststart out.mp4', { stdio: 'pipe' });
-    const out = fs.readFileSync('out.mp4');
-    const put = await fetch(presign('PUT', key), { method: 'PUT', body: out, headers: { 'Content-Type': 'video/mp4' } });
-    if (!put.ok) throw new Error('PUT ' + put.status);
     await pool.query(
-      `INSERT INTO audit_log (actor, action, entity_type, after) VALUES ('daemon:video-remux','daemon.remux',$1,$2)`,
-      ['video:' + id, JSON.stringify({ status: 'ok', bytes_in: fs.statSync('in.mp4').size, bytes_out: out.length })]);
-    remuxed++;
-    console.log(`[remux] ${id}: faststart ok (${out.length}b)`);
+      `UPDATE video_assets SET captions_status='processing', attempts=attempts+1,
+       error=NULL, updated_at=now() WHERE id=$1`,
+      [id]);
+
+    const input = path.join(tmp, 'input.mp4');
+    const output = path.join(tmp, 'faststart.mp4');
+    fs.writeFileSync(input, await s3Get(asset.object_key));
+    execFileSync('ffmpeg', ['-y', '-i', input, '-c', 'copy', '-movflags', '+faststart', output], { stdio: 'pipe' });
+    await s3Put(asset.object_key, fs.readFileSync(output), 'video/mp4');
+
+    const audioDir = path.join(tmp, 'audio');
+    fs.mkdirSync(audioDir);
+    execFileSync('ffmpeg', [
+      '-y', '-i', output, '-vn', '-ac', '1', '-ar', '16000',
+      '-codec:a', 'libmp3lame', '-b:a', '64k',
+      '-f', 'segment', '-segment_time', '1200', '-reset_timestamps', '1',
+      path.join(audioDir, 'part-%03d.mp3'),
+    ], { stdio: 'pipe' });
+
+    const files = fs.readdirSync(audioDir).filter((x) => x.endsWith('.mp3')).sort();
+    const recognized = files.length ? transcribeFiles(files.map((x) => path.join(audioDir, x))) : [];
+    let offset = 0;
+    let language = 'en';
+    const cues = [];
+    for (let i = 0; i < files.length; i++) {
+      const name = files[i];
+      const file = path.join(audioDir, name);
+      const result = recognized[i] || {};
+      language = langCode(result.language || language);
+      for (const segment of (result.segments || [])) cues.push(...splitSegment(segment, offset));
+      offset += duration(file);
+    }
+
+    if (!cues.length) {
+      await pool.query(
+        `UPDATE video_assets SET captions_status='ready_no_speech',
+         captions_key=NULL, captions_language=NULL, provider='faster-whisper', model=$2,
+         error=NULL, ready_at=now(), updated_at=now() WHERE id=$1`,
+        [id, MODEL]);
+      await audit('video.captions-ready-no-speech', id, { status: 'ready_no_speech' });
+      return;
+    }
+
+    const body = 'WEBVTT\n\n' + cues.map((c, i) =>
+      `${i + 1}\n${cueTime(c.start)} --> ${cueTime(c.end)}\n${c.text}\n`).join('\n');
+    const captionKey = `captions/${id}.vtt`;
+    await s3Put(captionKey, Buffer.from(body, 'utf8'), 'text/vtt; charset=utf-8');
+    await pool.query(
+      `UPDATE video_assets SET captions_status='ready', captions_key=$2,
+       captions_language=$3, provider='faster-whisper', model=$4, error=NULL,
+       ready_at=now(), updated_at=now() WHERE id=$1`,
+      [id, captionKey, language, MODEL]);
+    await audit('video.captions-ready', id, { status: 'ready', cues: cues.length, language, key: captionKey });
+  } catch (e) {
+    const message = String(e.message || e).replace(/\s+/g, ' ').slice(0, 500);
+    await pool.query(
+      `UPDATE video_assets SET captions_status='error', error=$2, updated_at=now() WHERE id=$1`,
+      [id, message]).catch(() => {});
+    await audit('video.captions-failed', id, { status: 'error', error: message }).catch(() => {});
+    throw e;
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+if (!AK || !SK || !process.env.DATABASE_URL) throw new Error('pipeline credentials missing');
+
+const assets = requestedId
+  ? (await pool.query(
+    `SELECT id, object_key FROM video_assets
+     WHERE id=$1 AND captions_status NOT IN ('ready','ready_no_speech')`,
+    [requestedId])).rows
+  : (await pool.query(
+    `SELECT id, object_key FROM video_assets
+     WHERE captions_status IN ('processing','error') AND attempts < 5
+     ORDER BY updated_at ASC LIMIT 20`)).rows;
+
+let succeeded = 0;
+let failed = 0;
+for (const asset of assets) {
+  try {
+    await processAsset(asset);
+    succeeded++;
+    console.log(`[caption] ${asset.id}: ready`);
   } catch (e) {
     failed++;
-    const detail = ((e.stderr || e.stdout || '').toString().trim().split('\n').pop() || e.message).slice(0, 300);
-    console.warn(`[remux] ${id} FAIL: ${detail}`);
-    // фейл тоже фиксируем, чтобы не долбить битый файл каждый час; переснимется при перезаливке
-    await pool.query(
-      `INSERT INTO audit_log (actor, action, entity_type, after) VALUES ('daemon:video-remux','daemon.remux',$1,$2)`,
-      ['video:' + id, JSON.stringify({ status: 'fail', error: ((e.stderr || '').toString().trim().split('\n').pop() || e.message).slice(0, 200) })]).catch(() => {});
+    console.warn(`[caption] ${asset.id}: ${String(e.message || e).slice(0, 180)}`);
   }
 }
 
-await pool.query(
-  `INSERT INTO audit_log (actor, action, entity_type, after) VALUES ('daemon:video-remux','daemon.run','daemon:video-remux',$1)`,
-  [JSON.stringify({ status: failed ? 'warn' : 'ok', uploads: keys.length, remuxed, failed })]);
+await audit('daemon.video-captions-run', requestedId || 'batch', {
+  requested_id: requestedId || null, selected: assets.length, succeeded, failed,
+}).catch(() => {});
 await pool.end();
-console.log(`[done] remuxed=${remuxed} failed=${failed}`);
+console.log(`[done] selected=${assets.length} succeeded=${succeeded} failed=${failed}`);
+if (failed) process.exitCode = 1;

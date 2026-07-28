@@ -1,0 +1,51 @@
+name: caption-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Test site base URL
+        default: https://test.siliconvalleyinvestclub.com
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: caption-smoke
+  cancel-in-progress: false
+
+jobs:
+  end-to-end:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm init -y >/dev/null 2>&1 && npm i playwright@1.49.0 jsonwebtoken@9 >/dev/null 2>&1
+      - run: npx playwright install --with-deps chromium webkit
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg espeak-ng
+      - name: Build speech test video
+        run: |
+          espeak-ng -v en-us -s 135 -w caption-smoke.wav \
+            "Automatic captions are enabled by default. The C C button can turn captions off and on."
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i color=c=0x0a1733:s=1280x720:r=30 \
+            -i caption-smoke.wav -shortest \
+            -c:v libx264 -preset veryfast -pix_fmt yuv420p \
+            -c:a aac -b:a 128k caption-smoke.mp4
+      - name: Upload, transcribe, publish and inspect players
+        run: node caption-smoke.mjs
+        env:
+          BASE: ${{ inputs.base }}
+          PLATFORM_SESSION_SECRET: ${{ secrets.PLATFORM_SESSION_SECRET }}
+          VIDEO_FILE: caption-smoke.mp4
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: caption-smoke-out
+          path: out/
+          if-no-files-found: error
+
