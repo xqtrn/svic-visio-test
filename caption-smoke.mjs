@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import { chromium, webkit } from 'playwright';
 
 const BASE = String(process.env.BASE || 'https://test.siliconvalleyinvestclub.com').replace(/\/$/, '');
+const API_BASE = String(process.env.API_BASE || BASE).replace(/\/$/, '');
 const SECRET = process.env.PLATFORM_SESSION_SECRET || '';
 const VIDEO_FILE = process.env.VIDEO_FILE || 'caption-smoke.mp4';
 const OUT = path.resolve('out');
@@ -26,7 +27,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const log = (message) => console.log(`[caption-smoke] ${message}`);
 
 async function request(route, { method = 'GET', body, headers = {} } = {}) {
-  const response = await fetch(`${BASE}${route}`, {
+  const response = await fetch(`${API_BASE}${route}`, {
     method,
     redirect: 'manual',
     headers: {
@@ -157,6 +158,7 @@ async function inspectEngine(engineName, browserType, articleUrl, legacyCandidat
 let postId = null;
 const result = {
   base: BASE,
+  apiBase: API_BASE,
   startedAt: new Date().toISOString(),
   assertions: {},
   browsers: [],
