@@ -204,9 +204,17 @@ try {
     method: 'PUT',
     body: { status: 'publish', video_id: presign.id },
   });
-  result.assertions.publishBlockedBeforeCaptions = premature.response.status === 409
-    && premature.data?.error === 'captions_not_ready';
-  if (!result.assertions.publishBlockedBeforeCaptions) {
+  if (premature.response.status === 409 && premature.data?.error === 'captions_not_ready') {
+    result.assertions.publishGate = 'blocked-while-processing';
+  } else if (premature.response.status === 200) {
+    // A warm worker can finish this six-second fixture between upload and the
+    // first publish request. A 200 is valid only if the asset is already ready.
+    const raced = await expectJson(`/api/admin/video/${encodeURIComponent(presign.id)}/status`);
+    if (!['ready', 'ready_no_speech'].includes(raced.captions_status)) {
+      throw new Error(`publish gate failed: HTTP 200 while ${raced.captions_status}`);
+    }
+    result.assertions.publishGate = 'captions-ready-before-publish';
+  } else {
     throw new Error(`publish gate failed: HTTP ${premature.response.status}`);
   }
 
