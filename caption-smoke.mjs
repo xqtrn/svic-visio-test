@@ -122,16 +122,24 @@ async function waitForNewPlayer(page) {
     const track = video && [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
     return Boolean(video && button?.getAttribute('aria-pressed') === 'true' && track?.mode === 'hidden');
   }, null, { timeout: 10_000 });
-  await page.locator('video.svic-video').first().evaluate(async (video) => {
+  await page.locator('video.svic-video').first().evaluate((video) => {
     const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
-    video.pause();
-    video.currentTime = Math.max(0, (track?.cues?.[0]?.startTime || 0) + 0.05);
-    // Keep the cue frame stable while geometry is measured and screenshots are
-    // captured. A short synthetic fixture can otherwise finish in WebKit before
-    // the assertion observes the lower-third overlay.
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    video.pause();
+    const cue = track?.cues?.[0];
+    const cueStart = Math.max(0, (cue?.startTime || 0) + 0.05);
+    const resetAt = Math.max(cueStart + 0.4, (cue?.endTime || cueStart + 1) - 0.35);
+    clearInterval(window.__captionSmokeHold);
+    video.currentTime = cueStart;
     video.__svicCaptionSync?.();
+    // Keep a short fixture playing inside its first cue. Pausing here wakes the
+    // production quality governor and can swap to an intentionally absent
+    // rendition; looping the cue preserves real playback semantics in WebKit.
+    window.__captionSmokeHold = setInterval(() => {
+      if (video.currentTime < cueStart || video.currentTime >= resetAt || video.ended) {
+        video.currentTime = cueStart;
+      }
+      video.__svicCaptionSync?.();
+    }, 100);
+    void video.play().catch(() => {});
   });
   await page.locator('video.svic-video').first().scrollIntoViewIfNeeded();
   await page.locator('.cs-entry__overlay-bg').first().hover().catch(() => {});
@@ -249,6 +257,7 @@ async function inspectEngine(engineName, browserType, articleUrl, legacyCandidat
     }
     await page.screenshot({ path: path.join(OUT, `${engineName}-new-viewport.png`) });
     await page.locator('video.svic-video').first().screenshot({ path: path.join(OUT, `${engineName}-new-player.png`) });
+    await page.evaluate(() => clearInterval(window.__captionSmokeHold));
 
     const legacy = await findLegacyPlayer(page, legacyCandidates);
     await page.screenshot({ path: path.join(OUT, `${engineName}-legacy-viewport.png`) });
