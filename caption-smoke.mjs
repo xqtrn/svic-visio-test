@@ -227,6 +227,9 @@ async function inspectEngine(engineName, browserType, articleUrl, legacyCandidat
   try {
     const context = await browser.newContext(contextOptions);
     await context.addCookies([{ name: 'svic_token', value: token, domain: HOST, path: '/' }]);
+    await context.addInitScript(() => {
+      localStorage.setItem('svicQ', '1080');
+    });
     const page = await context.newPage();
     const errors = [];
     const mediaResponses = [];
