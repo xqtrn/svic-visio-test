@@ -102,6 +102,25 @@ async function waitForNewPlayer(page) {
       && document.querySelector('.svic-caption-overlay'),
     );
   }, null, { timeout: 45_000 });
+  await page.locator('video.svic-video').first().evaluate((video) => {
+    const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
+    const cue = track?.cues?.[0];
+    const cueStart = Math.max(0, (cue?.startTime || 0) + 0.05);
+    const resetAt = Math.max(cueStart + 0.4, (cue?.endTime || cueStart + 1) - 0.35);
+    clearInterval(window.__captionSmokeHold);
+    video.currentTime = cueStart;
+    video.__svicCaptionSync?.();
+    // Keep a short fixture playing inside its first cue. Pausing here wakes the
+    // production quality governor and can swap to an intentionally absent
+    // rendition; looping the cue preserves real playback semantics in WebKit.
+    window.__captionSmokeHold = setInterval(() => {
+      if (video.currentTime < cueStart || video.currentTime >= resetAt || video.ended) {
+        video.currentTime = cueStart;
+      }
+      video.__svicCaptionSync?.();
+    }, 100);
+    void video.play().catch(() => {});
+  });
   await page.locator('.svic-cc-control').first().click();
   await page.waitForFunction(() => {
     const video = document.querySelector('video.svic-video');
@@ -122,25 +141,6 @@ async function waitForNewPlayer(page) {
     const track = video && [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
     return Boolean(video && button?.getAttribute('aria-pressed') === 'true' && track?.mode === 'hidden');
   }, null, { timeout: 10_000 });
-  await page.locator('video.svic-video').first().evaluate((video) => {
-    const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
-    const cue = track?.cues?.[0];
-    const cueStart = Math.max(0, (cue?.startTime || 0) + 0.05);
-    const resetAt = Math.max(cueStart + 0.4, (cue?.endTime || cueStart + 1) - 0.35);
-    clearInterval(window.__captionSmokeHold);
-    video.currentTime = cueStart;
-    video.__svicCaptionSync?.();
-    // Keep a short fixture playing inside its first cue. Pausing here wakes the
-    // production quality governor and can swap to an intentionally absent
-    // rendition; looping the cue preserves real playback semantics in WebKit.
-    window.__captionSmokeHold = setInterval(() => {
-      if (video.currentTime < cueStart || video.currentTime >= resetAt || video.ended) {
-        video.currentTime = cueStart;
-      }
-      video.__svicCaptionSync?.();
-    }, 100);
-    void video.play().catch(() => {});
-  });
   await page.locator('video.svic-video').first().scrollIntoViewIfNeeded();
   await page.locator('.cs-entry__overlay-bg').first().hover().catch(() => {});
   await page.waitForFunction(() => {
