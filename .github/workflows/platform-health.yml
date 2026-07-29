@@ -5,8 +5,14 @@ on:
   schedule:
     - cron: '25 * * * *'
   workflow_dispatch:
+    inputs:
+      credential_probe:
+        description: "Check whether a Railway deployment credential is configured"
+        required: false
+        default: "false"
 jobs:
   health:
+    if: ${{ inputs.credential_probe != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-node@v4
@@ -56,3 +62,23 @@ jobs:
           console.log(problems.length ? '⚠️ ' + problems.join(' | ') : '✅ платформа здорова');
           JS
           node health.mjs
+
+  railway_deploy_credential_probe:
+    if: ${{ inputs.credential_probe == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_TOKEN: ${{ secrets.RAILWAY_PROJECT_TOKEN }}
+    steps:
+      - name: Check credential presence without exposing it
+        run: |
+          set -euo pipefail
+          if [[ -n "$RAILWAY_PROJECT_TOKEN" ]]; then
+            echo "Railway project deployment credential is configured."
+          elif [[ -n "$RAILWAY_TOKEN" ]]; then
+            echo "Railway account deployment credential is configured."
+          else
+            echo "No Railway deployment credential is configured." >&2
+            exit 2
+          fi
