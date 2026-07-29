@@ -94,39 +94,83 @@ async function waitForNewPlayer(page) {
     const button = document.querySelector('.svic-cc-control');
     if (!video || !button || button.getAttribute('aria-pressed') !== 'true') return false;
     const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
-    return Boolean(track && track.mode === 'showing' && track.cues && track.cues.length);
+    return Boolean(
+      track
+      && track.mode === 'hidden'
+      && track.cues
+      && track.cues.length
+      && document.querySelector('.svic-caption-overlay'),
+    );
   }, null, { timeout: 45_000 });
   await page.locator('.svic-cc-control').first().click();
   await page.waitForFunction(() => {
     const video = document.querySelector('video.svic-video');
     const button = document.querySelector('.svic-cc-control');
     const track = video && [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
-    return Boolean(video && button?.getAttribute('aria-pressed') === 'false' && track?.mode === 'disabled');
+    const overlay = document.querySelector('.svic-caption-overlay');
+    return Boolean(
+      video
+      && button?.getAttribute('aria-pressed') === 'false'
+      && track?.mode === 'disabled'
+      && overlay?.hidden,
+    );
   }, null, { timeout: 10_000 });
   await page.locator('.svic-cc-control').first().click();
   await page.waitForFunction(() => {
     const video = document.querySelector('video.svic-video');
     const button = document.querySelector('.svic-cc-control');
     const track = video && [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
-    return Boolean(video && button?.getAttribute('aria-pressed') === 'true' && track?.mode === 'showing');
+    return Boolean(video && button?.getAttribute('aria-pressed') === 'true' && track?.mode === 'hidden');
   }, null, { timeout: 10_000 });
   await page.locator('video.svic-video').first().evaluate(async (video) => {
-    video.currentTime = 0.5;
+    const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
+    video.currentTime = Math.max(0, (track?.cues?.[0]?.startTime || 0) + 0.05);
     await video.play().catch(() => {});
   });
   await page.locator('video.svic-video').first().scrollIntoViewIfNeeded();
   await page.locator('.cs-entry__overlay-bg').first().hover().catch(() => {});
-  await page.waitForTimeout(1200);
+  await page.waitForFunction(() => {
+    const video = document.querySelector('video.svic-video');
+    const overlay = document.querySelector('.svic-caption-overlay');
+    const line = overlay?.querySelector('.svic-caption-line');
+    if (!video || !overlay || overlay.hidden || !line?.textContent?.trim()) return false;
+    const vr = video.getBoundingClientRect();
+    const cr = overlay.getBoundingClientRect();
+    const fontRatio = parseFloat(getComputedStyle(overlay).fontSize) / vr.width;
+    const topRatio = (cr.top - vr.top) / vr.height;
+    const bottomRatio = (cr.bottom - vr.top) / vr.height;
+    const minFontRatio = vr.width <= 640 ? 0.04 : 0.025;
+    return (
+      topRatio >= 0.55
+      && bottomRatio <= 0.9
+      && fontRatio >= minFontRatio
+      && fontRatio <= 0.075
+      && getComputedStyle(line).backgroundColor === 'rgba(10, 23, 51, 0.86)'
+    );
+  }, null, { timeout: 15_000 });
+  await page.waitForTimeout(500);
   return page.evaluate(() => {
     const video = document.querySelector('video.svic-video');
     const button = document.querySelector('.svic-cc-control');
     const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
+    const overlay = document.querySelector('.svic-caption-overlay');
+    const line = overlay.querySelector('.svic-caption-line');
+    const vr = video.getBoundingClientRect();
+    const cr = overlay.getBoundingClientRect();
     return {
       ccPressed: button.getAttribute('aria-pressed'),
       ccToggle: 'off-on',
       trackMode: track.mode,
       cueCount: track.cues ? track.cues.length : 0,
       trackSrc: video.querySelector('track')?.getAttribute('src') || '',
+      captionOverlay: {
+        lineCount: overlay.querySelectorAll('.svic-caption-line').length,
+        topRatio: Number(((cr.top - vr.top) / vr.height).toFixed(3)),
+        bottomRatio: Number(((cr.bottom - vr.top) / vr.height).toFixed(3)),
+        fontSize: getComputedStyle(overlay).fontSize,
+        fontToVideoWidth: Number((parseFloat(getComputedStyle(overlay).fontSize) / vr.width).toFixed(3)),
+        background: getComputedStyle(line).backgroundColor,
+      },
     };
   });
 }
