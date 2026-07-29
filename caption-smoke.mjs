@@ -293,6 +293,10 @@ try {
   if (!result.assertions.pipelineStarted) throw new Error('video pipeline dispatch did not start');
 
   const stamp = Date.now();
+  const taxonomy = await expectJson('/api/admin/taxonomy');
+  const smokeCategory = taxonomy.items?.find((item) => Number.isFinite(Number(item.wp_id)));
+  if (!smokeCategory) throw new Error('manual article smoke category is unavailable');
+  result.assertions.manualCategory = Number(smokeCategory.wp_id);
   const draft = await expectJson('/api/admin/posts', {
     method: 'POST',
     body: {
@@ -304,7 +308,7 @@ try {
       published_at: new Date().toISOString(),
       status: 'draft',
       seo_meta: {},
-      categories: [],
+      categories: [Number(smokeCategory.wp_id)],
       tags: [],
     },
   }, [201]);
