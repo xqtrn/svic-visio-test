@@ -138,8 +138,10 @@ async function waitForNewPlayer(page) {
   await page.locator('.cs-entry__overlay-bg').first().hover().catch(() => {});
   await page.locator('video.svic-video').first().evaluate((video) => {
     const host = video.closest('.cs-entry__media-wrap') || video.closest('.vw-frame') || video.parentElement;
-    host?.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
-    host?.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    const revealControls = () => host?.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    clearInterval(window.__captionSmokeControls);
+    revealControls();
+    window.__captionSmokeControls = setInterval(revealControls, 250);
   });
   await page.waitForFunction(() => {
     const video = document.querySelector('video.svic-video');
@@ -273,7 +275,10 @@ async function inspectEngine(engineName, browserType, articleUrl, legacyCandidat
     }
     await page.screenshot({ path: path.join(OUT, `${engineName}-new-viewport.png`) });
     await page.locator('video.svic-video').first().screenshot({ path: path.join(OUT, `${engineName}-new-player.png`) });
-    await page.evaluate(() => clearInterval(window.__captionSmokeHold));
+    await page.evaluate(() => {
+      clearInterval(window.__captionSmokeHold);
+      clearInterval(window.__captionSmokeControls);
+    });
 
     const legacy = await findLegacyPlayer(page, legacyCandidates);
     await page.screenshot({ path: path.join(OUT, `${engineName}-legacy-viewport.png`) });
