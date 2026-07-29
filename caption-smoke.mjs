@@ -106,19 +106,12 @@ async function waitForNewPlayer(page) {
     const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
     const cue = track?.cues?.[0];
     const cueStart = Math.max(0, (cue?.startTime || 0) + 0.05);
-    const resetAt = Math.max(cueStart + 0.4, (cue?.endTime || cueStart + 1) - 0.35);
     clearInterval(window.__captionSmokeHold);
+    video.playbackRate = 0.1;
     video.currentTime = cueStart;
     video.__svicCaptionSync?.();
-    // Keep a short fixture playing inside its first cue. Pausing here wakes the
-    // production quality governor and can swap to an intentionally absent
-    // rendition; looping the cue preserves real playback semantics in WebKit.
-    window.__captionSmokeHold = setInterval(() => {
-      if (video.currentTime < cueStart || video.currentTime >= resetAt || video.ended) {
-        video.currentTime = cueStart;
-      }
-      video.__svicCaptionSync?.();
-    }, 100);
+    // Slow playback keeps the short fixture inside its first cue without
+    // repeatedly seeking, which would wake source-quality selection.
     void video.play().catch(() => {});
   });
   await page.locator('.svic-cc-control').first().click();
