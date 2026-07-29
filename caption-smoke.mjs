@@ -145,18 +145,25 @@ async function waitForNewPlayer(page) {
   await page.locator('.cs-entry__overlay-bg').first().hover().catch(() => {});
   await page.waitForFunction(() => {
     const video = document.querySelector('video.svic-video');
+    const button = document.querySelector('.svic-cc-control');
     const overlay = document.querySelector('.svic-caption-overlay');
     const line = overlay?.querySelector('.svic-caption-line');
-    if (!video || !overlay || overlay.hidden || !line?.textContent?.trim()) return false;
+    const progress = document.querySelector('.svic-pl-prog');
+    if (!video || !button || !progress || !overlay || overlay.hidden || !line?.textContent?.trim()) return false;
     const vr = video.getBoundingClientRect();
     const cr = overlay.getBoundingClientRect();
+    const pr = progress.getBoundingClientRect();
     const fontRatio = parseFloat(getComputedStyle(overlay).fontSize) / vr.width;
     const topRatio = (cr.top - vr.top) / vr.height;
     const bottomRatio = (cr.bottom - vr.top) / vr.height;
+    const captionGap = pr.top - cr.bottom;
     const minFontRatio = vr.width <= 640 ? 0.04 : 0.025;
+    const minTopRatio = vr.width <= 640 ? 0.45 : 0.55;
     return (
-      topRatio >= 0.55
+      Boolean(button.closest('.svic-pl-bar'))
+      && topRatio >= minTopRatio
       && bottomRatio <= 0.9
+      && captionGap >= 8
       && fontRatio >= minFontRatio
       && fontRatio <= 0.075
       && getComputedStyle(line).backgroundColor === 'rgba(10, 23, 51, 0.86)'
@@ -169,11 +176,14 @@ async function waitForNewPlayer(page) {
     const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
     const overlay = document.querySelector('.svic-caption-overlay');
     const line = overlay.querySelector('.svic-caption-line');
+    const progress = document.querySelector('.svic-pl-prog');
     const vr = video.getBoundingClientRect();
     const cr = overlay.getBoundingClientRect();
+    const pr = progress.getBoundingClientRect();
     return {
       ccPressed: button.getAttribute('aria-pressed'),
       ccToggle: 'off-on',
+      ccInControlBar: Boolean(button.closest('.svic-pl-bar')),
       trackMode: track.mode,
       cueCount: track.cues ? track.cues.length : 0,
       trackSrc: video.querySelector('track')?.getAttribute('src') || '',
@@ -181,6 +191,7 @@ async function waitForNewPlayer(page) {
         lineCount: overlay.querySelectorAll('.svic-caption-line').length,
         topRatio: Number(((cr.top - vr.top) / vr.height).toFixed(3)),
         bottomRatio: Number(((cr.bottom - vr.top) / vr.height).toFixed(3)),
+        progressGapPx: Number((pr.top - cr.bottom).toFixed(1)),
         fontSize: getComputedStyle(overlay).fontSize,
         fontToVideoWidth: Number((parseFloat(getComputedStyle(overlay).fontSize) / vr.width).toFixed(3)),
         background: getComputedStyle(line).backgroundColor,
