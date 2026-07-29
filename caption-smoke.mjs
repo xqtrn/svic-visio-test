@@ -148,8 +148,10 @@ async function waitForNewPlayer(page) {
     const button = document.querySelector('.svic-cc-control');
     const overlay = document.querySelector('.svic-caption-overlay');
     const line = overlay?.querySelector('.svic-caption-line');
-    const progress = document.querySelector('.svic-pl-prog');
-    if (!video || !button || !progress || !overlay || overlay.hidden || !line?.textContent?.trim()) return false;
+    const settings = document.querySelector('button.st[aria-label="Playback speed"]');
+    const bar = settings?.parentElement;
+    const progress = document.querySelector('.tr')?.parentElement;
+    if (!video || !button || !bar || !progress || !overlay || overlay.hidden || !line?.textContent?.trim()) return false;
     const vr = video.getBoundingClientRect();
     const cr = overlay.getBoundingClientRect();
     const pr = progress.getBoundingClientRect();
@@ -160,7 +162,7 @@ async function waitForNewPlayer(page) {
     const minFontRatio = vr.width <= 640 ? 0.04 : 0.025;
     const minTopRatio = vr.width <= 640 ? 0.45 : 0.55;
     return (
-      Boolean(button.closest('.svic-pl-bar'))
+      button.parentElement === bar
       && topRatio >= minTopRatio
       && bottomRatio <= 0.9
       && captionGap >= 8
@@ -176,14 +178,16 @@ async function waitForNewPlayer(page) {
     const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
     const overlay = document.querySelector('.svic-caption-overlay');
     const line = overlay.querySelector('.svic-caption-line');
-    const progress = document.querySelector('.svic-pl-prog');
+    const settings = document.querySelector('button.st[aria-label="Playback speed"]');
+    const bar = settings.parentElement;
+    const progress = document.querySelector('.tr').parentElement;
     const vr = video.getBoundingClientRect();
     const cr = overlay.getBoundingClientRect();
     const pr = progress.getBoundingClientRect();
     return {
       ccPressed: button.getAttribute('aria-pressed'),
       ccToggle: 'off-on',
-      ccInControlBar: Boolean(button.closest('.svic-pl-bar')),
+      ccInControlBar: button.parentElement === bar,
       trackMode: track.mode,
       cueCount: track.cues ? track.cues.length : 0,
       trackSrc: video.querySelector('track')?.getAttribute('src') || '',
