@@ -136,6 +136,11 @@ async function waitForNewPlayer(page) {
   }, null, { timeout: 10_000 });
   await page.locator('video.svic-video').first().scrollIntoViewIfNeeded();
   await page.locator('.cs-entry__overlay-bg').first().hover().catch(() => {});
+  await page.locator('video.svic-video').first().evaluate((video) => {
+    const host = video.closest('.cs-entry__media-wrap') || video.closest('.vw-frame') || video.parentElement;
+    host?.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
+    host?.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+  });
   await page.waitForFunction(() => {
     const video = document.querySelector('video.svic-video');
     const button = document.querySelector('.svic-cc-control');
