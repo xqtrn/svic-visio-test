@@ -124,8 +124,14 @@ async function waitForNewPlayer(page) {
   }, null, { timeout: 10_000 });
   await page.locator('video.svic-video').first().evaluate(async (video) => {
     const track = [...video.textTracks].find((item) => item.kind === 'captions' || item.kind === 'subtitles');
+    video.pause();
     video.currentTime = Math.max(0, (track?.cues?.[0]?.startTime || 0) + 0.05);
-    await video.play().catch(() => {});
+    // Keep the cue frame stable while geometry is measured and screenshots are
+    // captured. A short synthetic fixture can otherwise finish in WebKit before
+    // the assertion observes the lower-third overlay.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    video.pause();
+    video.__svicCaptionSync?.();
   });
   await page.locator('video.svic-video').first().scrollIntoViewIfNeeded();
   await page.locator('.cs-entry__overlay-bg').first().hover().catch(() => {});
