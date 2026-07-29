@@ -150,7 +150,7 @@ async function waitForNewPlayer(page) {
     const line = overlay?.querySelector('.svic-caption-line');
     const settings = document.querySelector('button.st[aria-label="Playback speed"]');
     const bar = settings?.parentElement;
-    const progress = document.querySelector('.tr')?.parentElement;
+    const progress = document.querySelector('.tr');
     if (!video || !button || !bar || !progress || !overlay || overlay.hidden || !line?.textContent?.trim()) return false;
     const vr = video.getBoundingClientRect();
     const cr = overlay.getBoundingClientRect();
@@ -161,11 +161,12 @@ async function waitForNewPlayer(page) {
     const captionGap = pr.top - cr.bottom;
     const minFontRatio = vr.width <= 640 ? 0.04 : 0.025;
     const minTopRatio = vr.width <= 640 ? 0.45 : 0.55;
+    const minProgressGap = vr.width <= 640 ? 2 : 8;
     return (
       button.parentElement === bar
       && topRatio >= minTopRatio
       && bottomRatio <= 0.9
-      && captionGap >= 8
+      && captionGap >= minProgressGap
       && fontRatio >= minFontRatio
       && fontRatio <= 0.075
       && getComputedStyle(line).backgroundColor === 'rgba(10, 23, 51, 0.86)'
@@ -180,7 +181,7 @@ async function waitForNewPlayer(page) {
     const line = overlay.querySelector('.svic-caption-line');
     const settings = document.querySelector('button.st[aria-label="Playback speed"]');
     const bar = settings.parentElement;
-    const progress = document.querySelector('.tr').parentElement;
+    const progress = document.querySelector('.tr');
     const vr = video.getBoundingClientRect();
     const cr = overlay.getBoundingClientRect();
     const pr = progress.getBoundingClientRect();
