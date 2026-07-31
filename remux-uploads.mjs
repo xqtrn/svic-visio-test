@@ -247,10 +247,13 @@ async function processAsset(asset) {
 
 if (!AK || !SK || !process.env.DATABASE_URL) throw new Error('pipeline credentials missing');
 
+// Явный запуск по id (dispatch / ручной) обрабатывает ролик БЕЗУСЛОВНО:
+// «ready» — не причина пропустить, диспатчат ради пересборки (карточная
+// копия, обновлённые субтитры). 2026-07-30: media730 «ready» → selected=0,
+// карточная копия так и не собралась.
 const assets = requestedId
   ? (await pool.query(
-    `SELECT id, object_key FROM video_assets
-     WHERE id=$1 AND captions_status NOT IN ('ready','ready_no_speech')`,
+    `SELECT id, object_key FROM video_assets WHERE id=$1`,
     [requestedId])).rows
   : (await pool.query(
     `SELECT id, object_key FROM video_assets
