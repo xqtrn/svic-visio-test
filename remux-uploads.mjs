@@ -162,6 +162,34 @@ async function processAsset(asset) {
     execFileSync('ffmpeg', ['-y', '-i', input, '-c', 'copy', '-movflags', '+faststart', output], { stdio: 'pipe' });
     await s3Put(asset.object_key, fs.readFileSync(output), 'video/mp4');
 
+    // Карточная копия <=720p рядом с мастером (2026-07-30): карточки главной
+    // тянули 33-МБ мастер и вечно крутили спиннер на домашнем канале — у
+    // архивной полосы лёгкие копии есть, у ручных загрузок не было. serve.js
+    // отдаёт её по ?c=1, клип-плеер карточек просит именно её.
+    try {
+      const cardKey = asset.object_key.replace(/\.mp4$/i, '') + '.720.mp4';
+      const probe = execFileSync('ffprobe', [
+        '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=height',
+        '-of', 'default=noprint_wrappers=1:nokey=1', output,
+      ], { encoding: 'utf8' }).trim();
+      const srcH = Number(probe) || 0;
+      const card = path.join(tmp, 'card.mp4');
+      const vf = srcH > 720 ? ['-vf', 'scale=-2:720'] : [];
+      execFileSync('ffmpeg', ['-y', '-i', output, ...vf,
+        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '27',
+        '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', card], { stdio: 'pipe' });
+      // копия обязана быть ЛЕГЧЕ мастера, иначе она бессмысленна — кладём всегда,
+      // но если вдруг вышла тяжелее (короткий и уже сжатый ролик), оставляем мастер
+      const masterSize = fs.statSync(output).size;
+      const cardSize = fs.statSync(card).size;
+      if (cardSize < masterSize) {
+        await s3Put(cardKey, fs.readFileSync(card), 'video/mp4');
+        await audit('video.card-copy-ready', id, { key: cardKey, bytes: cardSize, master: masterSize });
+      }
+    } catch (e) {
+      console.warn(`[card-copy] ${id}: ${e.message}`); // копия — не повод валить субтитры
+    }
+
     const audioDir = path.join(tmp, 'audio');
     fs.mkdirSync(audioDir);
     execFileSync('ffmpeg', [
