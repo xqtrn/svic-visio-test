@@ -53,7 +53,8 @@ jobs:
           UA, SOCKS = os.environ['UA'], os.environ['SOCKS']
           AGG = re.compile(r'news\.google\.com/(rss/)?articles|bing\.com/news/apiclick|apiclick\.aspx', re.I)
           def curl(url, post=None, hdr=None):
-              cmd = ['curl', '-s', '--max-time', '60', '--proxy', SOCKS, '-A', UA, url]
+              # -L обязателен: страница токена отвечает 302 на ?hl=…, без follow тело пустое
+              cmd = ['curl', '-sL', '--max-time', '60', '--proxy', SOCKS, '-A', UA, url]
               if post is not None: cmd += ['--data-raw', post]
               for h in (hdr or []): cmd += ['-H', h]
               return subprocess.run(cmd, capture_output=True, text=True).stdout
