@@ -6,6 +6,14 @@
 # faces.json / clips). Воркер стенда читает asset с кэшем и никогда не ходит
 # в Google/Bing сам.
 #
+# КЛАСС-ЗАПРЕТ (Артур 2026-08-01: news.google-ссылка отдала читателю 400):
+# агрегаторские редирект-обёртки в ленту не попадают НИКОГДА. Google-ссылки
+# разворачиваются в прямые адреса изданий через внутренний RPC Google News
+# (страница токена несёт подпись data-n-a-sg/ts → batchexecute отдаёт URL;
+# рецепт проверен живьём 2026-08-01); Bing — из параметра url. Что развернуть
+# не удалось — выбрасывается. Bing собирается вторым источником и сливается
+# с дедупликацией по заголовку, чтобы лента не худела.
+#
 # РАСШИРЕНИЕ РЕЕСТРА КАРТОЧЕК: новая компания в testnew-edge/company-data.mjs →
 # добавить строку "slug|запрос" в COMPANIES ниже.
 name: company-news
@@ -36,42 +44,103 @@ jobs:
             [ -z "$slug" ] && continue
             eq=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' "$query")
             curl -s --max-time 90 --proxy "$SOCKS" -A "$UA" \
-              "https://news.google.com/rss/search?q=${eq}&hl=en-US&gl=US&ceid=US:en" -o "raw-$slug.xml" || true
-            if ! grep -q "<item>" "raw-$slug.xml" 2>/dev/null; then
-              curl -s --max-time 90 --proxy "$SOCKS" -A "$UA" \
-                "https://www.bing.com/news/search?q=${eq}&format=rss" -o "raw-$slug.xml" || true
-            fi
-            python3 - "$slug" <<'PY'
-          import re, sys, json, html, email.utils, urllib.parse
+              "https://news.google.com/rss/search?q=${eq}&hl=en-US&gl=US&ceid=US:en" -o "raw-$slug-g.xml" || true
+            curl -s --max-time 90 --proxy "$SOCKS" -A "$UA" \
+              "https://www.bing.com/news/search?q=${eq}&format=rss" -o "raw-$slug-b.xml" || true
+            UA="$UA" python3 - "$slug" <<'PY'
+          import re, sys, json, html, email.utils, urllib.parse, subprocess, os
           slug = sys.argv[1]
-          try: x = open(f'raw-{slug}.xml', errors='ignore').read()
-          except FileNotFoundError: x = ''
-          items = []
-          for seg in re.findall(r'<item>([\s\S]*?)</item>', x):
-              def pick(tag):
-                  m = re.search(rf'<{tag}[^>]*>([\s\S]*?)</{tag}>', seg, re.I)
-                  v = m.group(1) if m else ''
-                  v = re.sub(r'<!\[CDATA\[([\s\S]*?)\]\]>', r'\1', v)
-                  return html.unescape(re.sub(r'<[^>]+>', ' ', v)).strip()
-              link = (re.search(r'<link\s*/?>([^<]+)', seg) or re.search(r'<link>([\s\S]*?)</link>', seg))
-              link = link.group(1).strip() if link else ''
-              # bing-редиректы разворачиваем в прямые ссылки изданий
-              bm = re.search(r'[?&]url=([^&]+)', link)
-              if bm and 'bing.com' in link: link = urllib.parse.unquote(bm.group(1))
-              pd = pick('pubDate')
-              try: ts = int(email.utils.parsedate_to_datetime(pd).timestamp())
-              except Exception: ts = 0
-              dm = re.search(r'(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})', pd)
-              date = f'{dm.group(2)} {int(dm.group(1))}, {dm.group(3)}' if dm else pd[:16]
-              title, source = pick('title'), (pick('source') or pick('News:Source'))
-              if source and title.endswith(' - ' + source): title = title[:-len(' - ' + source)]
-              if title and link: items.append({'title': title, 'link': link, 'source': source, 'date': date, 'ts': ts})
+          UA, SOCKS = os.environ['UA'], os.environ['SOCKS']
+          AGG = re.compile(r'news\.google\.com/(rss/)?articles|bing\.com/news/apiclick|apiclick\.aspx', re.I)
+          def curl(url, post=None, hdr=None):
+              cmd = ['curl', '-s', '--max-time', '60', '--proxy', SOCKS, '-A', UA, url]
+              if post is not None: cmd += ['--data-raw', post]
+              for h in (hdr or []): cmd += ['-H', h]
+              return subprocess.run(cmd, capture_output=True, text=True).stdout
+          def read(p):
+              try: return open(p, errors='ignore').read()
+              except FileNotFoundError: return ''
+          # ── разбор обоих фидов ──
+          def parse(xml):
+              rows = []
+              for seg in re.findall(r'<item>([\s\S]*?)</item>', xml):
+                  def pick(tag):
+                      m = re.search(rf'<{tag}[^>]*>([\s\S]*?)</{tag}>', seg, re.I)
+                      v = m.group(1) if m else ''
+                      v = re.sub(r'<!\[CDATA\[([\s\S]*?)\]\]>', r'\1', v)
+                      return html.unescape(re.sub(r'<[^>]+>', ' ', v)).strip()
+                  link = (re.search(r'<link\s*/?>([^<]+)', seg) or re.search(r'<link>([\s\S]*?)</link>', seg))
+                  link = link.group(1).strip() if link else ''
+                  pd = pick('pubDate')
+                  try: ts = int(email.utils.parsedate_to_datetime(pd).timestamp())
+                  except Exception: ts = 0
+                  dm = re.search(r'(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})', pd)
+                  date = f'{dm.group(2)} {int(dm.group(1))}, {dm.group(3)}' if dm else pd[:16]
+                  title, source = pick('title'), (pick('source') or pick('News:Source'))
+                  if source and title.endswith(' - ' + source): title = title[:-len(' - ' + source)]
+                  if title and link: rows.append({'title': title, 'link': link, 'source': source, 'date': date, 'ts': ts})
+              return rows
+          grows, brows = parse(read(f'raw-{slug}-g.xml')), parse(read(f'raw-{slug}-b.xml'))
+          # ── google: токен → прямой адрес издания через внутренний RPC ──
+          ids = []
+          for r in grows:
+              m = re.match(r'https://news\.google\.com/rss/articles/([^?]+)', r['link'])
+              r['gid'] = m.group(1) if m else ''
+              if r['gid']: ids.append(r['gid'])
+          resolved, reqs = {}, []
+          for gid in ids[:48]:
+              page = curl(f'https://news.google.com/rss/articles/{gid}?oc=5')
+              sg = re.search(r'data-n-a-sg="([^"]+)"', page)
+              ts2 = re.search(r'data-n-a-ts="([^"]+)"', page)
+              if sg and ts2: reqs.append((gid, ts2.group(1), sg.group(1)))
+          for i in range(0, len(reqs), 16):
+              chunk = reqs[i:i+16]
+              arts = [["Fbv4je", '["garturlreq",[["X","X",["X","X"],null,null,1,1,"US:en",null,1,null,null,null,null,null,0,1],"X","X",1,[1,1,1],1,1,null,0,0,null,0],"%s",%s,"%s"]' % (g, t, s)] for g, t, s in chunk]
+              resp = curl('https://news.google.com/_/DotsSplashUi/data/batchexecute',
+                          post='f.req=' + urllib.parse.quote(json.dumps([arts])),
+                          hdr=['content-type: application/x-www-form-urlencoded;charset=UTF-8'])
+              try:
+                  data, j = json.loads(resp.split('\n\n')[1]), 0
+                  for e in data:
+                      if isinstance(e, list) and len(e) > 2 and e[1] == 'Fbv4je':
+                          try: resolved[chunk[j][0]] = json.loads(e[2])[1]
+                          except Exception: pass
+                          j += 1
+              except Exception: pass
+          # ── слияние: google (развёрнутые) + bing (из параметра url); дедуп по заголовку ──
+          items, seen = [], set()
+          for r in grows + brows:
+              link = r['link']
+              if r.get('gid'): link = resolved.get(r['gid'], '')
+              elif 'bing.com' in link:
+                  m = re.search(r'[?&]url=([^&]+)', link)
+                  if m: link = urllib.parse.unquote(m.group(1))
+              if not link or AGG.search(link): continue
+              if not r['source']:
+                  try: r['source'] = urllib.parse.urlparse(link).hostname.replace('www.', '')
+                  except Exception: pass
+              key = re.sub(r'\W+', ' ', r['title'].lower()).strip()[:80]
+              if key in seen: continue
+              seen.add(key)
+              items.append({'title': r['title'], 'link': link, 'source': r['source'], 'date': r['date'], 'ts': r['ts']})
           items.sort(key=lambda i: -i['ts'])
           json.dump({'slug': slug, 'items': items[:40]}, open(f'out/{slug}.json', 'w'))
-          print(slug, '->', len(items), 'items')
+          print(slug, '->', len(items), 'direct-link items (google resolved:', len(resolved), 'of', len(ids), ')')
           PY
           done
           ls -la out/
+          # гейт ленты перед публикацией: ни одной агрегаторской ссылки и не куцая
+          python3 - <<'PY'
+          import json, glob, re, sys
+          bad = 0
+          for p in glob.glob('out/*.json'):
+              j = json.load(open(p))
+              n = len(j.get('items', []))
+              agg = [i['link'] for i in j['items'] if re.search(r'news\.google\.com/(rss/)?articles|apiclick', i['link'], re.I)]
+              if agg: print(f'AGGREGATOR LINK LEAKED in {p}: {agg[:2]}'); bad = 1
+              if n < 8: print(f'{p}: only {n} items - feed too thin, NOT publishing'); bad = 1
+          sys.exit(bad)
+          PY
           # публикация: релиз company-news, ассеты перезаписываются
           gh release view company-news -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create company-news -R "$GITHUB_REPOSITORY" --title "Company news feeds" \
