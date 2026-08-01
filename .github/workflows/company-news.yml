@@ -94,19 +94,22 @@ jobs:
               sg = re.search(r'data-n-a-sg="([^"]+)"', page)
               ts2 = re.search(r'data-n-a-ts="([^"]+)"', page)
               if sg and ts2: reqs.append((gid, ts2.group(1), sg.group(1)))
+          # ответы batchexecute приходят В ПРОИЗВОЛЬНОМ порядке (проверено живьём:
+          # 1,3,2) — сопоставление ТОЛЬКО по явному id запроса (4-й элемент req →
+          # e[6] ответа), иначе заголовок получает чужую ссылку (класс misattribution)
           for i in range(0, len(reqs), 16):
               chunk = reqs[i:i+16]
-              arts = [["Fbv4je", '["garturlreq",[["X","X",["X","X"],null,null,1,1,"US:en",null,1,null,null,null,null,null,0,1],"X","X",1,[1,1,1],1,1,null,0,0,null,0],"%s",%s,"%s"]' % (g, t, s)] for g, t, s in chunk]
+              arts = [["Fbv4je", '["garturlreq",[["X","X",["X","X"],null,null,1,1,"US:en",null,1,null,null,null,null,null,0,1],"X","X",1,[1,1,1],1,1,null,0,0,null,0],"%s",%s,"%s"]' % (g, t, s), None, str(k + 1)] for k, (g, t, s) in enumerate(chunk)]
               resp = curl('https://news.google.com/_/DotsSplashUi/data/batchexecute',
                           post='f.req=' + urllib.parse.quote(json.dumps([arts])),
                           hdr=['content-type: application/x-www-form-urlencoded;charset=UTF-8'])
               try:
-                  data, j = json.loads(resp.split('\n\n')[1]), 0
-                  for e in data:
-                      if isinstance(e, list) and len(e) > 2 and e[1] == 'Fbv4je':
-                          try: resolved[chunk[j][0]] = json.loads(e[2])[1]
+                  for e in json.loads(resp.split('\n\n')[1]):
+                      if isinstance(e, list) and len(e) > 6 and e[0] == 'wrb.fr' and e[1] == 'Fbv4je':
+                          try:
+                              k = int(e[6]) - 1
+                              if 0 <= k < len(chunk): resolved[chunk[k][0]] = json.loads(e[2])[1]
                           except Exception: pass
-                          j += 1
               except Exception: pass
           # ── слияние: google (развёрнутые) + bing (из параметра url); дедуп по заголовку ──
           items, seen = [], set()
