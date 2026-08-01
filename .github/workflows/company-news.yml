@@ -42,7 +42,7 @@ jobs:
                 "https://www.bing.com/news/search?q=${eq}&format=rss" -o "raw-$slug.xml" || true
             fi
             python3 - "$slug" <<'PY'
-          import re, sys, json, html, email.utils
+          import re, sys, json, html, email.utils, urllib.parse
           slug = sys.argv[1]
           try: x = open(f'raw-{slug}.xml', errors='ignore').read()
           except FileNotFoundError: x = ''
@@ -55,6 +55,9 @@ jobs:
                   return html.unescape(re.sub(r'<[^>]+>', ' ', v)).strip()
               link = (re.search(r'<link\s*/?>([^<]+)', seg) or re.search(r'<link>([\s\S]*?)</link>', seg))
               link = link.group(1).strip() if link else ''
+              # bing-редиректы разворачиваем в прямые ссылки изданий
+              bm = re.search(r'[?&]url=([^&]+)', link)
+              if bm and 'bing.com' in link: link = urllib.parse.unquote(bm.group(1))
               pd = pick('pubDate')
               try: ts = int(email.utils.parsedate_to_datetime(pd).timestamp())
               except Exception: ts = 0
@@ -64,7 +67,7 @@ jobs:
               if source and title.endswith(' - ' + source): title = title[:-len(' - ' + source)]
               if title and link: items.append({'title': title, 'link': link, 'source': source, 'date': date, 'ts': ts})
           items.sort(key=lambda i: -i['ts'])
-          json.dump({'slug': slug, 'items': items[:12]}, open(f'out/{slug}.json', 'w'))
+          json.dump({'slug': slug, 'items': items[:40]}, open(f'out/{slug}.json', 'w'))
           print(slug, '->', len(items), 'items')
           PY
           done
