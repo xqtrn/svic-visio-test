@@ -1,0 +1,76 @@
+# company-news — живые новости для карточек компаний стенда (§Public site · company profile).
+#
+# Публичные новостные RSS не отдаются Cloudflare-воркерам (Google 503, Bing —
+# пустая лента с датацентровых IP), поэтому ленту собирает этот cron через наш
+# резидентный прокси и публикует готовый JSON релизом (тот же транспорт, что
+# faces.json / clips). Воркер стенда читает asset с кэшем и никогда не ходит
+# в Google/Bing сам.
+#
+# РАСШИРЕНИЕ РЕЕСТРА КАРТОЧЕК: новая компания в testnew-edge/company-data.mjs →
+# добавить строку "slug|запрос" в COMPANIES ниже.
+name: company-news
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: company-news
+  cancel-in-progress: true
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Collect and publish news feeds
+        env:
+          SOCKS: ${{ secrets.PENGUIN_SOCKS }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+          COMPANIES='corgi-insurance|"Corgi Insurance" OR "corgi.insure"'
+          mkdir -p out
+          echo "$COMPANIES" | while IFS='|' read -r slug query; do
+            [ -z "$slug" ] && continue
+            eq=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' "$query")
+            curl -s --max-time 90 --proxy "$SOCKS" -A "$UA" \
+              "https://news.google.com/rss/search?q=${eq}&hl=en-US&gl=US&ceid=US:en" -o "raw-$slug.xml" || true
+            if ! grep -q "<item>" "raw-$slug.xml" 2>/dev/null; then
+              curl -s --max-time 90 --proxy "$SOCKS" -A "$UA" \
+                "https://www.bing.com/news/search?q=${eq}&format=rss" -o "raw-$slug.xml" || true
+            fi
+            python3 - "$slug" <<'PY'
+          import re, sys, json, html, email.utils
+          slug = sys.argv[1]
+          try: x = open(f'raw-{slug}.xml', errors='ignore').read()
+          except FileNotFoundError: x = ''
+          items = []
+          for seg in re.findall(r'<item>([\s\S]*?)</item>', x):
+              def pick(tag):
+                  m = re.search(rf'<{tag}[^>]*>([\s\S]*?)</{tag}>', seg, re.I)
+                  v = m.group(1) if m else ''
+                  v = re.sub(r'<!\[CDATA\[([\s\S]*?)\]\]>', r'\1', v)
+                  return html.unescape(re.sub(r'<[^>]+>', ' ', v)).strip()
+              link = (re.search(r'<link\s*/?>([^<]+)', seg) or re.search(r'<link>([\s\S]*?)</link>', seg))
+              link = link.group(1).strip() if link else ''
+              pd = pick('pubDate')
+              try: ts = int(email.utils.parsedate_to_datetime(pd).timestamp())
+              except Exception: ts = 0
+              dm = re.search(r'(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})', pd)
+              date = f'{dm.group(2)} {int(dm.group(1))}, {dm.group(3)}' if dm else pd[:16]
+              title, source = pick('title'), (pick('source') or pick('News:Source'))
+              if source and title.endswith(' - ' + source): title = title[:-len(' - ' + source)]
+              if title and link: items.append({'title': title, 'link': link, 'source': source, 'date': date, 'ts': ts})
+          items.sort(key=lambda i: -i['ts'])
+          json.dump({'slug': slug, 'items': items[:12]}, open(f'out/{slug}.json', 'w'))
+          print(slug, '->', len(items), 'items')
+          PY
+          done
+          ls -la out/
+          # публикация: релиз company-news, ассеты перезаписываются
+          gh release view company-news -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create company-news -R "$GITHUB_REPOSITORY" --title "Company news feeds" \
+              --notes "Auto-collected news JSON for stand company profiles; refreshed every 6h." --latest=false
+          gh release upload company-news out/*.json -R "$GITHUB_REPOSITORY" --clobber
