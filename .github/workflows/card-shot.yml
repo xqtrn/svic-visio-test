@@ -1,0 +1,23 @@
+name: card-shot
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "page URL (default: company card, static view)"
+        required: false
+        default: ''
+permissions:
+  contents: read
+jobs:
+  shot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - run: npx playwright install --with-deps chromium
+      - run: SHOT_URL="${{ inputs.url }}" node card-shot.js
+      - uses: actions/upload-artifact@v4
+        with: { name: card-shots, path: out/ }
