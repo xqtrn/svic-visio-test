@@ -19,6 +19,13 @@ const { chromium } = require('playwright');
     out.colw = [...document.querySelectorAll('#funding th')].map((t) => Math.round(t.getBoundingClientRect().width));
     out.tw = Math.round((document.querySelector('#funding table') || {getBoundingClientRect(){return {width:0}}}).getBoundingClientRect().width);
     out.bodyw = Math.round((document.querySelector('#funding') || {getBoundingClientRect(){return {width:0}}}).getBoundingClientRect().width);
+    out.hscroll = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+    if (out.hscroll > 0){
+      const vw = document.documentElement.clientWidth;
+      out.offenders = [...document.querySelectorAll('body *')]
+        .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.right > vw + 1 || r.left < -1); })
+        .slice(0, 6).map((e) => e.tagName + '.' + String(e.className).slice(0, 40) + ' r=' + Math.round(e.getBoundingClientRect().right));
+    }
     out.leak = [...document.querySelectorAll('[hidden]')].filter((e) => getComputedStyle(e).display !== 'none').length;
     out.thNoCtl = [...document.querySelectorAll('table th')].filter((t) => !t.hasAttribute('data-k') && !t.hasAttribute('data-f')).length;
     out.preNews = vis('#news [data-lm] > *'); out.preInv = vis('#investors [data-lm] > *');
@@ -28,7 +35,10 @@ const { chromium } = require('playwright');
     const clickFilter = async (thSel, valRe) => {
       const th = document.querySelector(thSel); if (!th) return 'no-th';
       th.click(); await new Promise((r) => setTimeout(r, 200));
-      const dd = th.querySelector('[data-fdd]'); if (!dd) return 'no-dd';
+      const dd = document.querySelector('[data-fdd]'); if (!dd) return 'no-dd';
+      const b0 = dd.querySelector('button'); const br = b0.getBoundingClientRect();
+      const hit = document.elementFromPoint(br.left + br.width / 2, br.top + Math.min(br.height / 2, 12));
+      if (!(hit === b0 || b0.contains(hit) || dd.contains(hit))) return 'dd-not-visible';
       const btn = [...dd.querySelectorAll('button')].find((b) => valRe.test(b.textContent)); if (!btn) return 'no-opt';
       btn.click(); await new Promise((r) => setTimeout(r, 200));
       return 'ok';
