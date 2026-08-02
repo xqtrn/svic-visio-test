@@ -70,9 +70,9 @@ jobs:
             for QH in 720 480; do
               SH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "./$KEY.mp4" 2>/dev/null | head -1)
               [ -n "$SH" ] && [ "$SH" -gt "$QH" ] && ffmpeg -nostdin -hide_banner -loglevel error -i "./$KEY.mp4" -vf scale=-2:$QH -c:v libx264 -preset veryfast -crf 24 -c:a aac -movflags +faststart "./$KEY.$QH.mp4" \
-                && gh release upload clips "./$KEY.$QH.mp4" -R "$GITHUB_REPOSITORY" --clobber && rm -f "./$KEY.$QH.mp4"
+                && gh release upload clips2 "./$KEY.$QH.mp4" -R "$GITHUB_REPOSITORY" --clobber && rm -f "./$KEY.$QH.mp4"
             done
-            gh release upload clips "./$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
+            gh release upload clips2 "./$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
           done
           gh release upload clips cover-slugs.json -R "$GITHUB_REPOSITORY" --clobber || true
           echo "=== self-hosted=$OK failed=$FAIL of $N ==="

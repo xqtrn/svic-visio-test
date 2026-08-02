@@ -7,8 +7,13 @@ const LIVE='https://siliconvalleyinvestclub.com';
 async function txt(u,o){ const r=await fetch(u,o); return r.ok?await r.text():''; }
 async function companyVideo(slug){ const s=await txt(`${LIVE}/${slug}/`,{redirect:'follow'}); return (s.match(/https:\/\/videos\.files\.wordpress\.com\/[^"'\s)]+\.mp4/)||[])[0]||null; }
 async function existing(){
-  const r=await fetch('https://api.github.com/repos/xqtrn/svic-visio-test/releases/tags/clips',{headers:{'User-Agent':'sync','Authorization':`Bearer ${process.env.GH_TOKEN||''}`}});
-  if(!r.ok) return new Set(); const j=await r.json(); return new Set((j.assets||[]).map(a=>a.name.replace(/\.mp4$/,'')));
+  // два тома: clips упёрся в потолок GitHub 1000 ассетов (2026-08-02), новое льётся в clips2
+  const out=new Set();
+  for(const tag of ['clips','clips2']){
+    const r=await fetch(`https://api.github.com/repos/xqtrn/svic-visio-test/releases/tags/${tag}`,{headers:{'User-Agent':'sync','Authorization':`Bearer ${process.env.GH_TOKEN||''}`}});
+    if(!r.ok) continue; const j=await r.json(); for(const a of (j.assets||[])) out.add(a.name.replace(/\.mp4$/,''));
+  }
+  return out;
 }
 (async()=>{
   const have=await existing();

@@ -76,7 +76,7 @@ jobs:
         run: |
           N=$(node -e "console.log(require('./iv-dynamic.json').length)")
           echo "interviews=$N"; OK=0; FAIL=0
-          EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
+          EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'; gh release view clips2 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null)
           for i in $(seq 0 $((N-1))); do
             VID=$(node -e "console.log(require('./iv-dynamic.json')[$i].v)")
             S=$(node -e "console.log(require('./iv-dynamic.json')[$i].s)")
@@ -92,10 +92,10 @@ jobs:
             SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 50000 ] && { echo "too small"; FAIL=$((FAIL+1)); continue; }
             ffmpeg -hide_banner -loglevel error -ss "$S" -to "$E" -i in.mp4 \
               -c:v libx264 -preset veryfast -crf 23 -an -movflags +faststart "iv-$VID.mp4" || { FAIL=$((FAIL+1)); continue; }
-            gh release upload clips "iv-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
+            gh release upload clips2 "iv-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1)) || { echo "UPLOAD FAIL"; FAIL=$((FAIL+1)); }
           done
           # манифест — только записи, чей клип реально лежит в релизе (иначе карточка получит 404)
-          EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
+          EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'; gh release view clips2 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null)
           printf '%s\n' "$EXISTING" > existing.txt
           node -e "
             const fs=require('fs');
