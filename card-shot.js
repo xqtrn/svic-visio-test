@@ -59,6 +59,16 @@ const { chromium } = require('playwright');
     if (th){ th.click(); await new Promise((r) => setTimeout(r, 200));
       if (first() === b4){ th.click(); await new Promise((r) => setTimeout(r, 200)); } } // порядок мог совпасть — второй клик обязан сменить
     out.sortChanged = first() !== b4;
+    /* серые зоны запрещены: в полосе KPI и в рядах лид-карточек все ячейки
+       ряда равной ширины (Артур 2026-08-02: «не оставляй серых зон») */
+    const eq = (els) => { const w = els.map((e) => e.getBoundingClientRect().width); return !w.length || (Math.max(...w) - Math.min(...w)) < 3; };
+    const kpiCells = [...(document.getElementById('kpi') || { children: [] }).children];
+    out.kpiCells = kpiCells.length; out.kpiEqual = eq(kpiCells);
+    const leadRows = [...(document.getElementById('leads') || { children: [] }).children];
+    out.leadRows = leadRows.map((r) => r.children.length).join('+');
+    out.leadsEqual = leadRows.every((r) => eq([...r.children]));
+    const counts = leadRows.map((r) => r.children.length);
+    out.leadsBalanced = counts.length < 2 || (Math.max(...counts) - Math.min(...counts)) <= 1;
     const v = document.querySelector('[data-embed]'); out.hasVideo = !!v;
     if (v){ v.click(); await new Promise((r) => setTimeout(r, 500)); out.video = !!v.querySelector('iframe'); }
     return out;
@@ -66,6 +76,7 @@ const { chromium } = require('playwright');
   fs.writeFileSync('out/probe.json', JSON.stringify(probe, null, 1));
   console.log('probe:', JSON.stringify(probe));
   const bad = probe.leak || probe.thNoCtl
+    || (probe.kpiCells > 0 && !probe.kpiEqual) || probe.leadsEqual === false || probe.leadsBalanced === false
     || (probe.preNews > 0 && !(probe.postNews > probe.preNews)) // лента есть → Load more обязан работать
     || !(probe.postInv > probe.preInv)
     || !probe.fRoundOk || !probe.fInvOk || !probe.sortChanged || (probe.hasVideo && !probe.video);
