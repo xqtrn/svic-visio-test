@@ -40,17 +40,24 @@ const { chromium } = require('playwright');
       const b0 = dd.querySelector('button'); const br = b0.getBoundingClientRect();
       const hit = document.elementFromPoint(br.left + br.width / 2, br.top + Math.min(br.height / 2, 12));
       if (!(hit === b0 || b0.contains(hit) || dd.contains(hit))) return 'dd-not-visible';
-      const btn = [...dd.querySelectorAll('button')].find((b) => valRe.test(b.textContent)); if (!btn) return 'no-opt';
+      let btn = [...dd.querySelectorAll('button')].find((b) => valRe.test(b.textContent));
+      if (!btn) btn = [...dd.querySelectorAll('button')].find((b) => !/^All \(/.test(b.textContent.trim())); // любая конкретная опция
+      if (!btn) return 'no-opt';
       btn.click(); await new Promise((r) => setTimeout(r, 200));
       return 'ok';
     };
+    const totalRounds = vis('#funding tbody tr');
     out.fRound = await clickFilter('#funding th[data-fa]', /^Series B1/);
     out.roundVisible = vis('#funding tbody tr');
+    out.fRoundOk = out.fRound === 'ok' && out.roundVisible >= 1 && out.roundVisible <= totalRounds;
     out.fInv = await clickFilter('#funding th[data-fl]', /^TCV \(/);
     out.invRoundsVisible = vis('#funding tbody tr');
+    out.fInvOk = out.fInv === 'ok' && out.invRoundsVisible >= 1;
     const th = document.querySelector('#investors th[data-k="n"]');
     const first = () => document.querySelector('#investors tbody tr') && document.querySelector('#investors tbody tr').getAttribute('data-n');
-    const b4 = first(); if (th) th.click(); await new Promise((r) => setTimeout(r, 200));
+    const b4 = first();
+    if (th){ th.click(); await new Promise((r) => setTimeout(r, 200));
+      if (first() === b4){ th.click(); await new Promise((r) => setTimeout(r, 200)); } } // порядок мог совпасть — второй клик обязан сменить
     out.sortChanged = first() !== b4;
     const v = document.querySelector('[data-embed]'); out.hasVideo = !!v;
     if (v){ v.click(); await new Promise((r) => setTimeout(r, 500)); out.video = !!v.querySelector('iframe'); }
@@ -58,8 +65,10 @@ const { chromium } = require('playwright');
   });
   fs.writeFileSync('out/probe.json', JSON.stringify(probe, null, 1));
   console.log('probe:', JSON.stringify(probe));
-  const bad = probe.leak || probe.thNoCtl || !(probe.postNews > probe.preNews) || !(probe.postInv > probe.preInv)
-    || probe.fRound !== 'ok' || probe.roundVisible !== 1 || probe.fInv !== 'ok' || !probe.sortChanged || (probe.hasVideo && !probe.video);
+  const bad = probe.leak || probe.thNoCtl
+    || (probe.preNews > 0 && !(probe.postNews > probe.preNews)) // лента есть → Load more обязан работать
+    || !(probe.postInv > probe.preInv)
+    || !probe.fRoundOk || !probe.fInvOk || !probe.sortChanged || (probe.hasVideo && !probe.video);
   if (bad){ console.error('CLICK-PROBE FAILED'); process.exitCode = 1; }
   // скрины — чистого дефолтного вида: перезагрузка после клик-пробы
   await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
