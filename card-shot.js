@@ -2,7 +2,7 @@
 // Запасной облачный визиотестер: когда CF Browser Rendering в дневном лимите.
 const { chromium } = require('playwright');
 (async () => {
-  const url = process.env.SHOT_URL || 'https://test.siliconvalleyinvestclub.com/company/corgi-insurance/?__static=1';
+  const url = process.env.SHOT_URL || 'https://test.siliconvalleyinvestclub.com/companies/corgi-insurance/?__static=1';
   const fs = require('fs'); fs.mkdirSync('out', { recursive: true });
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
