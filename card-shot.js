@@ -47,6 +47,9 @@ const { chromium } = require('playwright');
   const bad = probe.leak || probe.thNoCtl || !(probe.postNews > probe.preNews) || !(probe.postInv > probe.preInv)
     || probe.fRound !== 'ok' || probe.roundVisible !== 1 || probe.fInv !== 'ok' || !probe.sortChanged || (probe.hasVideo && !probe.video);
   if (bad){ console.error('CLICK-PROBE FAILED'); process.exitCode = 1; }
+  // скрины — чистого дефолтного вида: перезагрузка после клик-пробы
+  await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.waitForTimeout(3000);
   await page.screenshot({ path: 'out/card-desktop-top.png' });
   await page.screenshot({ path: 'out/card-full.png', fullPage: true });
   const mob = await ctx.newPage(); await mob.setViewportSize({ width: 390, height: 844 });
