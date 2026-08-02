@@ -1,6 +1,17 @@
 name: iv-covers
-on: { workflow_dispatch: {} }
+# Превью-обложки карточек интервью (24-с фрагмент [start,end] темы, без аудио).
+# Список — ДИНАМИЧЕСКИЙ (2026-08-02): статический iv-list.json замораживал 10
+# интервью от 12.07, новые посты никогда не получали обложку → герой раздела
+# /interviews/ уезжал со свежайшего поста. Источник истины — сама страница
+# раздела на стенде: каждый пост-интервью несёт data-(svic-vid|video-id) и
+# сегмент data-video-start/end в герое. iv-list.json остаётся ТОЛЬКО как
+# курируемые сегменты (его s/e выигрывают у дефолта 1..25).
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '47 */6 * * *'  # после convert-clips (17 */6): свежее интервью получает обложку за часы
 permissions: { contents: write }
+concurrency: { group: iv-covers, cancel-in-progress: false }
 jobs:
   cut:
     runs-on: ubuntu-latest
@@ -13,21 +24,67 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           python3 -m pip install --quiet --upgrade yt-dlp
+      - name: build dynamic interview list
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const TEST = 'https://test.siliconvalleyinvestclub.com';
+          const CK = { 'Cookie': 'svic_token=edge-preview', 'User-Agent': 'Mozilla/5.0' };
+          (async () => {
+            // курируемые сегменты старого списка — выигрывают у дефолта
+            let curated = [];
+            try { curated = JSON.parse(fs.readFileSync('iv-list.json', 'utf8')); } catch {}
+            const seg = Object.fromEntries(curated.map(x => [x.v, { s: x.s, e: x.e }]));
+            // посты раздела со страницы (живая истина; 301 /tag/ уже учтён чистым адресом)
+            const arch = await (await fetch(TEST + '/interviews/', { headers: CK })).text();
+            const urls = [...new Set([...arch.matchAll(/href="(?:https?:\/\/[^"\/]+)?(\/20\d\d\/\d\d\/\d\d\/[a-z0-9-]+)\/?"/g)].map(m => m[1]))];
+            console.error('постов на странице раздела:', urls.length);
+            const list = [];
+            for (const u of urls) {
+              let html = '';
+              try { html = await (await fetch(TEST + u + '/', { headers: CK })).text(); } catch { continue; }
+              const mi = html.indexOf('<div class="cs-entry__media');
+              if (mi < 0) continue;
+              const block = html.slice(mi, mi + 3000);
+              // vid героя: 11-симв YouTube-id атрибутом; атрибут другой длины =
+              // самохост (играет сам, обложка не нужна); wrapper вовсе без vid =
+              // YT-натив/фасад (у них id живёт embed-ссылкой в теле поста)
+              let vid = (block.match(/data-(?:svic-vid|video-id)="([A-Za-z0-9_-]{11})"/) || [])[1];
+              if (!vid) {
+                const anyVid = (block.match(/data-(?:svic-vid|video-id)="([A-Za-z0-9_-]+)"/) || [])[1];
+                if (anyVid) continue; // самохост
+                vid = (html.match(/youtube\.com\/(?:embed\/|watch\?v=)([A-Za-z0-9_-]{11})/) || [])[1];
+              }
+              if (!vid) continue;
+              const s = +((block.match(/data-video-start="(\d+)"/) || [])[1] || (seg[vid] && seg[vid].s) || 1);
+              const e = +((block.match(/data-video-end="(\d+)"/) || [])[1] || (seg[vid] && seg[vid].e) || 25);
+              list.push({ u, v: vid, s, e: e > s ? e : s + 24 });
+            }
+            // курируемые записи, чьих постов нет на первой странице архива, — сохраняем
+            const have = new Set(list.map(x => x.v));
+            for (const c of curated) if (!have.has(c.v)) list.push(c);
+            if (!list.length) { console.error('FATAL: список пуст — страница раздела недоступна?'); process.exit(1); }
+            fs.writeFileSync('iv-dynamic.json', JSON.stringify(list));
+            console.error('итог списка:', list.length);
+            for (const x of list.slice(0, 6)) console.error(' ', x.v, `[${x.s}..${x.e}]`, x.u.slice(0, 60));
+          })().catch(e => { console.error('FATAL', e); process.exit(1); });
+          EOF
       - name: cut interview preview covers
         env:
           GH_TOKEN: ${{ github.token }}
           PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
         run: |
-          N=$(node -e "console.log(require('./iv-list.json').length)")
+          N=$(node -e "console.log(require('./iv-dynamic.json').length)")
           echo "interviews=$N"; OK=0; FAIL=0
           EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
           for i in $(seq 0 $((N-1))); do
-            VID=$(node -e "console.log(require('./iv-list.json')[$i].v)")
-            S=$(node -e "console.log(require('./iv-list.json')[$i].s)")
-            E=$(node -e "console.log(require('./iv-list.json')[$i].e)")
+            VID=$(node -e "console.log(require('./iv-dynamic.json')[$i].v)")
+            S=$(node -e "console.log(require('./iv-dynamic.json')[$i].s)")
+            E=$(node -e "console.log(require('./iv-dynamic.json')[$i].e)")
             echo "=== $VID [$S..$E] ==="
             if echo "$EXISTING" | grep -qx "iv-$VID.mp4"; then echo "already in release"; OK=$((OK+1)); continue; fi
             rm -f in.mp4 "iv-$VID.mp4"
+            sleep 12
             yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
               --extractor-args "youtube:player_client=ios,android,web_safari" \
               -f 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/bv*[height<=720]+ba/b[height<=720][ext=mp4]/b[ext=mp4]/b' \
@@ -37,7 +94,16 @@ jobs:
               -c:v libx264 -preset veryfast -crf 23 -an -movflags +faststart "iv-$VID.mp4" || { FAIL=$((FAIL+1)); continue; }
             gh release upload clips "iv-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
           done
-          node -e "const l=require('./iv-list.json');require('fs').writeFileSync('interview-covers.json',JSON.stringify(l.map(x=>({u:x.u,v:'iv-'+x.v}))))"
+          # манифест — только записи, чей клип реально лежит в релизе (иначе карточка получит 404)
+          EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
+          printf '%s\n' "$EXISTING" > existing.txt
+          node -e "
+            const fs=require('fs');
+            const have=new Set(fs.readFileSync('existing.txt','utf8').split('\n'));
+            const l=require('./iv-dynamic.json').filter(x=>have.has('iv-'+x.v+'.mp4'));
+            fs.writeFileSync('interview-covers.json',JSON.stringify(l.map(x=>({u:x.u,v:'iv-'+x.v}))));
+            console.error('манифест:',l.length);
+          "
           gh release upload clips interview-covers.json -R "$GITHUB_REPOSITORY" --clobber
           echo "=== covers=$OK failed=$FAIL of $N ==="
-          [ "$OK" = "$N" ]
+          [ "$FAIL" = "0" ]
