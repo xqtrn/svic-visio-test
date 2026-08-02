@@ -16,6 +16,9 @@ const { chromium } = require('playwright');
   const probe = await page.evaluate(async () => {
     const vis = (sel) => [...document.querySelectorAll(sel)].filter((e) => getComputedStyle(e).display !== 'none').length;
     const out = {};
+    out.colw = [...document.querySelectorAll('#funding th')].map((t) => Math.round(t.getBoundingClientRect().width));
+    out.tw = Math.round((document.querySelector('#funding table') || {getBoundingClientRect(){return {width:0}}}).getBoundingClientRect().width);
+    out.bodyw = Math.round((document.querySelector('#funding') || {getBoundingClientRect(){return {width:0}}}).getBoundingClientRect().width);
     out.leak = [...document.querySelectorAll('[hidden]')].filter((e) => getComputedStyle(e).display !== 'none').length;
     out.thNoCtl = [...document.querySelectorAll('table th')].filter((t) => !t.hasAttribute('data-k') && !t.hasAttribute('data-f')).length;
     out.preNews = vis('#news [data-lm] > *'); out.preInv = vis('#investors [data-lm] > *');
