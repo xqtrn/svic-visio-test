@@ -34,6 +34,7 @@ const { chromium } = require('playwright');
     out.postNews = vis('#news [data-lm] > *'); out.postInv = vis('#investors [data-lm] > *');
     const clickFilter = async (thSel, valRe) => {
       const th = document.querySelector(thSel); if (!th) return 'no-th';
+      th.scrollIntoView({ block: 'center' }); await new Promise((r) => setTimeout(r, 300));
       th.click(); await new Promise((r) => setTimeout(r, 200));
       const dd = document.querySelector('[data-fdd]'); if (!dd) return 'no-dd';
       const b0 = dd.querySelector('button'); const br = b0.getBoundingClientRect();

@@ -20,4 +20,5 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: SHOT_URL="${{ inputs.url }}" node card-shot.js
       - uses: actions/upload-artifact@v4
+        if: always()
         with: { name: card-shots, path: out/ }
