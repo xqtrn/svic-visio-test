@@ -51,7 +51,7 @@
       // акцентный «декор» канона; яркая синяя заливка была отступлением).
       '.oc-hdr { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 18px; background:var(--navy,#0a1733); border-bottom:2px solid var(--accent,#0a64bc); min-height:56px; flex-shrink:0; }',
       '.oc-logo { display:flex; align-items:center; }',
-      '.oc-logo img { display:block; height:16px; width:auto; filter:brightness(0) invert(1); }',
+      '.oc-logo img { display:block; height:21px; width:auto; filter:brightness(0) invert(1); }',
       // Крестик — квадрат 32×32 по таблице «Menu trigger & close button».
       '.oc-close { box-sizing:border-box; width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--on-navy-muted,#8c98b0); background:none; border:1px solid rgba(255,255,255,.18); border-radius:var(--r-control,4px); transition:var(--t-med,180ms); flex-shrink:0; }',
       '.oc-close:hover { color:#fff; border-color:rgba(255,255,255,.45); }',
@@ -60,9 +60,9 @@
       '.oc-group { font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.14em; color:var(--muted-2,#67738a); padding:8px 18px 6px; margin:8px 0 0; }',
       '.oc-list { list-style:none; padding:0; margin:0; }',
       // Разделителей между пунктами канон не несёт — структуру держат группы.
-      '.oc-link { display:block; padding:9px 18px; color:var(--ink,#0c1626); text-decoration:none; font-family:var(--sans,"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif); font-size:14px; font-weight:400; line-height:1.5; transition:var(--t-fast,150ms); border:none; border-left:2px solid transparent; background:none; cursor:pointer; width:100%; text-align:left; }',
+      '.oc-link { box-sizing:border-box; display:block; padding:9px 18px; color:var(--ink,#0c1626); text-decoration:none; font-family:var(--sans,"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif); font-size:14px; font-weight:400; line-height:1.5; transition:var(--t-fast,150ms); border:none; border-left:2px solid transparent; background:none; cursor:pointer; width:100%; text-align:left; }',
       '.oc-link:hover { background:var(--subtle,#f7f9fc); color:var(--accent,#0a64bc); }',
-      '.oc-link.active { color:var(--accent,#0a64bc); font-weight:500; background:var(--accent-soft,#eef4fb); border-left-color:var(--accent,#0a64bc); padding-left:16px; }',
+      '.oc-link.active { color:var(--accent,#0a64bc); font-weight:500; background:var(--accent-soft,#eef4fb); border-left-color:var(--accent,#0a64bc); }',
       '.oc-link:focus-visible { outline:2px solid var(--accent,#0a64bc); outline-offset:-2px; }',
       '.oc-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 18px; border-top:1px solid var(--line,#e6eaf1); flex-shrink:0; }',
       '.oc-user { font-family:var(--serif,Georgia,serif); font-weight:600; color:var(--ink,#0c1626); font-size:15px; }',
@@ -136,16 +136,25 @@
   // Активный пункт — по САМОМУ ДЛИННОМУ совпавшему префиксу пути (канон
   // §Navigation). Точное сравнение оставляло раздел неподсвеченным на любом
   // внутреннем экране: /siteadmin/posts не равен /siteadmin.
+  // Второй проход — по первому сегменту: маршруты реестра бывают сами вложенными
+  // (Messenger Desk = /messengers/SMS), и на соседнем экране того же раздела
+  // (/messengers/WhatsApp) префикс не совпадает, а раздел тот же. Хвост #... в
+  // маршруте (Outreach Inbox = /sourcing#inbox) в pathname не приходит и снимается.
   function markActive(container) {
     if (API_BASE) return; // встроенное меню чужого origin — активного нет
-    var path = window.location.pathname.replace(/\/+$/, '') || '/';
-    var best = null, bestLen = -1;
+    var norm = function(s) { return String(s || '').split('#')[0].split('?')[0].replace(/\/+$/, '') || '/'; };
+    var seg1 = function(s) { var m = norm(s).match(/^\/[^/]*/); return m ? m[0] : '/'; };
+    var path = norm(window.location.pathname);
+    var best = null, bestLen = -1, segBest = null, segBestLen = -1;
     container.querySelectorAll('.oc-link').forEach(function(el) {
-      var href = (el.getAttribute('href') || '').replace(/\/+$/, '') || '/';
+      var href = norm(el.getAttribute('href'));
       if (href === '/' ? path === '/' : (path === href || path.indexOf(href + '/') === 0)) {
         if (href.length > bestLen) { best = el; bestLen = href.length; }
+      } else if (href !== '/' && seg1(href) === seg1(path)) {
+        if (href.length > segBestLen) { segBest = el; segBestLen = href.length; }
       }
     });
+    if (!best) best = segBest;
     if (best) best.classList.add('active');
   }
 

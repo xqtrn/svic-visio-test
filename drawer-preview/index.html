@@ -37,9 +37,13 @@
 // Фикстура /api/nav: тот же контракт, что у платформы (pinned + groups + user).
 // Активный пункт проверяем на «Marketplace»: адрес страницы подменяем ниже.
 (function () {
+  // Один пункт указывает на САМ стенд — так проверяется активное состояние
+  // (accent-текст + accent-soft заливка + 2px левое ребро).
+  var SELF = location.pathname;
   var NAV = {
     menu: {
       pinned: [
+        { id: 'self', label: 'Marketplace (active)', href: SELF },
         { id: 'designsystem', label: 'Design System', href: '/designsystem.html' },
         { id: 'scheduling', label: 'Scheduling', href: '/scheduling' },
         { id: 'fundadmin', label: 'Fund Admin', href: '/fundadmin' },
@@ -70,6 +74,11 @@
 <script src="./offcanvas-menu.js"></script>
 <script>
 document.getElementById('burger').addEventListener('click', function () { openOffcanvas(); });
+// Стендовая поправка: на Pages /brandbook-logo.svg — чужой корень.
+new MutationObserver(function () {
+  var img = document.querySelector('.oc-logo img');
+  if (img && img.getAttribute('src') !== './brandbook-logo.svg') img.setAttribute('src', './brandbook-logo.svg');
+}).observe(document.body, { childList: true, subtree: true });
 // Автооткрытие для скриншот-прогонов: ?open=1 (и тема ?theme=dark).
 (function () {
   var q = new URLSearchParams(location.search);
