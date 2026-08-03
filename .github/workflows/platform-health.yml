@@ -1,6 +1,9 @@
 name: platform-health
 # Здоровье стенда без WordPress (Артур 2026-07-26: сайт стал основным, копирование
-# из WP удалено). Проверяет наш origin и админку; при проблеме — алерт в Телеграм.
+# из WP удалено). Проверяет наш origin и админку; при проблеме — задача на
+# /developement (Артур 2026-08-03: «вместо этих сообщений сразу добавь задачи»).
+# Проба ежечасная, поэтому одна карточка обновляется, пока проблема держится, и
+# закрывается сама, когда проба снова зелёная.
 on:
   schedule:
     - cron: '25 * * * *'
@@ -9,19 +12,21 @@ jobs:
   health:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
       - run: npm init -y >/dev/null 2>&1 && npm i pg jsonwebtoken >/dev/null 2>&1
       - name: probe
         env:
           DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
           PLATFORM_SESSION_SECRET: ${{ secrets.PLATFORM_SESSION_SECRET }}
         run: |
           cat > health.mjs <<'JS'
           import pg from 'pg';
+          import { openTask, closeTask } from './scripts/system-task.mjs';
           const ORIGIN = 'https://svic-platform-production.up.railway.app';
-          const TG_CHAT = '305112149';
+          const TASK_KEY = 'stand-platform-health';
           const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
           const problems = [];
           try {
@@ -42,11 +47,15 @@ jobs:
             const { rows } = await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish' AND (full_html IS NULL OR full_html='')`);
             if (rows[0].c > 0) problems.push(`${rows[0].c} опубликованных статей без готовой страницы`);
           } catch (e) { problems.push('проверка снимков упала: ' + e.message); }
-          if (problems.length && process.env.TELEGRAM_BOT_TOKEN) {
-            await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: TG_CHAT, text: `⚠️ Платформа: проблема.\n${problems.join('\n')}` }),
-            }).catch(() => {});
+          if (problems.length) {
+            await openTask({
+              key: TASK_KEY,
+              summary: `Платформа отвечает не так, как должна: ${problems[0]}${problems.length > 1 ? ` (и ещё ${problems.length - 1})` : ''}`,
+              details: problems.join('\n'),
+              instructions: 'Разобраться, почему проба здоровья платформы не проходит, устранить причину и дождаться зелёной пробы.',
+            });
+          } else {
+            await closeTask(TASK_KEY, 'Проба здоровья платформы снова зелёная.');
           }
           try {
             await pool.query("INSERT INTO audit_log (actor, action, entity_type, after) VALUES ('daemon:platform-health','daemon.run','daemon:platform-health',$1)",

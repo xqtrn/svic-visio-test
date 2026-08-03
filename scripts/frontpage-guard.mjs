@@ -11,29 +11,23 @@
  *      (28 июля сайт отдал шапку с подвалом и пустой серединой).
  * Истина о статьях — база, а не разметка.
  *
- * Молчит, пока всё в порядке; расхождение — сообщение в Телеграм и красный
- * прогон. Секреты: SVIC_PLATFORM_DATABASE_URL, TELEGRAM_BOT_TOKEN.
+ * Молчит, пока всё в порядке; расхождение — ЗАДАЧА на /developement и красный
+ * прогон. Сторож ходит каждые полчаса, и в Телеграме это превращалось в одну и
+ * ту же фразу по нескольку раз за утро (3 августа — четырежды до полудня);
+ * Артур 2026-08-03: «вместо этих сообщений сразу добавь задачи». Пока проблема
+ * держится, обновляется ОДНА карточка; проверка снова прошла — карточка
+ * закрывается сама. Секреты: SVIC_PLATFORM_DATABASE_URL, SVIC_INTERNAL_KEY.
  */
 import pg from 'pg';
+import { openTask, closeTask } from './system-task.mjs';
 
 const HOST = process.env.SVIC_HOST || 'https://test.siliconvalleyinvestclub.com';
-const CHAT = process.env.TELEGRAM_CHAT_ID || '305112149';
+const TASK_KEY = 'stand-frontpage';
 const UNICORN_TAG = 1411;
 const MIN_CARDS = 40;
 
 const plain = (s) => String(s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 const norm = (s) => plain(s).replace(/&(?:amp|#0*38);/gi, '&').replace(/[’']/g, "'").replace(/[–—]/g, '-').toLowerCase();
-
-async function tg(text) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) return;
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: CHAT, text, disable_web_page_preview: true }),
-    });
-  } catch { /* сторож не должен падать из-за почтальона */ }
-}
 
 const db = new pg.Pool({ connectionString: process.env.SVIC_PLATFORM_DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const posts = (await db.query(`SELECT slug, title, categories, tags FROM posts WHERE status='publish'`)).rows;
@@ -51,7 +45,16 @@ const ruleOf = (headingRaw) => {
 };
 
 const res = await fetch(HOST + '/', { headers: { Cookie: 'svic_token=edge-preview', 'User-Agent': 'svic-frontpage-guard' } });
-if (!res.ok) { await tg(`Главная стенда отдала ${res.status}. Карточки не проверены.`); console.error('status', res.status); process.exit(1); }
+if (!res.ok) {
+  await openTask({
+    key: TASK_KEY,
+    summary: `Главная стенда не открывается: отвечает ${res.status}. Карточки не проверены.`,
+    details: `GET ${HOST}/ вернул HTTP ${res.status} (cookie svic_token=edge-preview, UA svic-frontpage-guard)`,
+    instructions: 'Вернуть выдачу главной стенда, затем прогнать сторожа главной и убедиться, что он проходит зелёным.',
+  });
+  console.error('status', res.status);
+  process.exit(1);
+}
 const html = await res.text();
 
 const main = html.indexOf('<main');
@@ -90,7 +93,13 @@ if (bad.length) {
   const head = `Главная стенда разъехалась: ${bad.length} расхождений из ${checked} карточек.`;
   console.error('❌ ' + head);
   for (const b of bad.slice(0, 25)) console.error('   · ' + b);
-  await tg([head, ...bad.slice(0, 8).map((b) => '· ' + b), 'Лечится пересборкой карточек главной.'].join('\n'));
+  await openTask({
+    key: TASK_KEY,
+    summary: head,
+    details: [head, ...bad.slice(0, 25).map((b) => '· ' + b)].join('\n'),
+    instructions: 'Пересобрать карточки главной и устранить причину расхождения (карточка целиком от одной статьи, статья стоит в своём блоке), затем прогнать сторожа главной.',
+  });
   process.exit(1);
 }
+await closeTask(TASK_KEY, 'Главная стенда снова собрана верно — сторож прошёл зелёным.');
 console.log(`✓ главная: ${checked} карточек — каждая от одной статьи и в своём блоке`);

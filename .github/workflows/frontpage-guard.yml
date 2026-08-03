@@ -1,6 +1,7 @@
 name: frontpage-guard
 # Сторож главной стенда: карточка от одной статьи и в своём блоке (Артур 2026-07-28).
-# Молчит, пока всё в порядке; расхождение — сообщение в Телеграм и красный прогон.
+# Молчит, пока всё в порядке; расхождение — задача на /developement и красный прогон
+# (Артур 2026-08-03: «вместо этих сообщений сразу добавь задачи»).
 on:
   schedule:
     - cron: '7,37 * * * *'
@@ -17,4 +18,4 @@ jobs:
       - run: node scripts/frontpage-guard.mjs
         env:
           SVIC_PLATFORM_DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
