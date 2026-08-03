@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drawer — DS canon preview</title>
+<link rel="stylesheet" href="./fonts.css">
+<link rel="stylesheet" href="./app.css">
+<style>
+  /* Стенд поста 5 конвейера: проверяем САМ компонент меню на обоих движках
+     (Chromium desktop + WebKit iPhone) до выката в прод. Страница-носитель
+     минимальна: канонический topbar + кнопка, всё остальное рисует
+     offcanvas-menu.js — ровно тот файл, что уходит в деплой. */
+  body { min-height: 100vh; background: var(--page); }
+  .stage { max-width: 1280px; margin: 0 auto; padding: 40px 26px; }
+  .stage h1 { font-family: var(--serif); font-size: 28px; font-weight: 600; margin-bottom: 8px; }
+  .stage p { color: var(--muted); font-size: 14px; max-width: 580px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <button class="tb-burger" id="burger" aria-label="Menu" aria-expanded="false">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="tb-brand"><img class="tb-logo" src="./brandbook-logo.svg" alt="Silicon Valley Investclub"></div>
+    <div class="tb-div"></div>
+    <div class="tb-ctx">Marketplace</div>
+  </div>
+</header>
+<div class="stage">
+  <h1>Drawer canon preview</h1>
+  <p>Носитель для визуального поста конвейера. Меню рисует продовый offcanvas-menu.js; список разделов — фикстура того же вида, что отдаёт /api/nav.</p>
+</div>
+
+<script>
+// Фикстура /api/nav: тот же контракт, что у платформы (pinned + groups + user).
+// Активный пункт проверяем на «Marketplace»: адрес страницы подменяем ниже.
+(function () {
+  var NAV = {
+    menu: {
+      pinned: [
+        { id: 'designsystem', label: 'Design System', href: '/designsystem.html' },
+        { id: 'scheduling', label: 'Scheduling', href: '/scheduling' },
+        { id: 'fundadmin', label: 'Fund Admin', href: '/fundadmin' },
+        { id: 'development', label: 'Development', href: '/development' }
+      ],
+      groups: [
+        { label: 'Trading', items: [{ id: 'desk', label: 'Trade Desk', href: '/desk' }] },
+        { label: 'Deal flow', items: [
+          { id: 'opportunities', label: 'Opportunities', href: '/opportunities' },
+          { id: 'mpadmin', label: 'Marketplace Admin', href: '/marketplaceadmin' },
+          { id: 'marketplace', label: 'Marketplace', href: '/marketplace' },
+          { id: 'matches', label: 'Matches', href: '/matches' },
+          { id: 'pipeline', label: 'Pipeline', href: '/pipeline' }
+        ] }
+      ]
+    },
+    user: { name: 'Arthur', role: 'Administrator' }
+  };
+  var realFetch = window.fetch;
+  window.fetch = function (url, opts) {
+    if (String(url).indexOf('/api/nav') !== -1) {
+      return Promise.resolve({ ok: true, json: function () { return Promise.resolve(NAV); } });
+    }
+    return realFetch.apply(this, arguments);
+  };
+})();
+</script>
+<script src="./offcanvas-menu.js"></script>
+<script>
+document.getElementById('burger').addEventListener('click', function () { openOffcanvas(); });
+// Автооткрытие для скриншот-прогонов: ?open=1 (и тема ?theme=dark).
+(function () {
+  var q = new URLSearchParams(location.search);
+  if (q.get('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  if (q.get('open') === '1') window.addEventListener('load', function () { setTimeout(openOffcanvas, 250); });
+})();
+</script>
+</body>
+</html>
