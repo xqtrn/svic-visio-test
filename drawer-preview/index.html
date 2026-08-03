@@ -63,8 +63,10 @@
     user: { name: 'Arthur', role: 'Administrator' }
   };
   var realFetch = window.fetch;
+  var useLive = new URLSearchParams(location.search).get('live') === '1';
   window.fetch = function (url, opts) {
     if (String(url).indexOf('/api/nav') !== -1) {
+      if (useLive) return realFetch('./nav-real.json');
       return Promise.resolve({ ok: true, json: function () { return Promise.resolve(NAV); } });
     }
     return realFetch.apply(this, arguments);
