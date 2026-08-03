@@ -23,6 +23,11 @@ import { openTask, closeTask } from './system-task.mjs';
 
 const HOST = process.env.SVIC_HOST || 'https://test.siliconvalleyinvestclub.com';
 const TASK_KEY = 'stand-frontpage';
+// Пропуск сторожа на стенд. 2 августа его перенесли из кода воркера в секрет
+// STAND_TOKEN, а сторож продолжал ходить со старым зашитым значением — и с утра
+// 3 августа честно докладывал «403» каждые полчаса про совершенно здоровый сайт.
+// Ложная тревога — тоже поломка сторожа: значение берётся из секрета.
+const STAND_TOKEN = process.env.STAND_TOKEN || 'edge-preview';
 const UNICORN_TAG = 1411;
 const MIN_CARDS = 40;
 
@@ -44,12 +49,13 @@ const ruleOf = (headingRaw) => {
   return null;
 };
 
-const res = await fetch(HOST + '/', { headers: { Cookie: 'svic_token=edge-preview', 'User-Agent': 'svic-frontpage-guard' } });
+const res = await fetch(HOST + '/', { headers: { Cookie: 'svic_token=' + STAND_TOKEN, 'User-Agent': 'svic-frontpage-guard' } });
 if (!res.ok) {
   await openTask({
     key: TASK_KEY,
     summary: `Главная стенда не открывается: отвечает ${res.status}. Карточки не проверены.`,
-    details: `GET ${HOST}/ вернул HTTP ${res.status} (cookie svic_token=edge-preview, UA svic-frontpage-guard)`,
+    details: `GET ${HOST}/ вернул HTTP ${res.status} (сторож ходит с пропуском STAND_TOKEN, UA svic-frontpage-guard).`
+      + (res.status === 403 ? ' 403 у сторожа обычно значит устаревший пропуск, а не лежащий сайт — сперва проверь секрет STAND_TOKEN.' : ''),
     instructions: 'Вернуть выдачу главной стенда, затем прогнать сторожа главной и убедиться, что он проходит зелёным.',
   });
   console.error('status', res.status);

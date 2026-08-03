@@ -19,3 +19,4 @@ jobs:
         env:
           SVIC_PLATFORM_DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
           SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
+          STAND_TOKEN: ${{ secrets.STAND_TOKEN }}
