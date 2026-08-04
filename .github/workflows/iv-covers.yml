@@ -1,5 +1,6 @@
 name: iv-covers
-# Превью-обложки карточек интервью (24-с фрагмент [start,end] темы, без аудио).
+# Превью-обложки карточек интервью (24-с фрагмент [start,end] темы, СО ЗВУКОМ:
+# карточка предлагает кнопку unmute, немой клип делает её обманом — 2026-08-04).
 # Список — ДИНАМИЧЕСКИЙ (2026-08-02): статический iv-list.json замораживал 10
 # интервью от 12.07, новые посты никогда не получали обложку → герой раздела
 # /interviews/ уезжал со свежайшего поста. Источник истины — страница раздела на
@@ -124,7 +125,21 @@ jobs:
             S=$(node -e "console.log(require('./iv-dynamic.json')[$i].s)")
             E=$(node -e "console.log(require('./iv-dynamic.json')[$i].e)")
             echo "=== $VID [$S..$E] ==="
-            if echo "$EXISTING" | grep -qx "iv-$VID.mp4"; then echo "already in release"; OK=$((OK+1)); continue; fi
+            # ЗВУК ОБЯЗАТЕЛЕН (Артур 2026-08-04: «кнопка unmute нажимается, но звука нет»).
+            # Превью резались с -an, то есть немыми, а пульт карточки предлагает
+            # включить звук — кнопка включала тишину. Уже лежащий немой клип
+            # пересобираем: проверяем дорожку прямо в релизе, чтобы починка не
+            # требовала ручного удаления ассетов.
+            if echo "$EXISTING" | grep -qx "iv-$VID.mp4"; then
+              HAVE_AUDIO=""
+              for TAG in clips2 clips; do
+                URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/iv-$VID.mp4"
+                HAVE_AUDIO=$(ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "$URL" 2>/dev/null | head -1)
+                [ -n "$HAVE_AUDIO" ] && break
+              done
+              if [ -n "$HAVE_AUDIO" ]; then echo "already in release (со звуком)"; OK=$((OK+1)); continue; fi
+              echo "в релизе лежит немой клип — пересобираю со звуком"
+            fi
             rm -f in.mp4 "iv-$VID.mp4"
             sleep 12
             yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
@@ -133,7 +148,12 @@ jobs:
               --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" || { FAIL=$((FAIL+1)); continue; }
             SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 50000 ] && { echo "too small"; FAIL=$((FAIL+1)); continue; }
             ffmpeg -hide_banner -loglevel error -ss "$S" -to "$E" -i in.mp4 \
-              -c:v libx264 -preset veryfast -crf 23 -an -movflags +faststart "iv-$VID.mp4" || { FAIL=$((FAIL+1)); continue; }
+              -c:v libx264 -preset veryfast -crf 23 -c:a aac -b:a 128k -ac 2 \
+              -movflags +faststart "iv-$VID.mp4" || { FAIL=$((FAIL+1)); continue; }
+            # немой файл дальше не едет: кнопка звука на карточке обязана работать
+            if [ -z "$(ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "iv-$VID.mp4" | head -1)" ]; then
+              echo "НЕТ ЗВУКОВОЙ ДОРОЖКИ — не выкладываю"; FAIL=$((FAIL+1)); continue
+            fi
             gh release upload clips2 "iv-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1)) || { echo "UPLOAD FAIL"; FAIL=$((FAIL+1)); }
           done
           # манифест — только записи, чей клип реально лежит в релизе (иначе карточка получит 404)
