@@ -35,11 +35,19 @@ jobs:
             echo "=== $VID ==="
             rm -f in.mp4 "full-$VID.mp4"
             sleep 8   # пауза перед YouTube: поток запросов включает анти-бот
+            # Клиенты web_safari/web отдают раздельные потоки (DASH) — из них и берётся HD.
+            # Порядок с ios первым давал прогрессивный 360p: интервью на странице выглядело
+            # хуже, чем на YouTube (2026-08-04). Ступени ниже 720 берём только как аварию.
             yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
-              --extractor-args "youtube:player_client=ios,android,web_safari" \
-              -f 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b' \
+              --extractor-args "youtube:player_client=web_safari,web,ios,android" \
+              -f 'bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b' \
               --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" || { FAIL=$((FAIL+1)); continue; }
             SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 200000 ] && { echo "слишком мал — не запись"; FAIL=$((FAIL+1)); continue; }
+            SRCH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 in.mp4 | head -1)
+            echo "исходная высота: ${SRCH:-?}"
+            # интервью в 360p на всю ширину колонки выглядит хуже, чем вставка YouTube —
+            # такую запись не выкладываем, лучше оставить прежний фасад
+            [ -n "$SRCH" ] && [ "$SRCH" -lt 480 ] && { echo "СЛИШКОМ НИЗКОЕ КАЧЕСТВО ($SRCH) — не выкладываю"; FAIL=$((FAIL+1)); continue; }
             # faststart обязателен: без него iOS читает заголовок в конце файла и зацикливает первые секунды
             H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 in.mp4 | head -1)
             if [ -n "$H" ] && [ "$H" -gt 1080 ]; then
