@@ -1,0 +1,19 @@
+name: yt-format-probe
+on: { workflow_dispatch: { inputs: { ids: { description: 'id', required: true } } } }
+permissions: { contents: read }
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: tools
+        run: python3 -m pip install --quiet --upgrade yt-dlp
+      - name: list formats per client
+        env: { PENGUIN_SOCKS: "${{ secrets.PENGUIN_SOCKS }}" }
+        run: |
+          VID="${{ inputs.ids }}"
+          for CL in tv_embedded mediaconnect web_embedded android_vr web_music tv; do
+            echo "=== $CL ==="
+            yt-dlp --no-playlist --no-warnings --skip-download --proxy "$PENGUIN_SOCKS" \
+              --extractor-args "youtube:player_client=$CL" -F "https://www.youtube.com/watch?v=$VID" 2>&1 | grep -E "^[0-9]+ |ERROR|mp4|webm" | tail -8
+          done
