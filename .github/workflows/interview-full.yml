@@ -48,9 +48,15 @@ jobs:
             # Сначала — с токеном и БЕЗ прокси: токен привязан к адресу, с которого
             # он получен, и через чужой выход теряет силу. Не вышло — прежний путь
             # через домашний узел (там потолок 360p, такую запись мы не публикуем).
+            # HD = ключ происхождения И жилой адрес ВМЕСТЕ (замер 2026-08-04): ключ с
+            # адреса дата-центра упирается в «подтвердите, что вы не робот», а жилой
+            # адрес без ключа получает только прогрессивные 360p. Ключ выдаёт провайдер
+            # на раннере (он привязан к сессии, не к адресу), видео тянем через
+            # домашний узел. Не вышло — прежний путь без ключа (там 360p, и такую
+            # запись мы не публикуем).
             FMT='bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b'
-            yt-dlp --no-playlist --no-progress --no-warnings \
-              --extractor-args "youtube:player_client=web_safari,web;fetch_pot=always" \
+            yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
+              --extractor-args "youtube:player_client=web_safari,web,tv;fetch_pot=always" \
               -f "$FMT" --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" \
             || yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
               --extractor-args "youtube:player_client=web_safari,web,ios,android" \
