@@ -1,0 +1,66 @@
+name: interview-full
+# Полная запись интервью в НАШЕМ хранилище (Артур 2026-08-04: «сделай, чтобы видео
+# YouTube играло в нашем плеере»). Канон 07-10 «интервью живёт на YouTube» снимается
+# постепенно: здесь — точечная загрузка по списку id, чтобы проверить полосу на одной
+# статье, прежде чем переводить все двадцать.
+#
+# Имя файла — full-<id>.mp4, отдельно от карточных артефактов: <id>.mp4 у интервью
+# исторически ЭТО 24-секундная нарезка, а iv-<id>.mp4 — превью обложки. Отдельное имя
+# = однозначный признак «полная запись у нас есть», по нему статья и решает, чем играть.
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: 'YouTube id через запятую'
+        required: true
+permissions: { contents: write }
+concurrency: { group: interview-full, cancel-in-progress: false }
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: tools
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python3 -m pip install --quiet --upgrade yt-dlp
+      - name: download full interview masters
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
+        run: |
+          OK=0; FAIL=0
+          for VID in $(echo "${{ inputs.ids }}" | tr ',' ' '); do
+            echo "=== $VID ==="
+            rm -f in.mp4 "full-$VID.mp4"
+            sleep 8   # пауза перед YouTube: поток запросов включает анти-бот
+            yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
+              --extractor-args "youtube:player_client=ios,android,web_safari" \
+              -f 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b' \
+              --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" || { FAIL=$((FAIL+1)); continue; }
+            SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 200000 ] && { echo "слишком мал — не запись"; FAIL=$((FAIL+1)); continue; }
+            # faststart обязателен: без него iOS читает заголовок в конце файла и зацикливает первые секунды
+            H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 in.mp4 | head -1)
+            if [ -n "$H" ] && [ "$H" -gt 1080 ]; then
+              ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -vf scale=-2:1080 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "full-$VID.mp4"
+            else
+              ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "full-$VID.mp4" 2>/dev/null \
+                || ffmpeg -nostdin -hide_banner -loglevel error -i in.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "full-$VID.mp4"
+            fi
+            # без звука запись бесполезна — это интервью, а не обложка
+            if [ -z "$(ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "full-$VID.mp4" | head -1)" ]; then
+              echo "НЕТ ЗВУКОВОЙ ДОРОЖКИ — не выкладываю"; FAIL=$((FAIL+1)); continue
+            fi
+            # ступени качества для меню плеера
+            for QH in 720 480; do
+              SH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "full-$VID.mp4" | head -1)
+              [ -n "$SH" ] && [ "$SH" -gt "$QH" ] \
+                && ffmpeg -nostdin -hide_banner -loglevel error -i "full-$VID.mp4" -vf scale=-2:$QH -c:v libx264 -preset veryfast -crf 24 -c:a aac -movflags +faststart "full-$VID.$QH.mp4" \
+                && gh release upload clips2 "full-$VID.$QH.mp4" -R "$GITHUB_REPOSITORY" --clobber && rm -f "full-$VID.$QH.mp4"
+            done
+            gh release upload clips2 "full-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1)) || FAIL=$((FAIL+1))
+            ffprobe -v error -show_entries format=duration,size -of csv=p=0 "full-$VID.mp4"
+          done
+          echo "=== masters=$OK failed=$FAIL ==="
+          [ "$FAIL" = "0" ]
