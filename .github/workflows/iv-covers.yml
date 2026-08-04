@@ -2,8 +2,9 @@ name: iv-covers
 # Превью-обложки карточек интервью (24-с фрагмент [start,end] темы, без аудио).
 # Список — ДИНАМИЧЕСКИЙ (2026-08-02): статический iv-list.json замораживал 10
 # интервью от 12.07, новые посты никогда не получали обложку → герой раздела
-# /interviews/ уезжал со свежайшего поста. Источник истины — сама страница
-# раздела на стенде: каждый пост-интервью несёт data-(svic-vid|video-id) и
+# /interviews/ уезжал со свежайшего поста. Источник истины — страница раздела на
+# ПУБЛИЧНОМ сайте (2026-08-03, раньше закрытый стенд по пропуску): каждый
+# пост-интервью несёт data-(svic-vid|video-id) и
 # сегмент data-video-start/end в герое. iv-list.json остаётся ТОЛЬКО как
 # курируемые сегменты (его s/e выигрывают у дефолта 1..25).
 on:
@@ -25,24 +26,65 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           python3 -m pip install --quiet --upgrade yt-dlp
       - name: build dynamic interview list
+        env:
+          SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
         run: |
           node - <<'EOF'
           const fs = require('fs');
-          const TEST = 'https://test.siliconvalleyinvestclub.com';
-          const CK = { 'Cookie': 'svic_token=edge-preview', 'User-Agent': 'Mozilla/5.0' };
+          // ИСТОЧНИК — ПУБЛИЧНЫЙ САЙТ (2026-08-03). Раньше список снимался с закрытого
+          // стенда пропуском, вшитым в этот файл; 3 августа пропуск сменили, страница
+          // стала отдавать 403 — и прогон МОЛЧА падал на 10 курируемых записей из июля.
+          // Успешный зелёный прогон при нуле найденных постов = ровно та немота, из-за
+          // которой свежие интервью (Emily Yuan 28.07, Morpho 04.08) уезжали на главную
+          // без ролика. Теперь берём открытый сайт (секрет не нужен вовсе), а пустая
+          // выдача — жёсткая поломка с карточкой на /developement, а не тихий откат.
+          const SITE = 'https://siliconvalleyinvestclub.com';
+          const CK = { 'User-Agent': 'Mozilla/5.0' };
+          async function screamOut(summary, details) {
+            const key = process.env.SVIC_INTERNAL_KEY;
+            if (!key) return;
+            try {
+              await fetch('https://platform.siliconvalleyinvestclub.com/api/internal/system-tasks', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', 'x-internal-key': key },
+                body: JSON.stringify({
+                  key: 'iv-covers-list-empty', summary, owner_brief: summary, details,
+                  instructions: 'Нарезка превью для карточек интервью не видит список статей: проверить, отдаёт ли публичный сайт раздел /interviews/, и перезапустить воркфлоу iv-covers в xqtrn/svic-visio-test.',
+                }),
+              });
+            } catch {}
+          }
+          async function screamOff() {
+            const key = process.env.SVIC_INTERNAL_KEY;
+            if (!key) return;
+            try {
+              await fetch('https://platform.siliconvalleyinvestclub.com/api/internal/system-tasks', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', 'x-internal-key': key },
+                body: JSON.stringify({ key: 'iv-covers-list-empty', resolved: true }),
+              });
+            } catch {}
+          }
           (async () => {
             // курируемые сегменты старого списка — выигрывают у дефолта
             let curated = [];
             try { curated = JSON.parse(fs.readFileSync('iv-list.json', 'utf8')); } catch {}
             const seg = Object.fromEntries(curated.map(x => [x.v, { s: x.s, e: x.e }]));
             // посты раздела со страницы (живая истина; 301 /tag/ уже учтён чистым адресом)
-            const arch = await (await fetch(TEST + '/interviews/', { headers: CK })).text();
+            const arch = await (await fetch(SITE + '/interviews/', { headers: CK })).text();
             const urls = [...new Set([...arch.matchAll(/href="(?:https?:\/\/[^"\/]+)?(\/20\d\d\/\d\d\/\d\d\/[a-z0-9-]+)\/?"/g)].map(m => m[1]))];
             console.error('постов на странице раздела:', urls.length);
+            if (!urls.length) {
+              await screamOut('Нарезка превью интервью не видит статей раздела',
+                'Воркфлоу iv-covers: страница ' + SITE + '/interviews/ не дала ни одной ссылки на статью. Пока это так, свежие интервью выходят на главную без ролика.');
+              console.error('FATAL: раздел /interviews/ не дал ни одной статьи');
+              process.exit(1);
+            }
+            await screamOff();
             const list = [];
             for (const u of urls) {
               let html = '';
-              try { html = await (await fetch(TEST + u + '/', { headers: CK })).text(); } catch { continue; }
+              try { html = await (await fetch(SITE + u + '/', { headers: CK })).text(); } catch { continue; }
               const mi = html.indexOf('<div class="cs-entry__media');
               if (mi < 0) continue;
               const block = html.slice(mi, mi + 3000);
