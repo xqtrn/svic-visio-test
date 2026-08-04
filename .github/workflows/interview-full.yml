@@ -56,7 +56,7 @@ jobs:
             # запись мы не публикуем).
             FMT='bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b'
             yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
-              --extractor-args "youtube:player_client=web_safari,web,tv;fetch_pot=always" \
+              --extractor-args "youtube:player_client=web_safari,web,tv;fetch_pot=always;formats=missing_pot" \
               -f "$FMT" --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" \
             || yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
               --extractor-args "youtube:player_client=web_safari,web,ios,android" \
