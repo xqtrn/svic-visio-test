@@ -25,6 +25,13 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           python3 -m pip install --quiet --upgrade yt-dlp
+          # HD БЕЗ ТОКЕНА YOUTUBE НЕ ОТДАЁТ (замер 2026-08-04): web-клиентам он
+          # возвращает одни раскадровки, а мобильным — прогрессивные 360p. Провайдер
+          # ниже выдаёт proof-of-origin токен, с которым открываются раздельные
+          # потоки, то есть настоящее 720/1080. Всё живёт внутри прогона.
+          docker run -d --name pot --restart unless-stopped -p 4416:4416 brainicism/bgutil-ytdlp-pot-provider || echo "провайдер не поднялся"
+          python3 -m pip install --quiet bgutil-ytdlp-pot-provider || true
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:4416/ping >/dev/null && { echo "провайдер токена готов"; break; }; sleep 3; done
       - name: download full interview masters
         env:
           GH_TOKEN: ${{ github.token }}
@@ -38,10 +45,17 @@ jobs:
             # Клиенты web_safari/web отдают раздельные потоки (DASH) — из них и берётся HD.
             # Порядок с ios первым давал прогрессивный 360p: интервью на странице выглядело
             # хуже, чем на YouTube (2026-08-04). Ступени ниже 720 берём только как аварию.
-            yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
+            # Сначала — с токеном и БЕЗ прокси: токен привязан к адресу, с которого
+            # он получен, и через чужой выход теряет силу. Не вышло — прежний путь
+            # через домашний узел (там потолок 360p, такую запись мы не публикуем).
+            FMT='bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b'
+            yt-dlp --no-playlist --no-progress --no-warnings \
+              --extractor-args "youtube:player_client=web_safari,web;fetch_pot=always" \
+              -f "$FMT" --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" \
+            || yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
               --extractor-args "youtube:player_client=web_safari,web,ios,android" \
-              -f 'bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b' \
-              --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" || { FAIL=$((FAIL+1)); continue; }
+              -f "$FMT" --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" \
+            || { FAIL=$((FAIL+1)); continue; }
             SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 200000 ] && { echo "слишком мал — не запись"; FAIL=$((FAIL+1)); continue; }
             SRCH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 in.mp4 | head -1)
             echo "исходная высота: ${SRCH:-?}"
