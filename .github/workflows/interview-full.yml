@@ -57,6 +57,19 @@ jobs:
               -f "$FMT" --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" \
             || { FAIL=$((FAIL+1)); continue; }
             SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 200000 ] && { echo "слишком мал — не запись"; FAIL=$((FAIL+1)); continue; }
+            # СУБТИТРЫ (Артур 2026-08-04 «нет титр»): у интервью на YouTube они есть —
+            # свои или автоматические. Забираем вместе с записью и кладём рядом, иначе
+            # наш плеер честно не покажет кнопку CC, а зритель потеряет то, что было.
+            rm -f subs.en.vtt "full-$VID.en.vtt"
+            yt-dlp --no-playlist --no-warnings --skip-download --proxy "$PENGUIN_SOCKS" \
+              --extractor-args "youtube:player_client=web_safari,web,ios,android" \
+              --write-subs --write-auto-subs --sub-langs "en.*,en" --convert-subs vtt \
+              -o "subs.%(ext)s" "https://www.youtube.com/watch?v=$VID" || echo "субтитров нет"
+            SUB=$(ls subs*.vtt 2>/dev/null | head -1)
+            if [ -n "$SUB" ]; then
+              mv "$SUB" "full-$VID.en.vtt"
+              gh release upload clips2 "full-$VID.en.vtt" -R "$GITHUB_REPOSITORY" --clobber && echo "субтитры выложены" || echo "субтитры не залились"
+            fi
             SRCH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 in.mp4 | head -1)
             echo "исходная высота: ${SRCH:-?}"
             # интервью в 360p на всю ширину колонки выглядит хуже, чем вставка YouTube —
