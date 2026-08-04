@@ -11,8 +11,10 @@ on:
   workflow_dispatch:
     inputs:
       ids:
-        description: 'YouTube id через запятую'
-        required: true
+        description: 'YouTube id через запятую (пусто — взять всё, чего не хватает)'
+        required: false
+  schedule:
+    - cron: '37 */6 * * *'  # после нарезки обложек: свежее интервью получает полную запись за часы
 permissions: { contents: write }
 concurrency: { group: interview-full, cancel-in-progress: false }
 jobs:
@@ -25,13 +27,45 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           python3 -m pip install --quiet --upgrade yt-dlp
+      # СПИСОК САМ (Артур 2026-08-04 «применить плеер везде»): без ручного ввода
+      # берём интервью с публичного сайта и отбрасываем те, чья запись уже лежит в
+      # хранилище. Новое интервью попадает сюда в ближайший шестичасовой прогон.
+      - name: build list of missing masters
+        id: list
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          if [ -n "${{ inputs.ids }}" ]; then echo "ids=${{ inputs.ids }}" >> $GITHUB_OUTPUT; exit 0; fi
+          HAVE=$(gh release view clips2 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | grep '^full-' | sed 's/^full-//;s/\.mp4$//' | sort -u)
+          printf '%s\n' "$HAVE" > have.txt
+          node - <<'EOF' > wanted.txt
+          const fs=require('fs');
+          const SITE='https://siliconvalleyinvestclub.com';
+          (async()=>{
+            const arch=await (await fetch(SITE+'/interviews/',{headers:{'User-Agent':'Mozilla/5.0'}})).text();
+            const urls=[...new Set([...arch.matchAll(/href="(?:https?:\/\/[^"\/]+)?(\/20\d\d\/\d\d\/\d\d\/[a-z0-9-]+)\/?"/g)].map(m=>m[1]))];
+            if(!urls.length){ console.error('FATAL: раздел /interviews/ пуст'); process.exit(1); }
+            const have=new Set(fs.readFileSync('have.txt','utf8').split('\n').map(x=>x.trim()).filter(Boolean));
+            const out=[];
+            for(const u of urls){
+              let html=''; try{ html=await (await fetch(SITE+u+'/',{headers:{'User-Agent':'Mozilla/5.0'}})).text(); }catch{ continue; }
+              const body=html.slice(Math.max(0,html.indexOf('entry-content')));
+              const m=body.match(/youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?v=)([A-Za-z0-9_-]{11})/);
+              if(m && !have.has(m[1]) && !out.includes(m[1])) out.push(m[1]);
+            }
+            console.log(out.join(','));
+            console.error('не хватает записей:', out.length);
+          })().catch(e=>{ console.error('FATAL',e); process.exit(1); });
+          EOF
+          echo "ids=$(cat wanted.txt)" >> $GITHUB_OUTPUT
       - name: download full interview masters
         env:
           GH_TOKEN: ${{ github.token }}
           PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
         run: |
           OK=0; FAIL=0
-          for VID in $(echo "${{ inputs.ids }}" | tr ',' ' '); do
+          IDS="${{ steps.list.outputs.ids }}"
+          [ -z "$IDS" ] && { echo "нечего забирать — все интервью уже у нас"; exit 0; }
+          for VID in $(echo "$IDS" | tr ',' ' '); do
             echo "=== $VID ==="
             rm -f in.mp4 "full-$VID.mp4"
             sleep 8   # пауза перед YouTube: поток запросов включает анти-бот
