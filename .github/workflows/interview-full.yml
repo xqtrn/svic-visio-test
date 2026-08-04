@@ -47,7 +47,15 @@ jobs:
             echo "исходная высота: ${SRCH:-?}"
             # интервью в 360p на всю ширину колонки выглядит хуже, чем вставка YouTube —
             # такую запись не выкладываем, лучше оставить прежний фасад
-            [ -n "$SRCH" ] && [ "$SRCH" -lt 480 ] && { echo "СЛИШКОМ НИЗКОЕ КАЧЕСТВО ($SRCH) — не выкладываю"; FAIL=$((FAIL+1)); continue; }
+            if [ -n "$SRCH" ] && [ "$SRCH" -lt 480 ]; then
+              echo "СЛИШКОМ НИЗКОЕ КАЧЕСТВО ($SRCH) — не выкладываю. Что вообще отдаёт YouTube:"
+              for CL in web_safari web tv mweb ios android; do
+                echo "--- клиент $CL:"
+                yt-dlp --no-playlist --no-warnings --skip-download --proxy "$PENGUIN_SOCKS" \
+                  --extractor-args "youtube:player_client=$CL" -F "https://www.youtube.com/watch?v=$VID" 2>&1 | tail -12
+              done
+              FAIL=$((FAIL+1)); continue
+            fi
             # faststart обязателен: без него iOS читает заголовок в конце файла и зацикливает первые секунды
             H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 in.mp4 | head -1)
             if [ -n "$H" ] && [ "$H" -gt 1080 ]; then
