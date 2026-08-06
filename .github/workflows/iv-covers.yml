@@ -71,9 +71,32 @@ jobs:
             let curated = [];
             try { curated = JSON.parse(fs.readFileSync('iv-list.json', 'utf8')); } catch {}
             const seg = Object.fromEntries(curated.map(x => [x.v, { s: x.s, e: x.e }]));
-            // посты раздела со страницы (живая истина; 301 /tag/ уже учтён чистым адресом)
-            const arch = await (await fetch(SITE + '/interviews/', { headers: CK })).text();
-            const urls = [...new Set([...arch.matchAll(/href="(?:https?:\/\/[^"\/]+)?(\/20\d\d\/\d\d\/\d\d\/[a-z0-9-]+)\/?"/g)].map(m => m[1]))];
+            // посты раздела со страницы (живая истина; 301 /tag/ уже учтён чистым адресом).
+            // РЕТРАИ (2026-08-05): прогон 20:13 UTC поймал страницу в момент пересборки
+            // кэша WP — 200 без единой статьи — и поднял карточку на /developement,
+            // хотя через час всё было на месте. Один пустой ответ ≠ поломка раздела:
+            // до крика пробуем ещё трижды с паузами, не-200 считаем промахом тоже.
+            let arch = '';
+            for (let attempt = 1; attempt <= 4; attempt++) {
+              try {
+                const res = await fetch(SITE + '/interviews/?_cb=' + Date.now(), { headers: CK });
+                if (res.ok) arch = await res.text();
+              } catch {}
+              if (arch) break;
+              console.error(`попытка ${attempt}: раздел не отдал страницу, жду и повторяю`);
+              await new Promise(r => setTimeout(r, attempt * 30000));
+            }
+            let urls = [...new Set([...arch.matchAll(/href="(?:https?:\/\/[^"\/]+)?(\/20\d\d\/\d\d\/\d\d\/[a-z0-9-]+)\/?"/g)].map(m => m[1]))];
+            // страница есть, но статей в ней нет — возможна пересборка кэша: до трёх повторов
+            for (let attempt = 1; arch && !urls.length && attempt <= 3; attempt++) {
+              console.error(`попытка ${attempt}: страница без статей, жду и повторяю`);
+              await new Promise(r => setTimeout(r, attempt * 30000));
+              try {
+                const res = await fetch(SITE + '/interviews/?_cb=' + Date.now(), { headers: CK });
+                if (res.ok) arch = await res.text();
+              } catch {}
+              urls = [...new Set([...arch.matchAll(/href="(?:https?:\/\/[^"\/]+)?(\/20\d\d\/\d\d\/\d\d\/[a-z0-9-]+)\/?"/g)].map(m => m[1]))];
+            }
             console.error('постов на странице раздела:', urls.length);
             if (!urls.length) {
               await screamOut('Нарезка превью интервью не видит статей раздела',
@@ -89,10 +112,15 @@ jobs:
               const mi = html.indexOf('<div class="cs-entry__media');
               if (mi < 0) continue;
               const block = html.slice(mi, mi + 3000);
-              // vid героя: 11-симв YouTube-id атрибутом; атрибут другой длины =
-              // самохост (играет сам, обложка не нужна); wrapper вовсе без vid =
-              // YT-натив/фасад (у них id живёт embed-ссылкой в теле поста)
+              // vid героя: 11-симв YouTube-id атрибутом; full-<11-симв> = полный
+              // самохост интервью (interview-full.yml): в герое играет целиком, но
+              // карточке нужна 24-с обложка — vid достаём из префикса, НЕ пропускаем
+              // (2026-08-05: Morpho 04.08 и Emily Yuan 28.07 уехали на главную без
+              // ролика — их full-<id> попадал под ветку «самохост, обложка не нужна»);
+              // атрибут другой длины = короткий самохост (играет сам, обложка не нужна);
+              // wrapper вовсе без vid = YT-натив/фасад (id живёт embed-ссылкой в теле)
               let vid = (block.match(/data-(?:svic-vid|video-id)="([A-Za-z0-9_-]{11})"/) || [])[1];
+              if (!vid) vid = (block.match(/data-(?:svic-vid|video-id)="full-([A-Za-z0-9_-]{11})"/) || [])[1];
               if (!vid) {
                 const anyVid = (block.match(/data-(?:svic-vid|video-id)="([A-Za-z0-9_-]+)"/) || [])[1];
                 if (anyVid) continue; // самохост
