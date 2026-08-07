@@ -11,6 +11,9 @@ on:
       cookies:
         description: 'name=value;name2=value2 (host-only)'
         default: ''
+      localstorage:
+        description: 'key=value;key2=value2 set before page load (e.g. TOU flag)'
+        default: ''
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -28,6 +31,7 @@ jobs:
           PATHS: ${{ inputs.paths }}
           # cookie из секрета — публичный репо, JWT в input светился бы в логах ран-а
           COOKIES: ${{ inputs.cookies || secrets.UI_AUDIT_COOKIES }}
+          LOCALSTORAGE: ${{ inputs.localstorage }}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: ui-audit-out, path: out/ }

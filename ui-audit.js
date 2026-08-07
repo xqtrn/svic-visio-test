@@ -15,6 +15,7 @@ const BASE = (process.env.BASE || '').replace(/\/$/, '');
 if (!BASE) { console.error('BASE env required'); process.exit(2); }
 const PATHS = (process.env.PATHS || '/').trim().split(/\s+/);
 const COOKIES = (process.env.COOKIES || '').trim();
+const LOCALSTORAGE = (process.env.LOCALSTORAGE || '').trim(); // "key=value;key2=value2" — set before page scripts run
 const host = new URL(BASE).hostname;
 
 let step = 'init';
@@ -34,6 +35,16 @@ setInterval(() => console.log('[hb]', step), 15000).unref();
       const [name, ...rest] = kv.trim().split('=');
       return { name, value: rest.join('='), domain: host, path: '/' };
     }));
+  }
+  if (LOCALSTORAGE) {
+    // e.g. TOU acceptance flags — without this the /test/ marketplace shoots its Terms modal, not the UI
+    const pairs = LOCALSTORAGE.split(';').map(kv => {
+      const [k, ...rest] = kv.trim().split('=');
+      return [k, rest.join('=')];
+    }).filter(([k]) => k);
+    await ctx.addInitScript((entries) => {
+      for (const [k, v] of entries) { try { localStorage.setItem(k, v); } catch (e) {} }
+    }, pairs);
   }
 
   const report = { base: BASE, engine: 'webkit-ios', viewport: '390x844@2', pages: [] };
