@@ -1,0 +1,26 @@
+name: closed-task-desktop-audit
+on:
+  workflow_dispatch:
+    inputs:
+      base: { required: true, type: string }
+      paths: { required: true, type: string }
+      expected: { required: true, type: string }
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - run: npx playwright install --with-deps chromium
+      - run: rm -rf out-desktop && node closed-task-desktop-audit.js
+        env:
+          BASE: ${{ inputs.base }}
+          PATHS: ${{ inputs.paths }}
+          EXPECTED: ${{ inputs.expected }}
+          COOKIES: ${{ secrets.UI_AUDIT_COOKIES }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: closed-task-desktop-audit-out, path: out-desktop/ }
