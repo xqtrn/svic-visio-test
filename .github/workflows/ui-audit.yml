@@ -14,6 +14,12 @@ on:
       localstorage:
         description: 'key=value;key2=value2 set before page load (e.g. TOU flag)'
         default: ''
+      mode:
+        description: 'mobile or desktop'
+        default: 'mobile'
+      expected:
+        description: 'Space-separated exact hrefs for desktop mode'
+        default: ''
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -23,15 +29,30 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
-      - run: npx playwright install --with-deps webkit
-      - run: sudo apt-get install -y gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad >/dev/null 2>&1 || true
-      - run: rm -rf out && node ui-audit.js
+      - if: inputs.mode != 'desktop'
+        run: npx playwright install --with-deps webkit
+      - if: inputs.mode == 'desktop'
+        run: npx playwright install --with-deps chromium
+      - if: inputs.mode != 'desktop'
+        run: sudo apt-get install -y gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad >/dev/null 2>&1 || true
+      - if: inputs.mode != 'desktop'
+        run: rm -rf out && node ui-audit.js
         env:
           BASE: ${{ inputs.base }}
           PATHS: ${{ inputs.paths }}
-          # cookie из секрета — публичный репо, JWT в input светился бы в логах ран-а
           COOKIES: ${{ inputs.cookies || secrets.UI_AUDIT_COOKIES }}
           LOCALSTORAGE: ${{ inputs.localstorage }}
+      - if: inputs.mode == 'desktop'
+        run: rm -rf out-desktop && node closed-task-desktop-audit.js
+        env:
+          BASE: ${{ inputs.base }}
+          PATHS: ${{ inputs.paths }}
+          EXPECTED: ${{ inputs.expected }}
+          COOKIES: ${{ inputs.cookies || secrets.UI_AUDIT_COOKIES }}
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: ui-audit-out, path: out/ }
+        with:
+          name: ui-audit-out
+          path: |
+            out/
+            out-desktop/
