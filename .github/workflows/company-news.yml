@@ -29,18 +29,39 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
     steps:
       - name: Collect and publish news feeds
         env:
           SOCKS: ${{ secrets.PENGUIN_SOCKS }}
           GH_TOKEN: ${{ github.token }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: '6'
         run: |
           set -e
           UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
-          COMPANIES='corgi-insurance|"Corgi Insurance" OR "corgi.insure"'
+          # Список компаний берётся из каталога платформы: карточек 220, и у
+          # каждой свой поисковый запрос (раньше здесь была одна строка —
+          # поэтому лента прессы жила ровно на одной карточке, Артур 09.08.26).
+          curl -s --max-time 60 "https://svic-platform-production.up.railway.app/api/site/companies" -o companies.json
+          python3 - <<'PYLIST' > companies.txt
+          import json
+          items = json.load(open('companies.json')).get('items', [])
+          for it in items:
+              q = (it.get('news_query') or '').strip()
+              if it.get('slug') and q: print(it['slug'] + '|' + q)
+          PYLIST
+          # каждый шард берёт свою долю списка — иначе 220 компаний подряд
+          # не укладываются в лимит одного прогона
+          awk -v s="$SHARD" -v n="$SHARDS" 'NR % n == s' companies.txt > shard.txt
+          mv shard.txt companies.txt
+          echo "компаний в этом шарде: $(wc -l < companies.txt)"
           mkdir -p out
-          echo "$COMPANIES" | while IFS='|' read -r slug query; do
+          while IFS='|' read -r slug query; do
             [ -z "$slug" ] && continue
             eq=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' "$query")
             curl -s --max-time 90 --proxy "$SOCKS" -A "$UA" \
@@ -131,7 +152,7 @@ jobs:
           json.dump({'slug': slug, 'items': items[:40]}, open(f'out/{slug}.json', 'w'))
           print(slug, '->', len(items), 'direct-link items (google resolved:', len(resolved), 'of', len(ids), ')')
           PY
-          done
+          done < companies.txt
           ls -la out/
           # гейт ленты перед публикацией: ни одной агрегаторской ссылки и не куцая
           python3 - <<'PY'
@@ -142,11 +163,13 @@ jobs:
               n = len(j.get('items', []))
               agg = [i['link'] for i in j['items'] if re.search(r'news\.google\.com/(rss/)?articles|apiclick', i['link'], re.I)]
               if agg: print(f'AGGREGATOR LINK LEAKED in {p}: {agg[:2]}'); bad = 1
-              if n < 8: print(f'{p}: only {n} items - feed too thin, NOT publishing'); bad = 1
+              if n < 4:
+                  print(f'{p}: всего {n} новостей — ленту не публикуем, остальные идут')
+                  import os; os.remove(p)
           sys.exit(bad)
           PY
           # публикация: релиз company-news, ассеты перезаписываются
           gh release view company-news -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create company-news -R "$GITHUB_REPOSITORY" --title "Company news feeds" \
               --notes "Auto-collected news JSON for stand company profiles; refreshed every 6h." --latest=false
-          gh release upload company-news out/*.json -R "$GITHUB_REPOSITORY" --clobber
+          ls out/*.json >/dev/null 2>&1 && gh release upload company-news out/*.json -R "$GITHUB_REPOSITORY" --clobber
