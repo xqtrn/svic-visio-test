@@ -63,9 +63,16 @@ jobs:
           mkdir -p out
           while IFS='|' read -r slug query; do
             [ -z "$slug" ] && continue
-            eq=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' "$query")
-            curl -s --max-time 90 --proxy "$SOCKS" -A "$UA" \
-              "https://news.google.com/rss/search?q=${eq}&hl=en-US&gl=US&ceid=US:en" -o "raw-$slug-g.xml" || true
+            # Форма запроса решает всё: «"Имя" OR "домен"» Bing понимает как
+            # редкую фразу и отдаёт ПУСТО, а простое имя в кавычках — 10-15
+            # статей (проверено 10 авг на Chainalysis, Bitso, Ayar Labs,
+            # Together AI). Берём первую часть до OR — это имя компании.
+            name=$(printf '%s' "$query" | sed -E 's/[[:space:]]*OR[[:space:]].*$//; s/^"//; s/"$//')
+            eq=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote("\""+sys.argv[1]+"\""))' "$name")
+            # Google News RSS с 10 авг 2026 отвечает 503 и через резидентный
+            # выход, и напрямую — источник мёртв, оставлен пустой файл, чтобы
+            # разбор не менялся. Лента живёт на Bing.
+            : > "raw-$slug-g.xml"
             curl -s --max-time 90 --proxy "$SOCKS" -A "$UA" \
               "https://www.bing.com/news/search?q=${eq}&format=rss" -o "raw-$slug-b.xml" || true
             UA="$UA" python3 - "$slug" <<'PY'
