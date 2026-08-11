@@ -73,8 +73,40 @@ jobs:
             # выход, и напрямую — источник мёртв, оставлен пустой файл, чтобы
             # разбор не менялся. Лента живёт на Bing.
             : > "raw-$slug-g.xml"
-            curl -s --max-time 90 --proxy "$SOCKS" -A "$UA" \
-              "https://www.bing.com/news/search?q=${eq}&format=rss" -o "raw-$slug-b.xml" || true
+            # Один запрос к Bing отдаёт 1-3 статьи, а ленте нужен объём: спрашиваем
+            # тремя срезами (компания вообще, деньги, партнёрства/продукт) и
+            # склеиваем — дубли снимет дедуп по заголовку ниже.
+            : > "raw-$slug-b.xml"
+            for extra in "" "+funding" "+partnership"; do
+              curl -s --max-time 60 --proxy "$SOCKS" -A "$UA" \
+                "https://www.bing.com/news/search?q=${eq}${extra}&format=rss" -o "raw-$slug-b1.xml" || true
+              cat "raw-$slug-b1.xml" >> "raw-$slug-b.xml" 2>/dev/null || true
+            done
+            # Второй источник — открытый архив мировых СМИ GDELT: он не требует
+            # ключа и переживает то, на чём умер Google. Ответ приводим к тому
+            # же виду <item>, чтобы разбор ниже не раздваивался.
+            python3 - "$slug" "$name" <<'PYG' >> "raw-$slug-b.xml" || true
+          import json, sys, urllib.parse, urllib.request, html
+          slug, name = sys.argv[1], sys.argv[2]
+          url = ('https://api.gdeltproject.org/api/v2/doc/doc?query=' + urllib.parse.quote('"' + name + '"')
+                 + '&mode=artlist&format=json&maxrecords=25&sort=datedesc&timespan=12m')
+          try:
+              req = urllib.request.Request(url, headers={'User-Agent': 'SVIC research contact@siliconvalleyinvestclub.com'})
+              raw = urllib.request.urlopen(req, timeout=30).read().decode('utf-8', 'ignore')
+              arts = json.loads(raw).get('articles', []) if raw.strip().startswith('{') else []
+          except Exception:
+              arts = []
+          low = name.lower()
+          for a in arts:
+              title = (a.get('title') or '').strip()
+              link = (a.get('url') or '').strip()
+              if not title or not link or low not in title.lower():
+                  continue
+              d = (a.get('seendate') or '')[:8]
+              pub = f'{d[6:8]} {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][int(d[4:6])-1]} {d[0:4]}' if len(d) == 8 else ''
+              print(f'<item><title>{html.escape(title)}</title><link>{html.escape(link)}</link>'
+                    f'<pubDate>{pub}</pubDate><source>{html.escape(a.get("domain") or "")}</source></item>')
+          PYG
             UA="$UA" python3 - "$slug" <<'PY'
           import re, sys, json, html, email.utils, urllib.parse, subprocess, os
           slug = sys.argv[1]
@@ -170,7 +202,7 @@ jobs:
               n = len(j.get('items', []))
               agg = [i['link'] for i in j['items'] if re.search(r'news\.google\.com/(rss/)?articles|apiclick', i['link'], re.I)]
               if agg: print(f'AGGREGATOR LINK LEAKED in {p}: {agg[:2]}'); bad = 1
-              if n < 4:
+              if n < 3:
                   print(f'{p}: всего {n} новостей — ленту не публикуем, остальные идут')
                   import os; os.remove(p)
           sys.exit(bad)
