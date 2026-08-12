@@ -21,6 +21,10 @@ on:
   schedule:
     - cron: '23 */6 * * *'
   workflow_dispatch: {}
+  # правка самого сборщика пересобирает ленты сразу, не дожидаясь слота cron
+  push:
+    branches: [main]
+    paths: ['.github/workflows/company-news.yml']
 permissions:
   contents: write
 concurrency:
