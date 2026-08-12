@@ -33,7 +33,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -65,8 +65,16 @@ jobs:
           mv shard.txt companies.txt
           echo "компаний в этом шарде: $(wc -l < companies.txt)"
           mkdir -p out
+          # релиз готовим ДО цикла и грузим партиями по 20 компаний: прогон
+          # 12.08.26 умер по таймауту в самом конце и потерял ВСЕ собранные
+          # ленты — с промежуточной загрузкой таймаут стоит максимум партию
+          gh release view company-news -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create company-news -R "$GITHUB_REPOSITORY" --title "Company news feeds" \
+              --notes "Auto-collected news JSON for stand company profiles; refreshed every 6h." --latest=false
+          i=0
           while IFS='|' read -r slug query; do
             [ -z "$slug" ] && continue
+            i=$((i + 1))
             # Форма запроса решает всё: «"Имя" OR "домен"» Bing понимает как
             # редкую фразу и отдаёт ПУСТО, а простое имя в кавычках — 10-15
             # статей (проверено 10 авг на Chainalysis, Bitso, Ayar Labs,
@@ -209,6 +217,24 @@ jobs:
           json.dump({'slug': slug, 'items': items[:40]}, open(f'out/{slug}.json', 'w'))
           print(slug, '->', len(items), 'direct-link items (google resolved:', len(resolved), 'of', len(ids), ')')
           PY
+            # гейт ленты — сразу по файлу, ДО любой загрузки: партиями уходят
+            # только проверенные ленты (не куцые и без агрегаторских ссылок)
+            python3 - "$slug" <<'PYGATE'
+          import json, re, sys, os
+          p = f'out/{sys.argv[1]}.json'
+          j = json.load(open(p))
+          n = len(j.get('items', []))
+          agg = [i['link'] for i in j['items'] if re.search(r'news\.google\.com/(rss/)?articles|apiclick', i['link'], re.I)]
+          if agg:
+              print(f'AGGREGATOR LINK LEAKED in {p}: {agg[:2]}'); sys.exit(1)
+          if n < 3:
+              print(f'{p}: всего {n} новостей — ленту не публикуем')
+              os.remove(p)
+          PYGATE
+            # промежуточная публикация каждые 20 компаний (см. комментарий у цикла)
+            if [ $((i % 20)) -eq 0 ]; then
+              ls out/*.json >/dev/null 2>&1 && gh release upload company-news out/*.json -R "$GITHUB_REPOSITORY" --clobber || true
+            fi
           done < companies.txt
           ls -la out/
           # гейт ленты перед публикацией: ни одной агрегаторской ссылки и не куцая
