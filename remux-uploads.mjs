@@ -174,9 +174,13 @@ async function processAsset(asset) {
       ], { encoding: 'utf8' }).trim();
       const srcH = Number(probe) || 0;
       const card = path.join(tmp, 'card.mp4');
-      const vf = srcH > 720 ? ['-vf', 'scale=-2:720'] : [];
+      /* yuvj420p (full-range) у cobalt-исходников часть аппаратных декодеров
+         не рисует вовсе (2026-08-12): конверсию диапазона делает ТОЛЬКО
+         scale:out_range=tv — ни -pix_fmt, ни format= тег диапазона не снимают
+         (проверено ffmpeg 8.x на 4K-мастере OpenAI). */
+      const vf = ['-vf', (srcH > 720 ? 'scale=-2:720:out_range=tv' : 'scale=trunc(iw/2)*2:trunc(ih/2)*2:out_range=tv') + ',format=yuv420p'];
       execFileSync('ffmpeg', ['-y', '-i', output, ...vf,
-        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '27',
+        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '27', '-color_range', 'tv',
         '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', card], { stdio: 'pipe' });
       // копия обязана быть ЛЕГЧЕ мастера, иначе она бессмысленна — кладём всегда,
       // но если вдруг вышла тяжелее (короткий и уже сжатый ролик), оставляем мастер
