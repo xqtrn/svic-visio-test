@@ -20,7 +20,12 @@ name: company-news
 on:
   schedule:
     - cron: '23 */6 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      only_slug:
+        description: 'Optional company slug for a bounded repair run'
+        required: false
+        type: string
   # правка самого сборщика пересобирает ленты сразу, не дожидаясь слота cron
   push:
     branches: [main]
@@ -45,6 +50,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SHARD: ${{ matrix.shard }}
           SHARDS: '6'
+          ONLY_SLUG: ${{ inputs.only_slug || '' }}
         run: |
           set -e
           UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -59,10 +65,20 @@ jobs:
               q = (it.get('news_query') or '').strip()
               if it.get('slug') and q: print(it['slug'] + '|' + q)
           PYLIST
+          # A repair dispatch may target one company. Keep the same collector,
+          # validation and release transport as the scheduled class-wide run.
+          if [ -n "$ONLY_SLUG" ]; then
+            awk -F'|' -v slug="$ONLY_SLUG" '$1 == slug' companies.txt > only-company.txt
+            mv only-company.txt companies.txt
+          fi
           # каждый шард берёт свою долю списка — иначе 220 компаний подряд
           # не укладываются в лимит одного прогона
-          awk -v s="$SHARD" -v n="$SHARDS" 'NR % n == s' companies.txt > shard.txt
-          mv shard.txt companies.txt
+          if [ -z "$ONLY_SLUG" ]; then
+            awk -v s="$SHARD" -v n="$SHARDS" 'NR % n == s' companies.txt > shard.txt
+            mv shard.txt companies.txt
+          elif [ "$SHARD" != '0' ]; then
+            : > companies.txt
+          fi
           echo "компаний в этом шарде: $(wc -l < companies.txt)"
           mkdir -p out
           # релиз готовим ДО цикла и грузим партиями по 20 компаний: прогон
@@ -254,7 +270,7 @@ jobs:
           agg = [i['link'] for i in j['items'] if re.search(r'news\.google\.com/(rss/)?articles|apiclick', i['link'], re.I)]
           if agg:
               print(f'AGGREGATOR LINK LEAKED in {p}: {agg[:2]}'); sys.exit(1)
-          if n < 3:
+          if n < 8:
               print(f'{p}: всего {n} новостей — ленту не публикуем')
               os.remove(p)
           PYGATE
@@ -273,7 +289,7 @@ jobs:
               n = len(j.get('items', []))
               agg = [i['link'] for i in j['items'] if re.search(r'news\.google\.com/(rss/)?articles|apiclick', i['link'], re.I)]
               if agg: print(f'AGGREGATOR LINK LEAKED in {p}: {agg[:2]}'); bad = 1
-              if n < 3:
+              if n < 8:
                   print(f'{p}: всего {n} новостей — ленту не публикуем, остальные идут')
                   import os; os.remove(p)
           sys.exit(bad)
