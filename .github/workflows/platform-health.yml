@@ -46,6 +46,18 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
         run: node company-quality-repair.mjs
+  company_quality_rebuild:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Rebuild correctable profile gaps and wait for completion
+        env:
+          SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
+        run: node company-quality-rebuild.mjs
   health:
     runs-on: ubuntu-latest
     steps:
