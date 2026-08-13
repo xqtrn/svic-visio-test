@@ -33,6 +33,19 @@ jobs:
           path: out/company-quality/profiles-before.json
           if-no-files-found: error
           retention-days: 14
+  company_quality_repair:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm init -y >/dev/null 2>&1 && npm i pg >/dev/null 2>&1
+      - name: Restore profile-gap ledger and dead links
+        env:
+          DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
+        run: node company-quality-repair.mjs
   health:
     runs-on: ubuntu-latest
     steps:
