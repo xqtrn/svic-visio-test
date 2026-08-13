@@ -60,7 +60,7 @@ setInterval(() => console.log('[hb]', step), 15000).unref();
     try {
       await page.goto(BASE + path, { waitUntil: 'commit', timeout: 60000 });
       await page.waitForLoadState('domcontentloaded', { timeout: 60000 }).catch(() => entry.defects.push('dcl-timeout'));
-      await page.waitForTimeout(4000);
+      await page.waitForTimeout(parseInt(process.env.SETTLE_MS, 10) || 4000);
       const probe = await page.evaluate(() => ({
         title: document.title.slice(0, 80),
         docHeight: document.documentElement.scrollHeight,

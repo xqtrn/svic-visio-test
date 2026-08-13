@@ -14,6 +14,9 @@ on:
       localstorage:
         description: 'key=value;key2=value2 set before page load (e.g. TOU flag)'
         default: ''
+      settle:
+        description: 'ms to wait after DOMContentLoaded before screenshots'
+        default: '4000'
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -32,6 +35,7 @@ jobs:
           # cookie из секрета — публичный репо, JWT в input светился бы в логах ран-а
           COOKIES: ${{ inputs.cookies || secrets.UI_AUDIT_COOKIES }}
           LOCALSTORAGE: ${{ inputs.localstorage }}
+          SETTLE_MS: ${{ inputs.settle }}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: ui-audit-out, path: out/ }
