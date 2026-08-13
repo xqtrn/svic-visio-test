@@ -101,6 +101,33 @@ jobs:
               fi
               cat "raw-$slug-b1.xml" >> "raw-$slug-b.xml" 2>/dev/null || true
             done
+            # Нишевые компании (Corgi Insurance, 12.08.26): шесть срезов выше
+            # дают <8 новостей даже после дедупа — лента «куцая» по пробе.
+            # Добираем контекстными срезами: отраслевое слово из имени
+            # (последнее слово — «Insurance», «Health», «Labs»…) и сам домен.
+            if [ "$(grep -o '<item>' "raw-$slug-b.xml" 2>/dev/null | wc -l)" -lt 12 ]; then
+              lastword=$(printf '%s' "$name" | awk '{print $NF}')
+              domain=$(printf '%s' "$query" | sed -E 's/^.*OR[[:space:]]*"//; s/"$//' | grep -E '\.' || true)
+              for extra in "+news" "+${lastword}"; do
+                curl -s --max-time 60 --proxy "$SOCKS" -A "$UA" \
+                  "https://www.bing.com/news/search?q=${eq}${extra}&format=rss" -o "raw-$slug-b1.xml" || true
+                if [ "$(grep -o '<item>' "raw-$slug-b1.xml" 2>/dev/null | wc -l)" -eq 0 ]; then
+                  curl -s --max-time 60 -A "$UA" \
+                    "https://www.bing.com/news/search?q=${eq}${extra}&format=rss" -o "raw-$slug-b1.xml" || true
+                fi
+                cat "raw-$slug-b1.xml" >> "raw-$slug-b.xml" 2>/dev/null || true
+              done
+              if [ -n "$domain" ]; then
+                dq=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' "$domain")
+                curl -s --max-time 60 --proxy "$SOCKS" -A "$UA" \
+                  "https://www.bing.com/news/search?q=${dq}&format=rss" -o "raw-$slug-b1.xml" || true
+                if [ "$(grep -o '<item>' "raw-$slug-b1.xml" 2>/dev/null | wc -l)" -eq 0 ]; then
+                  curl -s --max-time 60 -A "$UA" \
+                    "https://www.bing.com/news/search?q=${dq}&format=rss" -o "raw-$slug-b1.xml" || true
+                fi
+                cat "raw-$slug-b1.xml" >> "raw-$slug-b.xml" 2>/dev/null || true
+              fi
+            fi
             # Второй источник — открытый архив мировых СМИ GDELT: он не требует
             # ключа и переживает то, на чём умер Google. Ответ приводим к тому
             # же виду <item>, чтобы разбор ниже не раздваивался.
