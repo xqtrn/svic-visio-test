@@ -81,6 +81,10 @@ jobs:
           fi
           echo "компаний в этом шарде: $(wc -l < companies.txt)"
           mkdir -p out
+          if [ ! -s companies.txt ]; then
+            echo 'bounded repair: this shard has no target'
+            exit 0
+          fi
           # релиз готовим ДО цикла и грузим партиями по 20 компаний: прогон
           # 12.08.26 умер по таймауту в самом конце и потерял ВСЕ собранные
           # ленты — с промежуточной загрузкой таймаут стоит максимум партию
@@ -298,4 +302,20 @@ jobs:
           gh release view company-news -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create company-news -R "$GITHUB_REPOSITORY" --title "Company news feeds" \
               --notes "Auto-collected news JSON for stand company profiles; refreshed every 6h." --latest=false
-          ls out/*.json >/dev/null 2>&1 && gh release upload company-news out/*.json -R "$GITHUB_REPOSITORY" --clobber
+          if compgen -G 'out/*.json' >/dev/null; then
+            gh release upload company-news out/*.json -R "$GITHUB_REPOSITORY" --clobber
+          elif [ -n "$ONLY_SLUG" ]; then
+            # A transient source outage must not turn a valid production feed
+            # into a failed recovery. Prove the retained release asset still
+            # satisfies the exact same floor; fail if it is absent or thin.
+            curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/releases/download/company-news/${ONLY_SLUG}.json?run=${GITHUB_RUN_ID}" -o retained.json
+            python3 - "$ONLY_SLUG" <<'PYRETAIN'
+          import json, sys
+          j = json.load(open('retained.json'))
+          n = len(j.get('items', []))
+          if n < 8: raise SystemExit(f'{sys.argv[1]} retained feed is thin: {n}')
+          print(f'{sys.argv[1]} retained production feed verified: {n} items')
+          PYRETAIN
+          else
+            echo 'no feed reached the publication floor in this shard'
+          fi
