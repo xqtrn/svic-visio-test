@@ -16,10 +16,14 @@ import pg from 'pg';
 
 const AK = process.env.S3_ACCESS_KEY_ID || '';
 const SK = process.env.S3_SECRET_ACCESS_KEY || '';
-const REGION = process.env.S3_REGION || 'us-east-1';
-const BUCKET = process.env.S3_BUCKET || 'svic-video-archive';
+const REGION = process.env.S3_REGION || 'auto';
+const BUCKET = process.env.S3_BUCKET || 'svic-media';
 const MODEL = process.env.WHISPER_MODEL || 'small';
-const HOST = `${BUCKET}.s3.${REGION}.amazonaws.com`;
+// Хранилище — Cloudflare R2 (2026-08-15, AWS закрыл аккаунт по кредитам): S3-протокол,
+// но адрес путём (<endpoint>/<bucket>/<key>) и регион «auto». Пустой S3_ENDPOINT → AWS.
+const ENDPOINT = (process.env.S3_ENDPOINT || '').replace(/\/+$/, '');
+const HOST = ENDPOINT ? new URL(ENDPOINT).host : `${BUCKET}.s3.${REGION}.amazonaws.com`;
+const KEY_PREFIX = ENDPOINT ? '/' + encodeURIComponent(BUCKET) : '';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const requestedId = String(process.env.VIDEO_ID || '').replace(/[^A-Za-z0-9_-]/g, '');
 const pool = new pg.Pool({
@@ -32,7 +36,7 @@ function presign(method, key, expires = 900) {
   const date = amz.slice(0, 8);
   const scope = `${date}/${REGION}/s3/aws4_request`;
   const enc = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
-  const uri = '/' + key.split('/').filter(Boolean).map(enc).join('/');
+  const uri = KEY_PREFIX + '/' + key.split('/').filter(Boolean).map(enc).join('/');
   const q = {
     'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
     'X-Amz-Credential': `${AK}/${scope}`,

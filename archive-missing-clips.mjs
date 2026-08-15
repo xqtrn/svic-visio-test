@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 const HOST = process.env.SVIC_HOST || 'https://test.siliconvalleyinvestclub.com';
-const BUCKET = process.env.S3_BUCKET || 'svic-video-archive';
+const BUCKET = process.env.S3_BUCKET || 'svic-media';
 const PROXY = process.env.PENGUIN_SOCKS || '';
 const LIMIT = Number(process.env.MAX_CLIPS || 5);   // за один прогон, чтобы не жечь минуты
 
@@ -43,8 +43,11 @@ for (const r of rows) {
 console.log(`статей с роликом: ${rows.length} · без файла на сайте: ${wanted.length}`);
 if (!wanted.length) { console.log('✓ все ролики на месте'); process.exit(0); }
 
+// Хранилище — Cloudflare R2 (2026-08-15): S3-совместимо, адрес путём, регион «auto».
+// Пустой S3_ENDPOINT → классический AWS.
 const s3 = new S3Client({
-  region: process.env.S3_REGION || 'us-east-1',
+  region: process.env.S3_REGION || 'auto',
+  ...(process.env.S3_ENDPOINT ? { endpoint: process.env.S3_ENDPOINT, forcePathStyle: true } : {}),
   credentials: { accessKeyId: process.env.S3_ACCESS_KEY_ID, secretAccessKey: process.env.S3_SECRET_ACCESS_KEY },
 });
 
