@@ -42,6 +42,25 @@ jobs:
               if (total < 1000) problems.push(`админка: /api/admin/posts total=${total} (HTTP ${r.status}) — пустая выдача`);
             }
           } catch (e) { problems.push('health-пробы упали: ' + e.message); }
+          // ХРАНИЛИЩЕ МЕДИАТЕКИ ОТВЕЧАЕТ (2026-08-15). 15 августа AWS закрыл аккаунт по
+          // исчерпанию кредитов — картинки и видео пропали со всего сайта, и заметил это
+          // Артур по скриншоту, а не мы. Проба берёт ЖИВУЮ картинку с главной и требует
+          // настоящие байты: молчащее хранилище (умерший ключ, закрытый аккаунт, пустой
+          // бакет) теперь становится задачей в тот же час.
+          try {
+            const { rows } = await pool.query(
+              `SELECT coalesce(cdn_url, source_url) u FROM media WHERE mime LIKE 'image/%' ORDER BY id DESC LIMIT 3`);
+            for (const { u } of rows) {
+              if (!u || !u.startsWith('/')) continue;
+              const r = await fetch('https://siliconvalleyinvestclub.com' + u + (u.includes('?') ? '&' : '?') + 'probe=' + Date.now(),
+                { redirect: 'follow' });
+              const buf = r.ok ? await r.arrayBuffer() : null;
+              if (!r.ok || !buf || buf.byteLength < 512 || !String(r.headers.get('content-type') || '').startsWith('image/')) {
+                problems.push(`хранилище картинок не отдаёт файл: ${u} (HTTP ${r.status}, ${buf ? buf.byteLength : 0} байт)`);
+                break;
+              }
+            }
+          } catch (e) { problems.push('проверка хранилища картинок упала: ' + e.message); }
           // контент на месте: снимки опубликованных статей не должны исчезать
           try {
             const { rows } = await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish' AND (full_html IS NULL OR full_html='')`);
