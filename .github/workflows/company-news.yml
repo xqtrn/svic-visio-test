@@ -206,7 +206,9 @@ jobs:
                   link = (re.search(r'<link\s*/?>([^<]+)', seg) or re.search(r'<link>([\s\S]*?)</link>', seg))
                   link = link.group(1).strip() if link else ''
                   pd = pick('pubDate')
-                  try: ts = int(email.utils.parsedate_to_datetime(pd).timestamp())
+                  # ts — в МИЛЛИсекундах, как у остальных производителей ленты
+                  # (секунды тонули в сортировке стола новостей, 2026-08-19)
+                  try: ts = int(email.utils.parsedate_to_datetime(pd).timestamp()) * 1000
                   except Exception: ts = 0
                   dm = re.search(r'(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})', pd)
                   date = f'{dm.group(2)} {int(dm.group(1))}, {dm.group(3)}' if dm else pd[:16]
