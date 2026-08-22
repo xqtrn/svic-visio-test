@@ -61,11 +61,27 @@ jobs:
               }
             }
           } catch (e) { problems.push('проверка хранилища картинок упала: ' + e.message); }
-          // контент на месте: снимки опубликованных статей не должны исчезать
+          // контент на месте: у опубликованной статьи обязан быть чистый текст
+          // (content_html). С 21.08 страницу собирает родной шаблон из него —
+          // колонка снимка full_html намеренно пуста (выход из WordPress,
+          // svic-platform миграции 0037/0038). До 22.08 проба мерила снимок и
+          // краснела на всех 1269 статьях при живом сайте.
           try {
-            const { rows } = await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish' AND (full_html IS NULL OR full_html='')`);
-            if (rows[0].c > 0) problems.push(`${rows[0].c} опубликованных статей без готовой страницы`);
-          } catch (e) { problems.push('проверка снимков упала: ' + e.message); }
+            const { rows } = await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish' AND (content_html IS NULL OR content_html='')`);
+            if (rows[0].c > 0) problems.push(`${rows[0].c} опубликованных статей без текста страницы`);
+          } catch (e) { problems.push('проверка текстов статей упала: ' + e.message); }
+          // …и страница реально отдаётся: свежая статья обязана открыться 200.
+          try {
+            const { rows } = await pool.query(
+              `SELECT slug, published_at FROM posts WHERE status='publish' AND published_at IS NOT NULL ORDER BY published_at DESC LIMIT 1`);
+            const newest = rows[0];
+            if (newest) {
+              const d = new Date(newest.published_at);
+              const url = `https://siliconvalleyinvestclub.com/${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}/${newest.slug}/`;
+              const r = await fetch(url, { redirect: 'follow' });
+              if (r.status !== 200) problems.push(`страница свежей статьи не открывается: ${url} (HTTP ${r.status})`);
+            }
+          } catch (e) { problems.push('живая проба статьи упала: ' + e.message); }
           if (problems.length) {
             await openTask({
               key: TASK_KEY,
