@@ -57,7 +57,7 @@ jobs:
           # Список компаний берётся из каталога платформы: карточек 220, и у
           # каждой свой поисковый запрос (раньше здесь была одна строка —
           # поэтому лента прессы жила ровно на одной карточке, Артур 09.08.26).
-          curl -s --max-time 60 "https://svic-platform-production.up.railway.app/api/site/companies" -o companies.json
+          curl -s --max-time 60 "https://siliconvalleyinvestclub.com/api/site/companies" -o companies.json
           python3 - <<'PYLIST' > companies.txt
           import json
           items = json.load(open('companies.json')).get('items', [])
