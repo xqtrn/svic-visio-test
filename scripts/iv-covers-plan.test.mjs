@@ -101,15 +101,22 @@ test('манифест: все посты, чей iv-<id>.mp4 лежит в ре
   assert.ok(WORKER_RELEASES.includes(UPLOAD_RELEASE));
 });
 
-test('леджер: удача обнуляет счётчик неудач и помнит звук, неудача копит', () => {
-  const l = noteResult({}, 'AAAAAAAAAAA', 'fail', 'ERROR: Sign in to confirm', NOW);
+test('леджер: удача обнуляет счётчик неудач и помнит звук, неудача копит, мёртвый ролик уходит в недоступные', () => {
+  const l = {};
+  assert.equal(noteResult(l, 'AAAAAAAAAAA', 'fail', 'ERROR: Sign in to confirm you are not a bot', NOW), 'fail');
   noteResult(l, 'AAAAAAAAAAA', 'fail', 'x'.repeat(500), NOW);
   assert.equal(l.AAAAAAAAAAA.fails, 2);
   assert.equal(l.AAAAAAAAAAA.reason.length, 200);
-  noteResult(l, 'AAAAAAAAAAA', 'ok', '', NOW);
+  assert.equal(noteResult(l, 'AAAAAAAAAAA', 'ok', '', NOW), 'ok');
   assert.equal(l.AAAAAAAAAAA.fails, undefined);
   assert.equal(l.AAAAAAAAAAA.audio, true);
   assert.equal(l.AAAAAAAAAAA.cut, new Date(NOW).toISOString());
+  for (const r of ['ERROR: [youtube] x: Private video. If the owner', 'ERROR: [youtube] x: The uploader has not made this video available in your country', 'ERROR: [youtube] x: Sign in to confirm your age. Use --cookies', 'ERROR: [youtube] x: This video is unavailable']) {
+    const d = {};
+    assert.equal(noteResult(d, 'BBBBBBBBBBB', 'fail', r, NOW), 'dead', r);
+    assert.equal(d.BBBBBBBBBBB.unavailable, new Date(NOW).toISOString());
+    assert.equal(d.BBBBBBBBBBB.fails, undefined);
+  }
 });
 
 test('воркфлоу: источник — /__covers.json, лимит партии из workflow_dispatch, ошибки роликов не валят прогон', () => {
@@ -120,6 +127,11 @@ test('воркфлоу: источник — /__covers.json, лимит парт
   assert.match(yml, /batch:/);
   assert.match(yml, /inputs\.batch \|\| '25'/);
   assert.match(yml, /--download-sections/);
+  // отрезок качает ffmpeg внутри yt-dlp, а ffmpeg не умеет SOCKS: без HTTP-моста
+  // к Пингвину ссылки googlevideo, выданные под IP прокси, с IP раннера дают 403
+  assert.match(yml, /pproxy/);
+  assert.match(yml, /--proxy "\$YTDLP_PROXY"/);
+  assert.match(yml, /report "\$\{OK:-0\}" "\$\{FAIL:-0\}" "\$\{DEAD:-0\}"/);
   assert.doesNotMatch(yml, /\[ "\$FAIL" = "0" \]/);
   assert.match(yml, /interview-covers\.json/);
 });

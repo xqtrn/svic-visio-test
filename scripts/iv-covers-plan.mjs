@@ -174,12 +174,19 @@ export function buildManifest(posts, workerAssets) {
   return out;
 }
 
+// Ролик, которого для нас нет (снят, приватный, закрыт по стране или возрасту),
+// не станет доступнее от повторов: сразу на месяц в «недоступные». Это не сбой
+// нарезки — в долю неудач прогона (сигнал «YouTube не отдаёт») он не входит.
+export const DEAD_RE = /Private video|Video unavailable|This video is unavailable|has been removed|not made this video available|not available in your country|confirm your age|This video is private|account associated with this video has been terminated|copyright/i;
+
 export function noteResult(ledger, vid, outcome, reason = '', now = Date.now()) {
   const L = { ...(ledger[vid] || {}) };
+  let kind = outcome === 'ok' ? 'ok' : 'fail';
   if (outcome === 'ok') { delete L.fails; delete L.last; delete L.reason; delete L.unavailable; L.audio = true; L.cut = new Date(now).toISOString(); }
+  else if (DEAD_RE.test(String(reason || ''))) { kind = 'dead'; L.unavailable = new Date(now).toISOString(); L.reason = String(reason || '').slice(0, 200); delete L.fails; delete L.last; }
   else { L.fails = (L.fails || 0) + 1; L.last = new Date(now).toISOString(); L.reason = String(reason || '').slice(0, 200); }
   ledger[vid] = L;
-  return ledger;
+  return kind;
 }
 
 // ---------------- CLI ----------------
@@ -303,8 +310,9 @@ async function cmdPlan() {
 
 function cmdNote([vid, outcome, ...reason]) {
   const ledger = readJson('iv-covers-ledger.json', {});
-  noteResult(ledger, vid, outcome, reason.join(' '));
+  const kind = noteResult(ledger, vid, outcome, reason.join(' '));
   fs.writeFileSync('iv-covers-ledger.json', JSON.stringify(ledger));
+  process.stdout.write(kind);
 }
 
 function cmdManifest() {
@@ -315,11 +323,12 @@ function cmdManifest() {
   console.error('манифест:', manifest.length);
 }
 
-async function cmdReport([ok, fail]) {
+async function cmdReport([ok, fail, dead]) {
   const { openTask, closeTask } = await import('./system-task.mjs');
   const stats = readJson('iv-stats.json', {});
-  const OK = +ok || 0, FAIL = +fail || 0, tried = OK + FAIL;
-  const summary = `нарезано ${OK}, не удалось ${FAIL} из ${tried}; уже лежит ${stats.have_iv || 0}, играет .480 ${stats.have_480 || 0}, снято с YouTube ${stats.unavailable || 0}, отложено ${stats.deferred || 0}, в очереди ${Math.max(0, (stats.backlog || 0) - tried)}`;
+  const OK = +ok || 0, FAIL = +fail || 0, DEAD = +dead || 0, tried = OK + FAIL;
+  const gone = (stats.unavailable || 0) + DEAD;
+  const summary = `нарезано ${OK}, не удалось ${FAIL} из ${tried}; уже лежит ${stats.have_iv || 0}, играет .480 ${stats.have_480 || 0}, недоступно на YouTube ${gone}, отложено ${stats.deferred || 0}, в очереди ${Math.max(0, (stats.backlog || 0) - tried - DEAD)}`;
   console.log(`=== ${summary} ===`);
   if (stats.release_full) {
     await openTask({
@@ -346,4 +355,4 @@ if (cmd === 'plan') cmdPlan().catch((e) => { console.error('FATAL', e); process.
 else if (cmd === 'note') cmdNote(args);
 else if (cmd === 'manifest') cmdManifest();
 else if (cmd === 'report') cmdReport(args).catch((e) => { console.error('FATAL', e); process.exit(1); });
-else if (cmd) { console.error('usage: iv-covers-plan.mjs plan|note <id> ok|fail [reason]|manifest|report <ok> <fail>'); process.exit(2); }
+else if (cmd) { console.error('usage: iv-covers-plan.mjs plan|note <id> ok|fail [reason]|manifest|report <ok> <fail> <dead>'); process.exit(2); }

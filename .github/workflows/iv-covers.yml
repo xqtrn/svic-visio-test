@@ -44,7 +44,7 @@ jobs:
       - name: tools
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-          python3 -m pip install --quiet --upgrade yt-dlp
+          python3 -m pip install --quiet --upgrade yt-dlp pproxy
       - name: inventory of releases and failure ledger
         env:
           GH_TOKEN: ${{ github.token }}
@@ -68,9 +68,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
         run: |
-          OK=0; FAIL=0
+          OK=0; FAIL=0; DEAD=0
           FMT='bv*[height<=720][ext=mp4]+ba[ext=m4a]/bv*[height<=720]+ba/b[height<=720][ext=mp4]/b[ext=mp4]/b'
+          # Отрезок качает ffmpeg внутри yt-dlp, а ffmpeg не умеет SOCKS. Ссылки на
+          # googlevideo YouTube выдаёт под IP того, кто их спросил (Пингвин); с IP
+          # раннера они отвечают 403 — первый прогон 03.09 на каждом ролике падал
+          # на отрезке и тянул файл целиком. Мост HTTP→SOCKS на раннере ведёт и
+          # yt-dlp, и его ffmpeg через Пингвина одним адресом.
+          YTDLP_PROXY=""; BRIDGE=""
+          if [ -n "$PENGUIN_SOCKS" ]; then
+            REMOTE=$(python3 -c "import sys,urllib.parse as u;p=u.urlparse(sys.argv[1]);print(f'socks5://{p.hostname}:{p.port}'+(f'#{u.unquote(p.username)}:{u.unquote(p.password)}' if p.username else ''))" "$PENGUIN_SOCKS")
+            # get_event_loop() без цикла в новых Python падает — цикл ставим сами
+            python3 -c "import sys,asyncio; asyncio.set_event_loop(asyncio.new_event_loop()); sys.argv=['pproxy']+sys.argv[1:]; from pproxy.server import main; main()" \
+              -l http://127.0.0.1:8118 -r "$REMOTE" </dev/null >bridge.log 2>&1 &
+            BRIDGE=$!
+            for _ in $(seq 1 20); do python3 -c "import socket;socket.create_connection(('127.0.0.1',8118),1).close()" 2>/dev/null && break; sleep 0.5; done
+            if kill -0 "$BRIDGE" 2>/dev/null; then YTDLP_PROXY="http://127.0.0.1:8118"; echo "мост к Пингвину поднят"; else echo "мост не поднялся — иду через SOCKS напрямую (отрезки будут падать на целый файл)"; sed -E 's/#[^ ]+/#***/g' bridge.log | tail -3; YTDLP_PROXY="$PENGUIN_SOCKS"; fi
+          fi
           note() { node scripts/iv-covers-plan.mjs note "$1" "$2" "$3"; }
+          miss() { local K; K=$(note "$1" fail "$2"); if [ "$K" = dead ]; then DEAD=$((DEAD+1)); echo "ролика для нас нет: $2"; else FAIL=$((FAIL+1)); echo "не удалось: $2"; fi; }
           # план читается через fd 3: ffmpeg/yt-dlp/gh не должны съесть stdin цикла
           while IFS=$'\t' read -r -u 3 VID S E WHY U; do
             [ -z "$VID" ] && continue
@@ -82,42 +98,59 @@ jobs:
             URL="https://www.youtube.com/watch?v=$VID"
             CUT=""
             # 1) только нужный отрезок: yt-dlp режет его ffmpeg-ом прямо из потока
-            #    (--force-keyframes-at-cuts даёт точные границы)
-            if yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
-                 --extractor-args "youtube:player_client=ios,android,web_safari" -f "$FMT" \
-                 --download-sections "*$S-$E" --force-keyframes-at-cuts \
-                 --merge-output-format mp4 -o sec.mp4 "$URL" </dev/null >ytdlp.log 2>&1 \
-               && [ "$(stat -c%s sec.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
+            #    (--force-keyframes-at-cuts даёт точные границы). До двух попыток:
+            #    ios-клиент через прокси то отдаёт HLS 720p, то один прогрессивный
+            #    360p (формат 18; https-форматы без PO-токена YouTube не даёт) —
+            #    все фрагменты августа вышли 640x360, вторая выдача часто лучше.
+            grab_section() {
+              local best=0 h try
+              for try in 1 2; do
+                rm -f try.mp4
+                if yt-dlp --no-playlist --no-progress --no-warnings --proxy "$YTDLP_PROXY" \
+                     --extractor-args "youtube:player_client=ios,android,web_safari" -f "$FMT" \
+                     --download-sections "*$S-$E" --force-keyframes-at-cuts \
+                     --merge-output-format mp4 -o try.mp4 "$URL" </dev/null >ytdlp.log 2>&1 \
+                   && [ "$(stat -c%s try.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
+                  h=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 try.mp4 2>/dev/null | head -1)
+                  if [ "${h:-0}" -gt "$best" ]; then best=${h:-0}; mv -f try.mp4 sec.mp4; fi
+                  [ "$best" -ge 480 ] && break
+                  echo "попытка $try: только ${best}p — пробую ещё раз"
+                fi
+              done
+              [ "$best" -gt 0 ]
+            }
+            if grab_section; then
               SRC=sec.mp4
             else
               echo "отрезок не скачался — тяну ролик целиком"; tail -2 ytdlp.log
               # 2) запасной путь: целый файл, отрезок вырезает ffmpeg ниже
-              if yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
+              if yt-dlp --no-playlist --no-progress --no-warnings --proxy "$YTDLP_PROXY" \
                    --extractor-args "youtube:player_client=ios,android,web_safari" -f "$FMT" \
                    --merge-output-format mp4 -o in.mp4 "$URL" </dev/null >ytdlp.log 2>&1 \
                  && [ "$(stat -c%s in.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
                 SRC=in.mp4; CUT="-ss $S -to $E"
               else
                 REASON=$(grep -m1 -E 'ERROR' ytdlp.log || tail -1 ytdlp.log)
-                echo "не удалось: $REASON"; FAIL=$((FAIL+1)); note "$VID" fail "$REASON"; continue
+                miss "$VID" "$REASON"; continue
               fi
             fi
             # shellcheck disable=SC2086
             ffmpeg -nostdin -hide_banner -loglevel error $CUT -i "$SRC" \
               -c:v libx264 -preset veryfast -crf 23 -c:a aac -b:a 128k -ac 2 \
-              -movflags +faststart "iv-$VID.mp4" || { echo "не удалось: ffmpeg"; FAIL=$((FAIL+1)); note "$VID" fail ffmpeg; continue; }
+              -movflags +faststart "iv-$VID.mp4" || { miss "$VID" ffmpeg; continue; }
             # немой файл дальше не едет: кнопка звука на карточке обязана работать
             if [ -z "$(ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "iv-$VID.mp4" | head -1)" ]; then
-              echo "не удалось: НЕТ ЗВУКОВОЙ ДОРОЖКИ — не выкладываю"; FAIL=$((FAIL+1)); note "$VID" fail "no audio"; continue
+              miss "$VID" "НЕТ ЗВУКОВОЙ ДОРОЖКИ — не выкладываю"; continue
             fi
             if gh release upload clips2 "iv-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber </dev/null; then
-              echo "нарезано $(ffprobe -v error -show_entries format=duration -of csv=p=0 "iv-$VID.mp4")с, $(stat -c%s "iv-$VID.mp4") байт"
-              OK=$((OK+1)); note "$VID" ok; echo "iv-$VID.mp4" >> existing-clips2.txt
+              echo "нарезано $(ffprobe -v error -show_entries format=duration -of csv=p=0 "iv-$VID.mp4")с, $(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "iv-$VID.mp4"), $(stat -c%s "iv-$VID.mp4") байт"
+              OK=$((OK+1)); note "$VID" ok >/dev/null; echo "iv-$VID.mp4" >> existing-clips2.txt
             else
-              echo "не удалось: upload"; FAIL=$((FAIL+1)); note "$VID" fail upload
+              miss "$VID" upload
             fi
           done 3< iv-plan.txt
-          echo "OK=$OK" >> "$GITHUB_ENV"; echo "FAIL=$FAIL" >> "$GITHUB_ENV"
+          [ -n "$BRIDGE" ] && kill "$BRIDGE" 2>/dev/null || true
+          { echo "OK=$OK"; echo "FAIL=$FAIL"; echo "DEAD=$DEAD"; } >> "$GITHUB_ENV"
       - name: manifest, ledger, summary
         if: always()
         env:
@@ -130,4 +163,4 @@ jobs:
           node scripts/iv-covers-plan.mjs manifest
           gh release upload clips interview-covers.json -R "$GITHUB_REPOSITORY" --clobber
           gh release upload clips2 iv-covers-ledger.json -R "$GITHUB_REPOSITORY" --clobber
-          node scripts/iv-covers-plan.mjs report "${OK:-0}" "${FAIL:-0}"
+          node scripts/iv-covers-plan.mjs report "${OK:-0}" "${FAIL:-0}" "${DEAD:-0}"
