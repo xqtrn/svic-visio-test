@@ -114,7 +114,7 @@ jobs:
                   h=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 try.mp4 2>/dev/null | head -1)
                   if [ "${h:-0}" -gt "$best" ]; then best=${h:-0}; mv -f try.mp4 sec.mp4; fi
                   [ "$best" -ge 480 ] && break
-                  echo "попытка $try: только ${best}p — пробую ещё раз"
+                  [ "$try" -lt 2 ] && echo "попытка $try: только ${best}p — пробую ещё раз"
                 fi
               done
               [ "$best" -gt 0 ]
