@@ -9,6 +9,55 @@ on:
     - cron: '25 * * * *'
   workflow_dispatch:
 jobs:
+  company_quality_audit:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm init -y >/dev/null 2>&1 && npm i pg >/dev/null 2>&1
+      - name: Capture company profile database snapshot
+        env:
+          DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p out/company-quality
+          node company-profile-db-audit.mjs > out/company-quality/profiles-before.json
+          jq '.counts' out/company-quality/profiles-before.json
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: company-profile-db-before
+          path: out/company-quality/profiles-before.json
+          if-no-files-found: error
+          retention-days: 14
+  company_quality_repair:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm init -y >/dev/null 2>&1 && npm i pg >/dev/null 2>&1
+      - name: Restore profile-gap ledger and dead links
+        env:
+          DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
+        run: node company-quality-repair.mjs
+  company_quality_rebuild:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Rebuild correctable profile gaps and wait for completion
+        env:
+          SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
+        run: node company-quality-rebuild.mjs
   health:
     runs-on: ubuntu-latest
     steps:
