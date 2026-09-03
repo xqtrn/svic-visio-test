@@ -17,7 +17,11 @@ name: iv-covers
 # (там же юнит-тесты: node --test scripts/iv-covers-plan.test.mjs).
 #
 # Минуты Actions: за прогон режется не больше BATCH роликов (лежащие и
-# пропущенные не в счёт), а с YouTube тянется ТОЛЬКО нужный отрезок
+# пропущенные не в счёт). Пост, чья копия (<id>.mp4 или .480) уже лежит в наших
+# релизах, режется ИЗ НЕЁ — таких ~1000, и гонять их заново через YouTube и жилой
+# прокси Пингвина незачем (риск бот-стены на весь флот), а пост, снятый с YouTube,
+# но сохранённый у нас, иначе не получил бы фрагмент никогда. На YouTube идут
+# только посты без копии, и с него тянется ТОЛЬКО нужный отрезок
 # (--download-sections: ~20с на ролик против нескольких минут за целый файл).
 # Расписание раз в 6ч само доберёт остаток за несколько дней.
 on:
@@ -88,50 +92,75 @@ jobs:
           note() { node scripts/iv-covers-plan.mjs note "$1" "$2" "$3"; }
           miss() { local K; K=$(note "$1" fail "$2"); if [ "$K" = dead ]; then DEAD=$((DEAD+1)); echo "ролика для нас нет: $2"; else FAIL=$((FAIL+1)); echo "не удалось: $2"; fi; }
           # план читается через fd 3: ffmpeg/yt-dlp/gh не должны съесть stdin цикла
-          while IFS=$'\t' read -r -u 3 VID S E WHY U; do
+          while IFS=$'\t' read -r -u 3 VID S E WHY COPY U; do
             [ -z "$VID" ] && continue
             # остаток партии доберёт следующий прогон: манифест и леджер ниже обязаны успеть
             if [ "$SECONDS" -gt 3600 ]; then echo "час прогона вышел — остаток доберёт следующий"; break; fi
-            echo "=== $VID [$S..$E] ($WHY) $U ==="
-            rm -f in.mp4 sec.mp4 "iv-$VID.mp4" ytdlp.log
-            sleep 8
+            echo "=== $VID [$S..$E] ($WHY, копия: $COPY) $U ==="
+            # Чистим ВСЁ от прошлого ролика, включая промежуточные in.f<N>.mp4.part и
+            # in.f<N>.m4a: обрыв после одного из потоков (403 googlevideo, прогон 1 03.09)
+            # оставлял их, а yt-dlp следующему ролику дописывал чужой .part своими
+            # байтами и целый чужой звук объявлял «уже скачан» — карточка получала бы
+            # картинку ролика B со звуком ролика A, а сбой записывался на здоровый ролик.
+            rm -f in.* try.* sec.mp4 "iv-$VID.mp4" ytdlp.log
             URL="https://www.youtube.com/watch?v=$VID"
-            CUT=""
-            # 1) только нужный отрезок: yt-dlp режет его ffmpeg-ом прямо из потока
-            #    (--force-keyframes-at-cuts даёт точные границы). До двух попыток:
-            #    ios-клиент через прокси то отдаёт HLS 720p, то один прогрессивный
-            #    360p (формат 18; https-форматы без PO-токена YouTube не даёт) —
-            #    все фрагменты августа вышли 640x360, вторая выдача часто лучше.
-            grab_section() {
-              local best=0 h try
-              for try in 1 2; do
-                rm -f try.mp4
-                if yt-dlp --no-playlist --no-progress --no-warnings --proxy "$YTDLP_PROXY" \
-                     --extractor-args "youtube:player_client=ios,android,web_safari" -f "$FMT" \
-                     --download-sections "*$S-$E" --force-keyframes-at-cuts \
-                     --merge-output-format mp4 -o try.mp4 "$URL" </dev/null >ytdlp.log 2>&1 \
-                   && [ "$(stat -c%s try.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
-                  h=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 try.mp4 2>/dev/null | head -1)
-                  if [ "${h:-0}" -gt "$best" ]; then best=${h:-0}; mv -f try.mp4 sec.mp4; fi
-                  [ "$best" -ge 480 ] && break
-                  [ "$try" -lt 2 ] && echo "попытка $try: только ${best}p — пробую ещё раз"
+            SRC=""; CUT=""
+            # 0) копия уже лежит в нашем релизе (полная <id>.mp4 или .480) — режем из
+            #    неё: YouTube, Пингвин и yt-dlp не нужны, а пост, снятый с YouTube, но
+            #    сохранённый у нас, фрагмент всё равно получает. Копия без звуковой
+            #    дорожки источником не годится — за таким роликом идём на YouTube.
+            if [ "$COPY" != - ]; then
+              for TAG in clips2 clips; do
+                if curl -sfL "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$COPY" -o in.mp4 \
+                   && [ "$(stat -c%s in.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
+                  if [ -n "$(ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 in.mp4 2>/dev/null | head -1)" ]; then
+                    SRC=in.mp4; CUT="-ss $S -to $E"; echo "источник — наша копия $TAG/$COPY"; break
+                  fi
+                  echo "копия $TAG/$COPY без звука — источником не годится"
                 fi
+                rm -f in.mp4
               done
-              [ "$best" -gt 0 ]
-            }
-            if grab_section; then
-              SRC=sec.mp4
-            else
-              echo "отрезок не скачался — тяну ролик целиком"; tail -2 ytdlp.log
-              # 2) запасной путь: целый файл, отрезок вырезает ffmpeg ниже
-              if yt-dlp --no-playlist --no-progress --no-warnings --proxy "$YTDLP_PROXY" \
-                   --extractor-args "youtube:player_client=ios,android,web_safari" -f "$FMT" \
-                   --merge-output-format mp4 -o in.mp4 "$URL" </dev/null >ytdlp.log 2>&1 \
-                 && [ "$(stat -c%s in.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
-                SRC=in.mp4; CUT="-ss $S -to $E"
+              [ -n "$SRC" ] || echo "копии $COPY в релизах не взять — иду на YouTube"
+            fi
+            if [ -z "$SRC" ]; then
+              sleep 8
+              # 1) только нужный отрезок: yt-dlp режет его ffmpeg-ом прямо из потока
+              #    (--no-continue: повтор внутри попытки не подхватывает обрывок .part)
+              #    (--force-keyframes-at-cuts даёт точные границы). До двух попыток:
+              #    ios-клиент через прокси то отдаёт HLS 720p, то один прогрессивный
+              #    360p (формат 18; https-форматы без PO-токена YouTube не даёт) —
+              #    все фрагменты августа вышли 640x360, вторая выдача часто лучше.
+              grab_section() {
+                local best=0 h try
+                for try in 1 2; do
+                  rm -f try.*
+                  if yt-dlp --no-playlist --no-continue --no-progress --no-warnings --proxy "$YTDLP_PROXY" \
+                       --extractor-args "youtube:player_client=ios,android,web_safari" -f "$FMT" \
+                       --download-sections "*$S-$E" --force-keyframes-at-cuts \
+                       --merge-output-format mp4 -o try.mp4 "$URL" </dev/null >ytdlp.log 2>&1 \
+                     && [ "$(stat -c%s try.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
+                    h=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 try.mp4 2>/dev/null | head -1)
+                    if [ "${h:-0}" -gt "$best" ]; then best=${h:-0}; mv -f try.mp4 sec.mp4; fi
+                    [ "$best" -ge 480 ] && break
+                    [ "$try" -lt 2 ] && echo "попытка $try: только ${best}p — пробую ещё раз"
+                  fi
+                done
+                [ "$best" -gt 0 ]
+              }
+              if grab_section; then
+                SRC=sec.mp4
               else
-                REASON=$(grep -m1 -E 'ERROR' ytdlp.log || tail -1 ytdlp.log)
-                miss "$VID" "$REASON"; continue
+                echo "отрезок не скачался — тяну ролик целиком"; tail -2 ytdlp.log
+                # 2) запасной путь: целый файл, отрезок вырезает ffmpeg ниже
+                if yt-dlp --no-playlist --no-continue --no-progress --no-warnings --proxy "$YTDLP_PROXY" \
+                     --extractor-args "youtube:player_client=ios,android,web_safari" -f "$FMT" \
+                     --merge-output-format mp4 -o in.mp4 "$URL" </dev/null >ytdlp.log 2>&1 \
+                   && [ "$(stat -c%s in.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
+                  SRC=in.mp4; CUT="-ss $S -to $E"
+                else
+                  REASON=$(grep -m1 -E 'ERROR' ytdlp.log || tail -1 ytdlp.log)
+                  miss "$VID" "$REASON"; continue
+                fi
               fi
             fi
             # shellcheck disable=SC2086

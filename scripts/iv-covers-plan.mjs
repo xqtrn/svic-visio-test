@@ -12,10 +12,14 @@
 // 11-значный id у YouTube-постов). Раздел /interviews/ остаётся ДОПОЛНЕНИЕМ (пост,
 // чей ролик живёт вставкой в теле, в манифест не попадает), курируемые сегменты
 // iv-list.json — тоже. Порядок: сначала посты, у которых нет ВООБЩЕ ничего в
-// релизах, потом те, у кого лежит только тяжёлая полная копия; внутри — свежайшие
-// первыми. За прогон режется не больше BATCH роликов (лежащие и пропущенные в
-// лимит не входят) — минуты Actions не бесконечны, расписание раз в 6ч само
-// доберёт остаток за несколько дней.
+// релизах, потом те, у кого лежит только тяжёлая полная копия (или её облегчённый
+// вариант .480 — его читает лишь карточка, ховер просит только iv-, так что без
+// фрагмента такой пост уезжает на плеер YouTube); внутри — свежайшие первыми.
+// Копия, которая уже лежит в релизе, и есть источник нарезки: ~1000 таких постов
+// не надо заново тянуть с YouTube через жилой прокси Пингвина, а пост, снятый с
+// YouTube, но сохранённый у нас, всё равно получает фрагмент. За прогон режется
+// не больше BATCH роликов (лежащие и пропущенные в лимит не входят) — минуты
+// Actions не бесконечны, расписание раз в 6ч само доберёт остаток за несколько дней.
 //
 // Леджер iv-covers-ledger.json (ассет релиза clips2) помнит неудачи: 38 из 55
 // постов «без ничего» — это ролики, которых на YouTube больше нет (oEmbed 404/403).
@@ -112,20 +116,23 @@ const daysSince = (iso, now) => (iso ? (now - Date.parse(iso)) / 86400000 : Infi
 
 // Раскладка постов по тому, что уже лежит в релизах и что помнит леджер.
 //   haveIv    — фрагмент лежит (и не признан немым) → пропуск
-//   have480   — облегчённая копия лежит, карточка играет её → пропуск
 //   deferred  — ролик подряд не качается / снят с YouTube → отдыхает до срока
-//   candidates — по порядку: без ничего → только полная копия; свежие первыми
+//   candidates — по порядку: без ничего → только копия; свежие первыми.
+// У кандидата поле copy — имя копии в релизе (полная <id>.mp4 предпочтительнее
+// облегчённой <id>.480.mp4), из неё и режется фрагмент; пусто — только YouTube.
+// Копия .480 пропуском НЕ считается (до 03.09 считалась): её играет лишь карточка,
+// а ховер просит только iv- и при 404 уходит на плеер YouTube с его плёнкой.
 export function classify(posts, assets, ledger = {}, now = Date.now()) {
   const have = assets instanceof Set ? assets : new Set(assets);
-  const out = { haveIv: [], have480: [], deferred: [], candidates: [] };
+  const out = { haveIv: [], deferred: [], candidates: [] };
   for (const p of posts) {
     const L = ledger[p.v] || {};
     if (have.has(`iv-${p.v}.mp4`) && L.audio !== false) { out.haveIv.push(p); continue; }
-    if (have.has(`${p.v}.480.mp4`)) { out.have480.push(p); continue; }
     if (L.unavailable && daysSince(L.unavailable, now) < RETRY_UNAVAILABLE_DAYS) { out.deferred.push({ ...p, why: 'unavailable' }); continue; }
     if ((L.fails || 0) >= RETRY_AFTER_FAILS && daysSince(L.last, now) < RETRY_FAIL_DAYS) { out.deferred.push({ ...p, why: 'fails' }); continue; }
-    const why = L.audio === false ? 'silent' : have.has(`${p.v}.mp4`) ? 'full' : 'none';
-    out.candidates.push({ ...p, why });
+    const copy = have.has(`${p.v}.mp4`) ? `${p.v}.mp4` : have.has(`${p.v}.480.mp4`) ? `${p.v}.480.mp4` : '';
+    const why = L.audio === false ? 'silent' : copy ? 'full' : 'none';
+    out.candidates.push({ ...p, why, copy });
   }
   const rank = { silent: 0, none: 0, full: 1 };
   out.candidates.sort((a, b) => (rank[a.why] - rank[b.why]) || b.d.localeCompare(a.d) || a.v.localeCompare(b.v));
@@ -136,13 +143,15 @@ export function classify(posts, assets, ledger = {}, now = Date.now()) {
 // (404 удалён, 403 приватный — yt-dlp просит войти, 400 — в манифест попал не id,
 // а обрывок имени канала: «BessemerVen»). Такой пропускаем без yt-dlp и запоминаем
 // на месяц; иначе 38 мёртвых из 55 постов «без ничего» съедали бы лимит каждый прогон.
+// Кандидата с копией в релизе не пробуем вовсе: режем из копии, и что там с роликом
+// на YouTube — неважно (снятый оттуда пост с копией у нас фрагмент всё равно получит).
 export async function pickBatch(candidates, batch, probe, ledger, now = Date.now()) {
   const picked = [];
   const unavailable = [];
   for (const c of candidates) {
     if (picked.length >= batch) break;
     let code = 200;
-    try { code = await probe(c.v); } catch { code = 0; }
+    if (!c.copy) { try { code = await probe(c.v); } catch { code = 0; } }
     if (code >= 400 && code < 500) {
       unavailable.push(c);
       ledger[c.v] = { ...(ledger[c.v] || {}), unavailable: new Date(now).toISOString() };
@@ -280,7 +289,7 @@ async function cmdPlan() {
 
   const cls = classify(posts, assets, ledger);
   const room = RELEASE_CAP - clips2Count - RELEASE_RESERVE;
-  const stats = { posts: posts.length, have_iv: cls.haveIv.length, have_480: cls.have480.length, deferred: cls.deferred.length, backlog: cls.candidates.length, release_room: room, release_full: false, batch, picked: 0, unavailable: 0 };
+  const stats = { posts: posts.length, have_iv: cls.haveIv.length, deferred: cls.deferred.length, backlog: cls.candidates.length, release_room: room, release_full: false, batch, picked: 0, from_copy: 0, unavailable: 0 };
   let picked = [];
   if (room < 1) {
     stats.release_full = true;
@@ -288,6 +297,7 @@ async function cmdPlan() {
   } else {
     const r = await pickBatch(cls.candidates, Math.min(batch, room), oembed, ledger);
     picked = r.picked; stats.picked = picked.length; stats.unavailable = r.unavailable.length;
+    stats.from_copy = picked.filter((c) => c.copy).length;
     for (const c of r.unavailable) console.error(`ролика больше нет на YouTube: ${c.v} ${c.u}`);
   }
 
@@ -300,12 +310,13 @@ async function cmdPlan() {
   }
 
   fs.writeFileSync('iv-dynamic.json', JSON.stringify(picked));
-  fs.writeFileSync('iv-plan.txt', picked.map((c) => [c.v, c.s, c.e, c.why, c.u].join('\t')).join('\n') + (picked.length ? '\n' : ''));
+  // колонки: id, start, end, why, копия в релизе («-» = нет, тянуть с YouTube), адрес поста
+  fs.writeFileSync('iv-plan.txt', picked.map((c) => [c.v, c.s, c.e, c.why, c.copy || '-', c.u].join('\t')).join('\n') + (picked.length ? '\n' : ''));
   fs.writeFileSync('iv-all.json', JSON.stringify(posts.map((p) => ({ u: p.u, v: p.v, d: p.d }))));
   fs.writeFileSync('iv-covers-ledger.json', JSON.stringify(ledger));
   fs.writeFileSync('iv-stats.json', JSON.stringify(stats));
   console.error('итог:', JSON.stringify(stats));
-  for (const c of picked) console.error(' ', c.v, `[${c.s}..${c.e}]`, c.why, c.d, c.u.slice(0, 70));
+  for (const c of picked) console.error(' ', c.v, `[${c.s}..${c.e}]`, c.why, c.copy ? `из ${c.copy}` : 'с YouTube', c.d, c.u.slice(0, 70));
 }
 
 function cmdNote([vid, outcome, ...reason]) {
@@ -328,7 +339,7 @@ async function cmdReport([ok, fail, dead]) {
   const stats = readJson('iv-stats.json', {});
   const OK = +ok || 0, FAIL = +fail || 0, DEAD = +dead || 0, tried = OK + FAIL;
   const gone = (stats.unavailable || 0) + DEAD;
-  const summary = `нарезано ${OK}, не удалось ${FAIL} из ${tried}; уже лежит ${stats.have_iv || 0}, играет .480 ${stats.have_480 || 0}, недоступно на YouTube ${gone}, отложено ${stats.deferred || 0}, в очереди ${Math.max(0, (stats.backlog || 0) - tried - DEAD)}`;
+  const summary = `нарезано ${OK}, не удалось ${FAIL} из ${tried} (в партии из наших копий ${stats.from_copy || 0}); уже лежит ${stats.have_iv || 0}, недоступно на YouTube ${gone}, отложено ${stats.deferred || 0}, в очереди ${Math.max(0, (stats.backlog || 0) - tried - DEAD)}`;
   console.log(`=== ${summary} ===`);
   if (stats.release_full) {
     await openTask({

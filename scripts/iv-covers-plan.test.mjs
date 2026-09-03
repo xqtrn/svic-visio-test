@@ -40,20 +40,30 @@ test('страница поста: три поколения разметки', 
   assert.deepEqual(postLinks('<a href="https://siliconvalleyinvestclub.com/2026/08/31/will-wang/">x</a><a href="/2026/08/31/will-wang">y</a><a href="/companies/x/">z</a>'), ['/2026/08/31/will-wang']);
 });
 
-test('раскладка: лежащий фрагмент и .480 — пропуск, «без ничего» раньше полной копии, свежие первыми', () => {
+test('раскладка: пропуск — только лежащий фрагмент; .480 — источник, как полная копия; «без ничего» раньше копии, свежие первыми', () => {
   const posts = [
     { u: '/a', v: 'AAAAAAAAAAA', d: '2026-08-31' }, // ничего
     { u: '/b', v: 'BBBBBBBBBBB', d: '2026-09-01' }, // полная копия
     { u: '/c', v: 'CCCCCCCCCCC', d: '2024-01-01' }, // ничего, старый
     { u: '/d', v: 'DDDDDDDDDDD', d: '2026-09-02' }, // фрагмент лежит
-    { u: '/e', v: 'EEEEEEEEEEE', d: '2026-09-02' }, // .480 лежит
+    { u: '/e', v: 'EEEEEEEEEEE', d: '2026-09-02' }, // .480 и полная лежат — ховер .480 не читает, фрагмент нужен
     { u: '/f', v: 'FFFFFFFFFFF', d: '2026-09-02' }, // фрагмент лежит, но немой
+    { u: '/g', v: 'GGGGGGGGGGG', d: '2026-09-03' }, // только .480
+    { u: '/h', v: 'HHHHHHHHHHH', d: '2026-09-03' }, // немой фрагмент при лежащей .480 — пересобрать из неё
   ];
-  const assets = ['BBBBBBBBBBB.mp4', 'iv-DDDDDDDDDDD.mp4', 'EEEEEEEEEEE.480.mp4', 'EEEEEEEEEEE.mp4', 'iv-FFFFFFFFFFF.mp4', 'FFFFFFFFFFF.mp4'];
-  const cls = classify(posts, assets, { FFFFFFFFFFF: { audio: false } }, NOW);
+  const assets = ['BBBBBBBBBBB.mp4', 'iv-DDDDDDDDDDD.mp4', 'EEEEEEEEEEE.480.mp4', 'EEEEEEEEEEE.mp4', 'iv-FFFFFFFFFFF.mp4', 'FFFFFFFFFFF.mp4', 'GGGGGGGGGGG.480.mp4', 'iv-HHHHHHHHHHH.mp4', 'HHHHHHHHHHH.480.mp4'];
+  const cls = classify(posts, assets, { FFFFFFFFFFF: { audio: false }, HHHHHHHHHHH: { audio: false } }, NOW);
   assert.deepEqual(cls.haveIv.map((p) => p.v), ['DDDDDDDDDDD']);
-  assert.deepEqual(cls.have480.map((p) => p.v), ['EEEEEEEEEEE']);
-  assert.deepEqual(cls.candidates.map((p) => `${p.v}:${p.why}`), ['FFFFFFFFFFF:silent', 'AAAAAAAAAAA:none', 'CCCCCCCCCCC:none', 'BBBBBBBBBBB:full']);
+  assert.equal(cls.have480, undefined);
+  assert.deepEqual(cls.candidates.map((p) => `${p.v}:${p.why}`), [
+    'HHHHHHHHHHH:silent', 'FFFFFFFFFFF:silent', 'AAAAAAAAAAA:none', 'CCCCCCCCCCC:none',
+    'GGGGGGGGGGG:full', 'EEEEEEEEEEE:full', 'BBBBBBBBBBB:full',
+  ]);
+  // источник нарезки: полная копия предпочтительнее .480; без копии — пусто (YouTube)
+  assert.deepEqual(Object.fromEntries(cls.candidates.map((p) => [p.v, p.copy])), {
+    HHHHHHHHHHH: 'HHHHHHHHHHH.480.mp4', FFFFFFFFFFF: 'FFFFFFFFFFF.mp4', AAAAAAAAAAA: '', CCCCCCCCCCC: '',
+    GGGGGGGGGGG: 'GGGGGGGGGGG.480.mp4', EEEEEEEEEEE: 'EEEEEEEEEEE.mp4', BBBBBBBBBBB: 'BBBBBBBBBBB.mp4',
+  });
 });
 
 test('леджер: три неудачи подряд отводят ролик на неделю, снятый с YouTube — на месяц', () => {
@@ -84,6 +94,21 @@ test('партия: лимит считает только попытки; oEmbe
   assert.equal(ledger.EEEEEEEEEEE, undefined);
   const zero = await pickBatch(cands, 0, async () => 200, {}, NOW);
   assert.equal(zero.picked.length, 0);
+});
+
+test('партия: кандидат с копией в релизе не ходит в oEmbed и не попадает в недоступные, даже если с YouTube ролик снят', async () => {
+  const cands = [
+    { v: 'AAAAAAAAAAA', u: '/a', d: '2026-09-02', why: 'full', copy: 'AAAAAAAAAAA.mp4' },
+    { v: 'BBBBBBBBBBB', u: '/b', d: '2026-09-01', why: 'full', copy: 'BBBBBBBBBBB.480.mp4' },
+    { v: 'CCCCCCCCCCC', u: '/c', d: '2026-08-31', why: 'none', copy: '' },
+  ];
+  const probed = [];
+  const ledger = {};
+  const { picked, unavailable } = await pickBatch(cands, 5, async (v) => { probed.push(v); return 404; }, ledger, NOW);
+  assert.deepEqual(probed, ['CCCCCCCCCCC']);
+  assert.deepEqual(picked.map((p) => p.v), ['AAAAAAAAAAA', 'BBBBBBBBBBB']);
+  assert.deepEqual(unavailable.map((p) => p.v), ['CCCCCCCCCCC']);
+  assert.equal(ledger.AAAAAAAAAAA, undefined);
 });
 
 test('сегмент: главная > страница поста > курируемые > 1..25; e<=s растягивается на 24с', () => {
@@ -134,4 +159,20 @@ test('воркфлоу: источник — /__covers.json, лимит парт
   assert.match(yml, /report "\$\{OK:-0\}" "\$\{FAIL:-0\}" "\$\{DEAD:-0\}"/);
   assert.doesNotMatch(yml, /\[ "\$FAIL" = "0" \]/);
   assert.match(yml, /interview-covers\.json/);
+});
+
+test('воркфлоу: копия из релиза — источник нарезки раньше YouTube; от прошлого ролика не остаётся ни .part, ни промежуточных потоков', () => {
+  const yml = readFileSync(new URL('../.github/workflows/iv-covers.yml', import.meta.url), 'utf8');
+  // план несёт колонку с именем копии; воркфлоу читает её и тянет из обоих томов релиза
+  assert.match(yml, /read -r -u 3 VID S E WHY COPY U/);
+  assert.match(yml, /releases\/download\/\$TAG\/\$COPY/);
+  assert.match(yml, /if \[ "\$COPY" != - \]/);
+  // на YouTube — только когда источника из релиза нет
+  assert.match(yml, /if \[ -z "\$SRC" \]; then/);
+  // yt-dlp пишет промежуточные in.f<N>.mp4.part / in.f<N>.m4a и по умолчанию
+  // дописывает и переиспользует чужие — чистка по маске и --no-continue
+  assert.match(yml, /rm -f in\.\* try\.\* sec\.mp4/);
+  assert.doesNotMatch(yml, /rm -f try\.mp4\b/);
+  assert.equal((yml.match(/yt-dlp --no-playlist --no-continue/g) || []).length, 2);
+  assert.doesNotMatch(yml, /rm -f in\.mp4 sec\.mp4/);
 });
