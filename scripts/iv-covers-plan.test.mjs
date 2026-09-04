@@ -36,7 +36,9 @@ test('страница поста: три поколения разметки', 
   assert.deepEqual(parsePostPage('<div class="cs-video-wrapper" data-video-start="2" data-video-end="30" data-svic-vid="XgJ2qw8_kUM"></div>'), { vid: 'XgJ2qw8_kUM', seg: { s: 2, e: 30 }, selfHosted: false });
   assert.deepEqual(parsePostPage('<div class="cs-entry__media"><div data-svic-vid="full-Aq6mtdnN84Q" data-video-start="1" data-video-end="35"></div></div>'), { vid: 'Aq6mtdnN84Q', seg: { s: 1, e: 35 }, selfHosted: false });
   assert.equal(parsePostPage('<div class="cs-entry__media"><div data-svic-vid="cs-abc"></div></div>').selfHosted, true);
-  assert.equal(parsePostPage('<iframe src="https://www.youtube.com/embed/Yqo8-fXhNAA?x=1"></iframe>').vid, 'Yqo8-fXhNAA');
+  // ссылка/вставка YouTube где-то на странице — НЕ ролик статьи (04.09: подвальный ролик старого сайта)
+  assert.equal(parsePostPage('<iframe src="https://www.youtube.com/embed/Yqo8-fXhNAA?x=1"></iframe>').vid, null);
+  assert.equal(parsePostPage('<div class="sa-hero-wrap" data-svic-yt-hero="o-hSznZ8hgw"></div>').vid, null, 'подвальный ролик в запрете даже из атрибута героя');
   assert.deepEqual(postLinks('<a href="https://siliconvalleyinvestclub.com/2026/08/31/will-wang/">x</a><a href="/2026/08/31/will-wang">y</a><a href="/companies/x/">z</a>'), ['/2026/08/31/will-wang']);
 });
 
