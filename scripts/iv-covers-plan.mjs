@@ -85,6 +85,8 @@ export function segMapFromHtml(html) {
 // новый герой data-svic-yt-hero="<id>"; обёртка cs-video-wrapper data-svic-vid;
 // старый блок cs-entry__media с data-(svic-vid|video-id) (в т.ч. full-<id> — полный
 // самохост интервью, карточке всё равно нужен фрагмент); в крайнем случае embed-ссылка.
+// ролики обвязки старого сайта (подвал/сайдбар): никогда не ролик статьи
+export const SITE_WIDE = new Set(['o-hSznZ8hgw']);
 export function parsePostPage(html) {
   const h = String(html || '');
   let vid = (h.match(/data-svic-yt-hero="([A-Za-z0-9_-]{11})"/) || [])[1];
@@ -106,7 +108,10 @@ export function parsePostPage(html) {
     const e = +((block.match(/data-video-end="(\d+)"/) || [])[1] || 0);
     if (!seg && e > s) seg = { s, e };
   }
-  if (!vid) vid = (h.match(/youtube\.com\/(?:embed\/|watch\?v=)([A-Za-z0-9_-]{11})/) || [])[1];
+  // РОЛИК — ТОЛЬКО ИЗ АТРИБУТОВ ГЕРОЯ. Ссылка youtube.com где-то на странице — не ролик
+  // статьи: в снимках старого сайта у сотен статей висит подвальный o-hSznZ8hgw, и 04.09
+  // из него нарезался «фрагмент Humanoid» (у той статьи свой ролик, перенесённый с WordPress).
+  if (vid && SITE_WIDE.has(vid)) vid = null;
   return { vid: vid || null, seg, selfHosted: false };
 }
 

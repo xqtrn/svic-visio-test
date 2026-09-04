@@ -1,0 +1,171 @@
+name: iv-covers
+# Превью-обложки карточек интервью (24-с фрагмент [start,end] темы, СО ЗВУКОМ:
+# карточка предлагает кнопку unmute, немой клип делает её обманом — 2026-08-04).
+# Список — ДИНАМИЧЕСКИЙ (2026-08-02): статический iv-list.json замораживал 10
+# интервью от 12.07, новые посты никогда не получали обложку → герой раздела
+# /interviews/ уезжал со свежайшего поста. Источник истины — страница раздела на
+# ПУБЛИЧНОМ сайте (2026-08-03, раньше закрытый стенд по пропуску): каждый
+# пост-интервью несёт data-(svic-vid|video-id) и
+# сегмент data-video-start/end в герое. iv-list.json остаётся ТОЛЬКО как
+# курируемые сегменты (его s/e выигрывают у дефолта 1..25).
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '47 */6 * * *'  # после convert-clips (17 */6): свежее интервью получает обложку за часы
+permissions: { contents: write }
+concurrency: { group: iv-covers, cancel-in-progress: false }
+jobs:
+  cut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: tools
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python3 -m pip install --quiet --upgrade yt-dlp
+      - name: build dynamic interview list
+        env:
+          SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          // ИСТОЧНИК — ПУБЛИЧНЫЙ САЙТ (2026-08-03). Раньше список снимался с закрытого
+          // стенда пропуском, вшитым в этот файл; 3 августа пропуск сменили, страница
+          // стала отдавать 403 — и прогон МОЛЧА падал на 10 курируемых записей из июля.
+          // Успешный зелёный прогон при нуле найденных постов = ровно та немота, из-за
+          // которой свежие интервью (Emily Yuan 28.07, Morpho 04.08) уезжали на главную
+          // без ролика. Теперь берём открытый сайт (секрет не нужен вовсе), а пустая
+          // выдача — жёсткая поломка с карточкой на /developement, а не тихий откат.
+          const SITE = 'https://siliconvalleyinvestclub.com';
+          const CK = { 'User-Agent': 'Mozilla/5.0' };
+          async function screamOut(summary, details) {
+            const key = process.env.SVIC_INTERNAL_KEY;
+            if (!key) return;
+            try {
+              await fetch('https://platform.siliconvalleyinvestclub.com/api/internal/system-tasks', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', 'x-internal-key': key },
+                body: JSON.stringify({
+                  key: 'iv-covers-list-empty', summary, owner_brief: summary, details,
+                  instructions: 'Нарезка превью для карточек интервью не видит список статей: проверить, отдаёт ли публичный сайт раздел /interviews/, и перезапустить воркфлоу iv-covers в xqtrn/svic-visio-test.',
+                }),
+              });
+            } catch {}
+          }
+          async function screamOff() {
+            const key = process.env.SVIC_INTERNAL_KEY;
+            if (!key) return;
+            try {
+              await fetch('https://platform.siliconvalleyinvestclub.com/api/internal/system-tasks', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', 'x-internal-key': key },
+                body: JSON.stringify({ key: 'iv-covers-list-empty', resolved: true }),
+              });
+            } catch {}
+          }
+          (async () => {
+            // курируемые сегменты старого списка — выигрывают у дефолта
+            let curated = [];
+            try { curated = JSON.parse(fs.readFileSync('iv-list.json', 'utf8')); } catch {}
+            const seg = Object.fromEntries(curated.map(x => [x.v, { s: x.s, e: x.e }]));
+            // посты раздела со страницы (живая истина; 301 /tag/ уже учтён чистым адресом)
+            const arch = await (await fetch(SITE + '/interviews/', { headers: CK })).text();
+            const urls = [...new Set([...arch.matchAll(/href="(?:https?:\/\/[^"\/]+)?(\/20\d\d\/\d\d\/\d\d\/[a-z0-9-]+)\/?"/g)].map(m => m[1]))];
+            console.error('постов на странице раздела:', urls.length);
+            if (!urls.length) {
+              await screamOut('Нарезка превью интервью не видит статей раздела',
+                'Воркфлоу iv-covers: страница ' + SITE + '/interviews/ не дала ни одной ссылки на статью. Пока это так, свежие интервью выходят на главную без ролика.');
+              console.error('FATAL: раздел /interviews/ не дал ни одной статьи');
+              process.exit(1);
+            }
+            await screamOff();
+            const list = [];
+            for (const u of urls) {
+              let html = '';
+              try { html = await (await fetch(SITE + u + '/', { headers: CK })).text(); } catch { continue; }
+              const mi = html.indexOf('<div class="cs-entry__media');
+              if (mi < 0) continue;
+              const block = html.slice(mi, mi + 3000);
+              // vid героя: 11-симв YouTube-id атрибутом; атрибут другой длины =
+              // самохост (играет сам, обложка не нужна); wrapper вовсе без vid =
+              // YT-натив/фасад (у них id живёт embed-ссылкой в теле поста)
+              let vid = (block.match(/data-(?:svic-vid|video-id)="([A-Za-z0-9_-]{11})"/) || [])[1];
+              if (!vid) {
+                const anyVid = (block.match(/data-(?:svic-vid|video-id)="([A-Za-z0-9_-]+)"/) || [])[1];
+                if (anyVid) continue; // самохост
+                vid = (html.match(/youtube\.com\/(?:embed\/|watch\?v=)([A-Za-z0-9_-]{11})/) || [])[1];
+              }
+              if (!vid) continue;
+              const s = +((block.match(/data-video-start="(\d+)"/) || [])[1] || (seg[vid] && seg[vid].s) || 1);
+              const e = +((block.match(/data-video-end="(\d+)"/) || [])[1] || (seg[vid] && seg[vid].e) || 25);
+              list.push({ u, v: vid, s, e: e > s ? e : s + 24 });
+            }
+            // курируемые записи, чьих постов нет на первой странице архива, — сохраняем
+            const have = new Set(list.map(x => x.v));
+            for (const c of curated) if (!have.has(c.v)) list.push(c);
+            if (!list.length) { console.error('FATAL: список пуст — страница раздела недоступна?'); process.exit(1); }
+            fs.writeFileSync('iv-dynamic.json', JSON.stringify(list));
+            console.error('итог списка:', list.length);
+            for (const x of list.slice(0, 6)) console.error(' ', x.v, `[${x.s}..${x.e}]`, x.u.slice(0, 60));
+          })().catch(e => { console.error('FATAL', e); process.exit(1); });
+          EOF
+      - name: cut interview preview covers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
+        run: |
+          N=$(node -e "console.log(require('./iv-dynamic.json').length)")
+          echo "interviews=$N"; OK=0; FAIL=0
+          EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'; gh release view clips2 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null)
+          for i in $(seq 0 $((N-1))); do
+            VID=$(node -e "console.log(require('./iv-dynamic.json')[$i].v)")
+            S=$(node -e "console.log(require('./iv-dynamic.json')[$i].s)")
+            E=$(node -e "console.log(require('./iv-dynamic.json')[$i].e)")
+            echo "=== $VID [$S..$E] ==="
+            # ЗВУК ОБЯЗАТЕЛЕН (Артур 2026-08-04: «кнопка unmute нажимается, но звука нет»).
+            # Превью резались с -an, то есть немыми, а пульт карточки предлагает
+            # включить звук — кнопка включала тишину. Уже лежащий немой клип
+            # пересобираем: проверяем дорожку прямо в релизе, чтобы починка не
+            # требовала ручного удаления ассетов.
+            if echo "$EXISTING" | grep -qx "iv-$VID.mp4"; then
+              HAVE_AUDIO=""
+              for TAG in clips2 clips; do
+                URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/iv-$VID.mp4"
+                HAVE_AUDIO=$(ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "$URL" 2>/dev/null | head -1)
+                [ -n "$HAVE_AUDIO" ] && break
+              done
+              if [ -n "$HAVE_AUDIO" ]; then echo "already in release (со звуком)"; OK=$((OK+1)); continue; fi
+              echo "в релизе лежит немой клип — пересобираю со звуком"
+            fi
+            rm -f in.mp4 "iv-$VID.mp4"
+            sleep 12
+            yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
+              --extractor-args "youtube:player_client=ios,android,web_safari" \
+              -f 'bv*[height<=720][ext=mp4]+ba[ext=m4a]/bv*[height<=720]+ba/b[height<=720][ext=mp4]/b[ext=mp4]/b' \
+              --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" || { FAIL=$((FAIL+1)); continue; }
+            SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 50000 ] && { echo "too small"; FAIL=$((FAIL+1)); continue; }
+            ffmpeg -hide_banner -loglevel error -ss "$S" -to "$E" -i in.mp4 \
+              -c:v libx264 -preset veryfast -crf 23 -c:a aac -b:a 128k -ac 2 \
+              -movflags +faststart "iv-$VID.mp4" || { FAIL=$((FAIL+1)); continue; }
+            # немой файл дальше не едет: кнопка звука на карточке обязана работать
+            if [ -z "$(ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "iv-$VID.mp4" | head -1)" ]; then
+              echo "НЕТ ЗВУКОВОЙ ДОРОЖКИ — не выкладываю"; FAIL=$((FAIL+1)); continue
+            fi
+            gh release upload clips2 "iv-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1)) || { echo "UPLOAD FAIL"; FAIL=$((FAIL+1)); }
+          done
+          # манифест — только записи, чей клип реально лежит в релизе (иначе карточка получит 404)
+          EXISTING=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'; gh release view clips2 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null)
+          printf '%s\n' "$EXISTING" > existing.txt
+          node -e "
+            const fs=require('fs');
+            const have=new Set(fs.readFileSync('existing.txt','utf8').split('\n'));
+            const l=require('./iv-dynamic.json').filter(x=>have.has('iv-'+x.v+'.mp4'));
+            fs.writeFileSync('interview-covers.json',JSON.stringify(l.map(x=>({u:x.u,v:'iv-'+x.v}))));
+            console.error('манифест:',l.length);
+          "
+          gh release upload clips interview-covers.json -R "$GITHUB_REPOSITORY" --clobber
+          echo "=== covers=$OK failed=$FAIL of $N ==="
+          [ "$FAIL" = "0" ]
