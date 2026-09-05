@@ -29,13 +29,36 @@ function origin() {
   return raw;
 }
 
-export async function checkAdminPosts(fetchImpl, base, token) {
-  const r = await fetchImpl(base + '/api/admin/posts?limit=1', {
-    headers: { Cookie: 'svic_token=' + token },
-  });
-  if (r.status !== 200) return `/api/admin/posts: HTTP ${r.status}`;
-  const total = Number((await r.json()).total || 0);
-  if (total < 1000) return `админка: /api/admin/posts total=${total} — пустая выдача`;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Одиночный не-200 края — ещё не авария платформы. 2026-09-05 проба открыла
+// карточку по одному HTTP 502 на /api/admin/posts, хотя /api/status за секунды
+// до и после отвечал 200 и все остальные проверки того же прогона прошли:
+// мимолётный отказ на пути Cloudflare → Railway → serve.js → backend (в т.ч.
+// перезапуск упавшего backend-ребёнка под надзором serve.js длится секунды).
+// Не-200 подтверждаем повторами, а тело ответа прикладываем к сигналу: по нему
+// видно, ЧЬЙ это отказ (страница Cloudflare, «upstream error» супервизора,
+// JSON бэкенда), и следующий разбор не начинается с нуля.
+export async function checkAdminPosts(fetchImpl, base, token, { retries = 2, retryDelayMs = 5000 } = {}) {
+  const attempt = async () => {
+    const r = await fetchImpl(base + '/api/admin/posts?limit=1', {
+      headers: { Cookie: 'svic_token=' + token },
+    });
+    if (r.status === 200) return { status: 200, total: Number((await r.json()).total || 0) };
+    const raw = typeof r.text === 'function' ? await r.text().catch(() => '') : '';
+    return { status: r.status, body: String(raw).replace(/\s+/g, ' ').trim().slice(0, 200) };
+  };
+  let last = await attempt();
+  for (let i = 0; i < retries && last.status !== 200; i += 1) {
+    await sleep(retryDelayMs);
+    last = await attempt();
+  }
+  if (last.status !== 200) {
+    const tries = retries > 0 ? ` (${retries + 1} попытки)` : '';
+    const body = last.body ? ` — ответ: ${last.body}` : '';
+    return `/api/admin/posts: HTTP ${last.status}${tries}${body}`;
+  }
+  if (last.total < 1000) return `админка: /api/admin/posts total=${last.total} — пустая выдача`;
   return null;
 }
 
