@@ -275,7 +275,8 @@ jobs:
           except Exception:
               retained = []
           items = nlink.merge_items(items, retained)
-          json.dump({'slug': slug, 'items': items}, open(f'out/{slug}.json', 'w'))
+          with open(f'out/{slug}.json', 'w') as outf:
+              json.dump({'slug': slug, 'items': items}, outf)
           print(slug, '->', len(items), 'direct-link items (google resolved:', len(resolved), 'of', len(ids), ', retained', len(retained), ')')
           PY
             # гейт ленты — сразу по файлу, ДО любой загрузки: партиями уходят
@@ -284,8 +285,10 @@ jobs:
           import json, re, sys, os
           p = f'out/{sys.argv[1]}.json'
           j = json.load(open(p))
-          n = len(j.get('items', []))
-          agg = [i['link'] for i in j['items'] if re.search(r'news\.google\.com/(rss/)?articles|apiclick', i['link'], re.I)]
+          rows = j.get('items') if isinstance(j, dict) else j
+          rows = rows if isinstance(rows, list) else []
+          n = len(rows)
+          agg = [i.get('link') for i in rows if i and re.search(r'news\.google\.com/(rss/)?articles|apiclick', str(i.get('link') or ''), re.I)]
           if agg:
               print(f'AGGREGATOR LINK LEAKED in {p}: {agg[:2]}'); sys.exit(1)
           if n < 8:
@@ -300,16 +303,18 @@ jobs:
           ls -la out/
           # гейт ленты перед публикацией: ни одной агрегаторской ссылки и не куцая
           python3 - <<'PY'
-          import json, glob, re, sys
+          import json, glob, re, sys, os
           bad = 0
           for p in glob.glob('out/*.json'):
               j = json.load(open(p))
-              n = len(j.get('items', []))
-              agg = [i['link'] for i in j['items'] if re.search(r'news\.google\.com/(rss/)?articles|apiclick', i['link'], re.I)]
+              rows = j.get('items') if isinstance(j, dict) else j
+              rows = rows if isinstance(rows, list) else []
+              n = len(rows)
+              agg = [i.get('link') for i in rows if i and re.search(r'news\.google\.com/(rss/)?articles|apiclick', str(i.get('link') or ''), re.I)]
               if agg: print(f'AGGREGATOR LINK LEAKED in {p}: {agg[:2]}'); bad = 1
               if n < 8:
                   print(f'{p}: всего {n} новостей — ленту не публикуем, остальные идут')
-                  import os; os.remove(p)
+                  os.remove(p)
           sys.exit(bad)
           PY
           # публикация: релиз company-news, ассеты перезаписываются
