@@ -29,7 +29,7 @@ on:
   # правка самого сборщика пересобирает ленты сразу, не дожидаясь слота cron
   push:
     branches: [main]
-    paths: ['.github/workflows/company-news.yml']
+    paths: ['.github/workflows/company-news.yml', 'scripts/company-news-link.py', 'scripts/company-news-link.lock.test.mjs']
 permissions:
   contents: write
 concurrency:
@@ -44,6 +44,11 @@ jobs:
       matrix:
         shard: [0, 1, 2, 3, 4, 5]
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: lock — Bing apiclick разворачивается из &amp;url=
+        run: node --test scripts/company-news-link.lock.test.mjs
       - name: Collect and publish news feeds
         env:
           SOCKS: ${{ secrets.PENGUIN_SOCKS }}
@@ -181,7 +186,9 @@ jobs:
                     f'<pubDate>{pub}</pubDate><source>{html.escape(a.get("domain") or "")}</source></item>')
           PYG
             UA="$UA" python3 - "$slug" <<'PY'
-          import re, sys, json, html, email.utils, urllib.parse, subprocess, os
+          import re, sys, json, html, email.utils, urllib.parse, subprocess, os, pathlib
+          from importlib.machinery import SourceFileLoader
+          nlink = SourceFileLoader('nlink', str(pathlib.Path('scripts/company-news-link.py'))).load_module()
           slug = sys.argv[1]
           UA, SOCKS = os.environ['UA'], os.environ['SOCKS']
           AGG = re.compile(r'news\.google\.com/(rss/)?articles|bing\.com/news/apiclick|apiclick\.aspx', re.I)
@@ -204,7 +211,7 @@ jobs:
                       v = re.sub(r'<!\[CDATA\[([\s\S]*?)\]\]>', r'\1', v)
                       return html.unescape(re.sub(r'<[^>]+>', ' ', v)).strip()
                   link = (re.search(r'<link\s*/?>([^<]+)', seg) or re.search(r'<link>([\s\S]*?)</link>', seg))
-                  link = link.group(1).strip() if link else ''
+                  link = html.unescape(link.group(1)).strip() if link else ''
                   pd = pick('pubDate')
                   # ts — в МИЛЛИсекундах, как у остальных производителей ленты
                   # (секунды тонули в сортировке стола новостей, 2026-08-19)
@@ -251,10 +258,8 @@ jobs:
           for r in grows + brows:
               link = r['link']
               if r.get('gid'): link = resolved.get(r['gid'], '')
-              elif 'bing.com' in link:
-                  m = re.search(r'[?&]url=([^&]+)', link)
-                  if m: link = urllib.parse.unquote(m.group(1))
-              if not link or AGG.search(link): continue
+              link = nlink.direct_link(link)
+              if not link: continue
               if not r['source']:
                   try: r['source'] = urllib.parse.urlparse(link).hostname.replace('www.', '')
                   except Exception: pass
@@ -262,9 +267,16 @@ jobs:
               if key in seen: continue
               seen.add(key)
               items.append({'title': r['title'], 'link': link, 'source': r['source'], 'date': r['date'], 'ts': r['ts']})
-          items.sort(key=lambda i: -i['ts'])
-          json.dump({'slug': slug, 'items': items[:40]}, open(f'out/{slug}.json', 'w'))
-          print(slug, '->', len(items), 'direct-link items (google resolved:', len(resolved), 'of', len(ids), ')')
+          retained = []
+          repo = os.environ.get('GITHUB_REPOSITORY') or 'xqtrn/svic-visio-test'
+          try:
+              prev = json.loads(curl(f'https://github.com/{repo}/releases/download/company-news/{slug}.json') or '')
+              retained = list(prev.get('items') or [])
+          except Exception:
+              retained = []
+          items = nlink.merge_items(items, retained)
+          json.dump({'slug': slug, 'items': items}, open(f'out/{slug}.json', 'w'))
+          print(slug, '->', len(items), 'direct-link items (google resolved:', len(resolved), 'of', len(ids), ', retained', len(retained), ')')
           PY
             # гейт ленты — сразу по файлу, ДО любой загрузки: партиями уходят
             # только проверенные ленты (не куцые и без агрегаторских ссылок)
