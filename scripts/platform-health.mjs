@@ -31,6 +31,63 @@ function origin() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Тело читается как текст, JSON — только если оно на него похоже. 2026-09-07
+// проба открыла карточку «health-пробы упали: Unexpected token '<', "<!DOCTYPE"»
+// потому что /api/status парсился слепо: край на секунды отдал HTML (страница
+// Cloudflare / Next), JSON.parse бросил, и разбор начинался с синтаксической
+// ошибки вместо названного отказа. Тот же класс, что 05.09 закрыли только на
+// не-200 /api/admin/posts. HTML/5xx/битый JSON подтверждаем повторами.
+export async function readJsonResponse(response) {
+  const status = Number(response && response.status) || 0;
+  let contentType = '';
+  try {
+    if (response && response.headers && typeof response.headers.get === 'function') {
+      contentType = String(response.headers.get('content-type') || '');
+    }
+  } catch (_) { /* mock without headers */ }
+  let raw = '';
+  if (response && typeof response.text === 'function') {
+    raw = String(await response.text().catch(() => '') || '');
+  } else if (response && typeof response.json === 'function') {
+    try { raw = JSON.stringify(await response.json()); } catch (_) { raw = ''; }
+  }
+  const snippet = raw.replace(/\s+/g, ' ').trim().slice(0, 200);
+  const html = /html/i.test(contentType) || /^\s*</.test(raw);
+  if (html) return { status, kind: 'html', snippet, payload: null };
+  if (/^\s*[{[]/.test(raw)) {
+    try {
+      return { status, kind: 'json', snippet, payload: JSON.parse(raw) };
+    } catch (_) {
+      return { status, kind: 'invalid_json', snippet, payload: null };
+    }
+  }
+  return { status, kind: 'non_json', snippet, payload: null };
+}
+
+function describeJsonFailure(label, read, { retries = 0 } = {}) {
+  const tries = retries > 0 ? ` (${retries + 1} попытки)` : '';
+  const why = read.kind === 'html' ? ' HTML вместо JSON'
+    : (read.kind === 'invalid_json' || read.kind === 'non_json' ? ' не JSON' : '');
+  const body = read.snippet ? ` — ответ: ${read.snippet}` : '';
+  return `${label}: HTTP ${read.status}${why}${tries}${body}`;
+}
+
+async function confirmJson(fetchImpl, url, {
+  headers,
+  retries = 2,
+  retryDelayMs = 5000,
+  ok = (payload, status) => status === 200 && payload && typeof payload === 'object',
+} = {}) {
+  const attempt = async () => readJsonResponse(await fetchImpl(url, headers ? { headers } : undefined));
+  let last = await attempt();
+  const good = (read) => read.kind === 'json' && ok(read.payload, read.status);
+  for (let i = 0; i < retries && !good(last); i += 1) {
+    await sleep(retryDelayMs);
+    last = await attempt();
+  }
+  return { last, good: good(last) };
+}
+
 // Одиночный не-200 края — ещё не авария платформы. 2026-09-05 проба открыла
 // карточку по одному HTTP 502 на /api/admin/posts, хотя /api/status за секунды
 // до и после отвечал 200 и все остальные проверки того же прогона прошли:
@@ -40,26 +97,49 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // видно, ЧЬЙ это отказ (страница Cloudflare, «upstream error» супервизора,
 // JSON бэкенда), и следующий разбор не начинается с нуля.
 export async function checkAdminPosts(fetchImpl, base, token, { retries = 2, retryDelayMs = 5000 } = {}) {
-  const attempt = async () => {
-    const r = await fetchImpl(base + '/api/admin/posts?limit=1', {
-      headers: { Cookie: 'svic_token=' + token },
-    });
-    if (r.status === 200) return { status: 200, total: Number((await r.json()).total || 0) };
-    const raw = typeof r.text === 'function' ? await r.text().catch(() => '') : '';
-    return { status: r.status, body: String(raw).replace(/\s+/g, ' ').trim().slice(0, 200) };
-  };
-  let last = await attempt();
-  for (let i = 0; i < retries && last.status !== 200; i += 1) {
-    await sleep(retryDelayMs);
-    last = await attempt();
+  const { last, good } = await confirmJson(fetchImpl, base + '/api/admin/posts?limit=1', {
+    headers: { Cookie: 'svic_token=' + token },
+    retries,
+    retryDelayMs,
+    ok: (payload, status) => status === 200 && payload && typeof payload === 'object',
+  });
+  if (!good) {
+    // Формат не-200 без «HTML вместо JSON» — контракт теста 05.09.
+    if (last.status !== 200) {
+      const tries = retries > 0 ? ` (${retries + 1} попытки)` : '';
+      const body = last.snippet && last.kind !== 'json' ? ` — ответ: ${last.snippet}` : '';
+      return `/api/admin/posts: HTTP ${last.status}${tries}${body}`;
+    }
+    return describeJsonFailure('/api/admin/posts', last, { retries });
   }
-  if (last.status !== 200) {
-    const tries = retries > 0 ? ` (${retries + 1} попытки)` : '';
-    const body = last.body ? ` — ответ: ${last.body}` : '';
-    return `/api/admin/posts: HTTP ${last.status}${tries}${body}`;
-  }
-  if (last.total < 1000) return `админка: /api/admin/posts total=${last.total} — пустая выдача`;
+  const total = Number(last.payload.total || 0);
+  if (total < 1000) return `админка: /api/admin/posts total=${total} — пустая выдача`;
   return null;
+}
+
+export async function checkOriginStatus(fetchImpl, base, { retries = 2, retryDelayMs = 5000 } = {}) {
+  const { last, good } = await confirmJson(fetchImpl, base + '/api/status', {
+    retries,
+    retryDelayMs,
+    ok: (payload, status) => status === 200 && payload && payload.ok && payload.db,
+  });
+  if (good) return null;
+  if (last.kind === 'json' && last.status === 200) return 'origin /api/status: не ok/db';
+  return describeJsonFailure('/api/status', last, { retries });
+}
+
+export async function checkSiteVersion(fetchImpl, base, { retries = 2, retryDelayMs = 5000 } = {}) {
+  const { last, good } = await confirmJson(fetchImpl, base + '/api/site/__version', {
+    retries,
+    retryDelayMs,
+    ok: (payload, status) => status === 200 && payload && typeof payload.v !== 'undefined',
+  });
+  if (good) return null;
+  if (last.status !== 200 && last.kind !== 'html' && last.kind !== 'invalid_json' && last.kind !== 'non_json') {
+    return `/api/site/__version: HTTP ${last.status}`;
+  }
+  if (last.kind === 'json' && last.status === 200) return '/api/site/__version: нет JSON-поля v';
+  return describeJsonFailure('/api/site/__version', last, { retries });
 }
 
 async function main() {
@@ -71,14 +151,10 @@ async function main() {
   });
   const problems = [];
   try {
-    const st = await (await fetch(ORIGIN + '/api/status')).json();
-    if (!st.ok || !st.db) problems.push('origin /api/status: не ok/db');
-    const ver = await fetch(ORIGIN + '/api/site/__version');
-    if (ver.status !== 200) problems.push(`/api/site/__version: HTTP ${ver.status}`);
-    else {
-      const payload = await ver.json().catch(() => null);
-      if (!payload || typeof payload.v === 'undefined') problems.push('/api/site/__version: нет JSON-поля v');
-    }
+    const statusProblem = await checkOriginStatus(fetch, ORIGIN);
+    if (statusProblem) problems.push(statusProblem);
+    const versionProblem = await checkSiteVersion(fetch, ORIGIN);
+    if (versionProblem) problems.push(versionProblem);
     if (process.env.PLATFORM_SESSION_SECRET) {
       const { default: jwt } = await import('jsonwebtoken');
       const tok = jwt.sign(
