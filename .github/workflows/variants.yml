@@ -10,8 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/repair-apt
       - name: tools
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+        run: sudo apt-get install -y -qq ffmpeg
       - name: make variants
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |

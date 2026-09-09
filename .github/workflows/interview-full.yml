@@ -23,9 +23,10 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/repair-apt
       - name: tools
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          sudo apt-get install -y -qq ffmpeg
           python3 -m pip install --quiet --upgrade yt-dlp
       # СПИСОК САМ (Артур 2026-08-04 «применить плеер везде»): без ручного ввода
       # берём интервью с публичного сайта и отбрасываем те, чья запись уже лежит в

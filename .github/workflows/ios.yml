@@ -9,10 +9,13 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
-      - run: npx playwright install --with-deps webkit
-      - run: sudo apt-get install -y gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad >/dev/null 2>&1 || true
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: webkit chrome
+          playwright-version: '1.49.0'
+          extra-apt: gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
       - run: rm -rf out && timeout 420 node ios.js || echo "EXIT=$?"
-      - run: npx playwright install --with-deps chrome >/dev/null 2>&1 && timeout 180 node tester-shot.js || echo "TESTER_EXIT=$?"
+      - run: timeout 180 node tester-shot.js || echo "TESTER_EXIT=$?"
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: ios-out, path: out/ }

@@ -1,0 +1,53 @@
+name: install-playwright
+description: Cache Playwright browsers by version; install without dying on a flaky apt mirror
+inputs:
+  browsers:
+    description: Space-separated Playwright browsers (webkit, chromium, chrome)
+    required: true
+  playwright-version:
+    description: playwright npm version already installed in this job
+    required: false
+    default: '1.49.0'
+  extra-apt:
+    description: Optional extra apt packages (gstreamer plugins); failures ignored
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: lock — установка браузера не ходит в сырой apt
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: node --test scripts/apt-install-throat.test.mjs
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ inputs.playwright-version }}-${{ inputs.browsers }}
+        restore-keys: |
+          ${{ runner.os }}-playwright-${{ inputs.playwright-version }}-
+
+    - name: Repair apt
+      shell: bash
+      run: bash "${{ github.workspace }}/.github/actions/repair-apt/repair-apt.sh"
+
+    - name: Install Playwright browsers
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Binaries come from cache or Playwright CDN — not from apt.
+        npx playwright install ${{ inputs.browsers }}
+        # OS libraries need apt. The mirror is already repaired; Playwright's
+        # own apt-get update still runs inside install-deps, so if it re-adds
+        # google-chrome.list we repair once more and retry.
+        if ! npx playwright install-deps ${{ inputs.browsers }}; then
+          echo "install-deps failed; repairing apt again"
+          bash "${{ github.workspace }}/.github/actions/repair-apt/repair-apt.sh"
+          npx playwright install-deps ${{ inputs.browsers }}
+        fi
+
+    - name: Extra OS packages
+      if: ${{ inputs.extra-apt != '' }}
+      shell: bash
+      run: sudo apt-get install -y ${{ inputs.extra-apt }} >/dev/null 2>&1 || true

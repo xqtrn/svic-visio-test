@@ -25,8 +25,11 @@ jobs:
         with:
           node-version: '22'
       - run: npm init -y >/dev/null 2>&1 && npm i playwright@1.49.0 jsonwebtoken@9 >/dev/null 2>&1
-      - run: npx playwright install --with-deps chromium webkit
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg espeak-ng
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: chromium webkit
+          playwright-version: '1.49.0'
+      - run: sudo apt-get install -y -qq ffmpeg espeak-ng
       - name: Build speech test video
         run: |
           espeak-ng -v en-us -s 135 -w caption-smoke.wav \

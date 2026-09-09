@@ -25,9 +25,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - name: lock — установка браузера не ходит в сырой apt
+        run: node --test scripts/apt-install-throat.test.mjs
       - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
-      - run: npx playwright install --with-deps webkit
-      - run: sudo apt-get install -y gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad >/dev/null 2>&1 || true
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: webkit
+          playwright-version: '1.49.0'
+          extra-apt: gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
       - run: rm -rf out && node ui-audit.js
         env:
           BASE: ${{ inputs.base }}

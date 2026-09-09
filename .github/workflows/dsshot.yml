@@ -9,7 +9,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
-      - run: npx playwright install --with-deps chrome webkit
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: chrome webkit
+          playwright-version: '1.49.0'
       - run: node ds-shot.js
       - run: timeout 120 node arx-shot.js || echo ARX_EXIT=$?
       - run: timeout 120 node home-shot.js || echo HOME_EXIT=$?

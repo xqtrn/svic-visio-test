@@ -8,7 +8,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
-      - run: npm i playwright >/dev/null 2>&1 && npx playwright install chrome >/dev/null 2>&1
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: chrome
+          playwright-version: '1.49.0'
       - run: node art-shot.js
       - uses: actions/upload-artifact@v4
         with: { name: art-out, path: out/ }

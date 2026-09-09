@@ -14,8 +14,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
+      - uses: ./.github/actions/repair-apt
       - run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          sudo apt-get install -y -qq ffmpeg
           python3 -m pip install --quiet --upgrade yt-dlp
           npm i pg@8 @aws-sdk/client-s3@3 --no-save
       - run: node archive-missing-clips.mjs

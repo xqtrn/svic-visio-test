@@ -9,7 +9,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
-      - run: npx playwright install --with-deps webkit
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: webkit
+          playwright-version: '1.49.0'
       - run: timeout 420 node vault-ios.js || echo "EXIT=$?"
         env:
           VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
