@@ -54,15 +54,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          eval "$(node --input-type=module -e "
+            import { WORKER_RELEASES, UPLOAD_RELEASE, LEDGER_RELEASE } from './scripts/iv-covers-plan.mjs';
+            console.log('WORKER_RELEASES=' + JSON.stringify(WORKER_RELEASES.join(' ')));
+            console.log('UPLOAD_RELEASE=' + JSON.stringify(UPLOAD_RELEASE));
+            console.log('LEDGER_RELEASE=' + JSON.stringify(LEDGER_RELEASE));
+            console.log('WORKER_RELEASES_NEWEST=' + JSON.stringify([...WORKER_RELEASES].reverse().join(' ')));
+          ")"
+          echo "UPLOAD_RELEASE=$UPLOAD_RELEASE" >> "$GITHUB_ENV"
+          echo "LEDGER_RELEASE=$LEDGER_RELEASE" >> "$GITHUB_ENV"
+          echo "WORKER_RELEASES=$WORKER_RELEASES" >> "$GITHUB_ENV"
+          echo "WORKER_RELEASES_NEWEST=$WORKER_RELEASES_NEWEST" >> "$GITHUB_ENV"
           # Полный список ассетов постранично: релиз clips стоит на потолке GitHub
-          # (1000 файлов), одиночный ответ API его не вместит.
-          for TAG in clips clips2; do
+          # (1000 файлов), одиночный ответ API его не вместит. Список томов — из
+          # WORKER_RELEASES, иначе новый том clipsN воркер не увидит.
+          for TAG in $WORKER_RELEASES; do
             ID=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" -q .id)
             gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$ID/assets?per_page=100" -q '.[].name' > "existing-$TAG.txt"
             echo "$TAG: $(wc -l < "existing-$TAG.txt") файлов"
           done
           # леджер неудач лежит ассетом в clips2; первого прогона — нет, это норма
-          curl -sfL "https://github.com/$GITHUB_REPOSITORY/releases/download/clips2/iv-covers-ledger.json" -o iv-covers-ledger.json || echo '{}' > iv-covers-ledger.json
+          curl -sfL "https://github.com/$GITHUB_REPOSITORY/releases/download/$LEDGER_RELEASE/iv-covers-ledger.json" -o iv-covers-ledger.json || echo '{}' > iv-covers-ledger.json
           node -e "JSON.parse(require('fs').readFileSync('iv-covers-ledger.json','utf8'))" || echo '{}' > iv-covers-ledger.json
       - name: plan the batch
         env:
@@ -111,7 +123,7 @@ jobs:
             #    сохранённый у нас, фрагмент всё равно получает. Копия без звуковой
             #    дорожки источником не годится — за таким роликом идём на YouTube.
             if [ "$COPY" != - ]; then
-              for TAG in clips2 clips; do
+              for TAG in $WORKER_RELEASES_NEWEST; do
                 if curl -sfL "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$COPY" -o in.mp4 \
                    && [ "$(stat -c%s in.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
                   if [ -n "$(ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 in.mp4 2>/dev/null | head -1)" ]; then
@@ -172,9 +184,9 @@ jobs:
             if [ -z "$(ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "iv-$VID.mp4" | head -1)" ]; then
               miss "$VID" "НЕТ ЗВУКОВОЙ ДОРОЖКИ — не выкладываю"; continue
             fi
-            if gh release upload clips2 "iv-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber </dev/null; then
+            if gh release upload "$UPLOAD_RELEASE" "iv-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber </dev/null; then
               echo "нарезано $(ffprobe -v error -show_entries format=duration -of csv=p=0 "iv-$VID.mp4")с, $(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "iv-$VID.mp4"), $(stat -c%s "iv-$VID.mp4") байт"
-              OK=$((OK+1)); note "$VID" ok >/dev/null; echo "iv-$VID.mp4" >> existing-clips2.txt
+              OK=$((OK+1)); note "$VID" ok >/dev/null; echo "iv-$VID.mp4" >> "existing-$UPLOAD_RELEASE.txt"
             else
               miss "$VID" upload
             fi
@@ -192,5 +204,5 @@ jobs:
           # воркер (иначе карточка получит 404); имя файла воркер зашил
           node scripts/iv-covers-plan.mjs manifest
           gh release upload clips interview-covers.json -R "$GITHUB_REPOSITORY" --clobber
-          gh release upload clips2 iv-covers-ledger.json -R "$GITHUB_REPOSITORY" --clobber
+          gh release upload "${LEDGER_RELEASE:-clips2}" iv-covers-ledger.json -R "$GITHUB_REPOSITORY" --clobber
           node scripts/iv-covers-plan.mjs report "${OK:-0}" "${FAIL:-0}" "${DEAD:-0}"

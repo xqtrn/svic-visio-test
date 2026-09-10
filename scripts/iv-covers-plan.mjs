@@ -21,7 +21,7 @@
 // не больше BATCH роликов (лежащие и пропущенные в лимит не входят) — минуты
 // Actions не бесконечны, расписание раз в 6ч само доберёт остаток за несколько дней.
 //
-// Леджер iv-covers-ledger.json (ассет релиза clips2) помнит неудачи: 38 из 55
+// Леджер iv-covers-ledger.json (ассет релиза clips2, --clobber на месте) помнит неудачи: 38 из 55
 // постов «без ничего» — это ролики, которых на YouTube больше нет (oEmbed 404/403).
 // Без памяти они стояли бы в голове очереди и каждый прогон съедали бы весь лимит,
 // а живые посты не дождались бы своей очереди никогда.
@@ -36,11 +36,28 @@ export const RELEASE_RESERVE = 3;           // манифест, леджер и
 export const RETRY_AFTER_FAILS = 3;         // столько подряд неудач — и ролик отходит в хвост
 export const RETRY_FAIL_DAYS = 7;
 export const RETRY_UNAVAILABLE_DAYS = 30;   // снятый с YouTube ролик перепроверяем раз в месяц
-// Релизы, которые читает воркер сайта (testnew-edge/worker.mjs: REL/REL2). Новый том
-// добавлять сюда ТОЛЬКО вместе с воркером, иначе манифест обещает файл, до которого
-// сайт не дотянется.
-export const WORKER_RELEASES = ['clips', 'clips2'];
-export const UPLOAD_RELEASE = 'clips2';
+// Релизы, которые читает воркер сайта (testnew-edge/worker.mjs: CLIP_RELEASES,
+// раньше REL/REL2). Новый том — следующая цифра в хвосте списка, и ТОЛЬКО вместе
+// с воркером: иначе манифест обещает файл, до которого сайт не дотянется.
+// Пишем в последний том; леджер исторически живёт в clips2 (--clobber на месте).
+export const WORKER_RELEASES = ['clips', 'clips2', 'clips3'];
+export const UPLOAD_RELEASE = WORKER_RELEASES[WORKER_RELEASES.length - 1];
+export const LEDGER_RELEASE = 'clips2';
+
+export function nextVolumeName(releases = WORKER_RELEASES) {
+  const last = String(releases[releases.length - 1] || 'clips');
+  const n = last === 'clips' ? 1 : Number((last.match(/^clips(\d+)$/) || [])[1] || 0);
+  if (!n) throw new Error(`не умею назвать следующий том после ${last}`);
+  return `clips${n + 1}`;
+}
+
+export function clipDownloadUrl(tag, name, repo = 'xqtrn/svic-visio-test') {
+  return `https://github.com/${repo}/releases/download/${tag}/${name}`;
+}
+
+export function releaseRoom(assetCount, cap = RELEASE_CAP, reserve = RELEASE_RESERVE) {
+  return cap - Number(assetCount || 0) - reserve;
+}
 
 const isYt = (v) => /^[A-Za-z0-9_-]{11}$/.test(String(v || ''));
 export const normPath = (u) => {
@@ -229,8 +246,8 @@ async function oembed(vid) {
 // Звук в уже лежащем фрагменте (2026-08-04: кнопка unmute включала тишину).
 // Проверяется один раз — вердикт остаётся в леджере.
 function probeAudio(repo, vid) {
-  for (const tag of ['clips2', 'clips']) {
-    const url = `https://github.com/${repo}/releases/download/${tag}/iv-${vid}.mp4`;
+  for (const tag of [...WORKER_RELEASES].reverse()) {
+    const url = clipDownloadUrl(tag, `iv-${vid}.mp4`, repo);
     try {
       const out = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', url], { encoding: 'utf8', timeout: 60000, stdio: ['ignore', 'pipe', 'ignore'] });
       if (out.trim()) return true;
@@ -243,8 +260,8 @@ async function cmdPlan() {
   const { openTask, closeTask } = await import('./system-task.mjs');
   const batch = Math.max(0, +(process.env.BATCH || 25) || 0);
   const repo = process.env.GITHUB_REPOSITORY || 'xqtrn/svic-visio-test';
-  const assets = new Set([...readLines('existing-clips.txt'), ...readLines('existing-clips2.txt')]);
-  const clips2Count = readLines('existing-clips2.txt').length;
+  const assets = new Set(WORKER_RELEASES.flatMap((t) => readLines(`existing-${t}.txt`)));
+  const uploadCount = readLines(`existing-${UPLOAD_RELEASE}.txt`).length;
   const ledger = readJson('iv-covers-ledger.json', {});
   const curatedList = readJson('iv-list.json', []);
   const curated = Object.fromEntries(curatedList.map((x) => [x.v, { s: x.s, e: x.e }]));
@@ -293,12 +310,12 @@ async function cmdPlan() {
   }
 
   const cls = classify(posts, assets, ledger);
-  const room = RELEASE_CAP - clips2Count - RELEASE_RESERVE;
-  const stats = { posts: posts.length, have_iv: cls.haveIv.length, deferred: cls.deferred.length, backlog: cls.candidates.length, release_room: room, release_full: false, batch, picked: 0, from_copy: 0, unavailable: 0 };
+  const room = releaseRoom(uploadCount);
+  const stats = { posts: posts.length, have_iv: cls.haveIv.length, deferred: cls.deferred.length, backlog: cls.candidates.length, release_room: room, release_full: false, batch, picked: 0, from_copy: 0, unavailable: 0, upload_release: UPLOAD_RELEASE };
   let picked = [];
   if (room < 1) {
     stats.release_full = true;
-    console.error(`FATAL-класс: релиз ${UPLOAD_RELEASE} на потолке GitHub (${clips2Count} из ${RELEASE_CAP}) — резать некуда`);
+    console.error(`FATAL-класс: релиз ${UPLOAD_RELEASE} на потолке GitHub (${uploadCount} из ${RELEASE_CAP}) — следующий том ${nextVolumeName()}`);
   } else {
     const r = await pickBatch(cls.candidates, Math.min(batch, room), oembed, ledger);
     picked = r.picked; stats.picked = picked.length; stats.unavailable = r.unavailable.length;
@@ -351,7 +368,7 @@ async function cmdReport([ok, fail, dead]) {
       key: 'iv-covers-release-full',
       summary: 'Склад превью-фрагментов заполнен — новые карточки остаются без нашего ролика',
       details: `Релиз ${UPLOAD_RELEASE} в xqtrn/svic-visio-test упёрся в потолок GitHub (${RELEASE_CAP} файлов). Нарезка остановлена, чтобы не класть файлы туда, откуда сайт их не прочтёт.`,
-      instructions: 'Завести релиз clips3, научить воркер сайта (testnew-edge/worker.mjs, REL/REL2) и WORKER_RELEASES/UPLOAD_RELEASE в scripts/iv-covers-plan.mjs читать и писать новый том.',
+      instructions: `Завести релиз ${nextVolumeName()}, научить воркер сайта (testnew-edge/worker.mjs, CLIP_RELEASES) и WORKER_RELEASES/UPLOAD_RELEASE в scripts/iv-covers-plan.mjs читать и писать новый том.`,
     });
   } else await closeTask('iv-covers-release-full', 'в релизе снова есть место');
   const bad = tried >= 2 && FAIL / tried > 0.5;

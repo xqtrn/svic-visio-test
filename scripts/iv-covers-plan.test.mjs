@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   parseCovers, segMapFromHtml, parsePostPage, postLinks, classify, pickBatch,
   resolveSegment, buildManifest, noteResult, normPath, WORKER_RELEASES, UPLOAD_RELEASE,
+  LEDGER_RELEASE, nextVolumeName, releaseRoom, RELEASE_CAP, RELEASE_RESERVE,
 } from './iv-covers-plan.mjs';
 
 const DAY = 86400000;
@@ -124,8 +125,21 @@ test('сегмент: главная > страница поста > курир�
 test('манифест: все посты, чей iv-<id>.mp4 лежит в релизе, который читает воркер; имя ключа iv-<id>', () => {
   const posts = [{ u: '/a/', v: 'AAAAAAAAAAA' }, { u: '/b', v: 'BBBBBBBBBBB' }, { u: '/c', v: 'iv-CCCCCCCCCCC' }, { u: '/a', v: 'AAAAAAAAAAA' }];
   assert.deepEqual(buildManifest(posts, ['iv-AAAAAAAAAAA.mp4', 'BBBBBBBBBBB.mp4', 'iv-CCCCCCCCCCC.mp4']), [{ u: '/a', v: 'iv-AAAAAAAAAAA' }]);
-  assert.deepEqual(WORKER_RELEASES, ['clips', 'clips2']);
+  assert.deepEqual(WORKER_RELEASES, ['clips', 'clips2', 'clips3']);
+  assert.equal(UPLOAD_RELEASE, WORKER_RELEASES.at(-1));
+  assert.equal(UPLOAD_RELEASE, 'clips3');
+  assert.equal(LEDGER_RELEASE, 'clips2');
   assert.ok(WORKER_RELEASES.includes(UPLOAD_RELEASE));
+  assert.ok(WORKER_RELEASES.includes(LEDGER_RELEASE));
+});
+
+test('тома: пишем в хвост списка; следующий после потолка — clipsN+1, не захардкоженный clips3', () => {
+  assert.equal(nextVolumeName(['clips']), 'clips2');
+  assert.equal(nextVolumeName(['clips', 'clips2']), 'clips3');
+  assert.equal(nextVolumeName(), 'clips4');
+  assert.equal(releaseRoom(997), RELEASE_CAP - 997 - RELEASE_RESERVE);
+  assert.ok(releaseRoom(997) < 1, 'clips2 на 997 при запасе 3 — резать некуда, это и остановило нарезку');
+  assert.ok(releaseRoom(0) > 1, 'пустой новый том снова принимает файлы');
 });
 
 test('леджер: удача обнуляет счётчик неудач и помнит звук, неудача копит, мёртвый ролик уходит в недоступные', () => {
@@ -177,4 +191,28 @@ test('воркфлоу: копия из релиза — источник нар
   assert.doesNotMatch(yml, /rm -f try\.mp4\b/);
   assert.equal((yml.match(/yt-dlp --no-playlist --no-continue/g) || []).length, 2);
   assert.doesNotMatch(yml, /rm -f in\.mp4 sec\.mp4/);
+});
+
+test('воркфлоу не хардкодит тома: инвентарь, копия-источник и заливка берутся из WORKER_RELEASES/UPLOAD_RELEASE', () => {
+  const yml = readFileSync(new URL('../.github/workflows/iv-covers.yml', import.meta.url), 'utf8');
+  const sync = readFileSync(new URL('../weekly-sync.js', import.meta.url), 'utf8');
+  const convert = readFileSync(new URL('../.github/workflows/convert.yml', import.meta.url), 'utf8');
+  const full = readFileSync(new URL('../.github/workflows/interview-full.yml', import.meta.url), 'utf8');
+  const missing = readFileSync(new URL('../.github/workflows/download-missing.yml', import.meta.url), 'utf8');
+  // список томов — из модуля, иначе clips4 снова остановит нарезку молча
+  assert.match(yml, /WORKER_RELEASES/);
+  assert.match(yml, /UPLOAD_RELEASE/);
+  assert.doesNotMatch(yml, /for TAG in clips clips2;/);
+  assert.doesNotMatch(yml, /gh release upload clips2 "iv-\$VID\.mp4"/);
+  assert.match(yml, /gh release upload "\$UPLOAD_RELEASE" "iv-\$VID\.mp4"/);
+  assert.match(yml, /existing-\$TAG\.txt/);
+  assert.match(yml, /existing-\$UPLOAD_RELEASE\.txt/);
+  // convert / interview-full / download-missing пишут в тот же том, что и нарезка
+  for (const [name, src] of [['convert', convert], ['interview-full', full], ['download-missing', missing]]) {
+    assert.match(src, /UPLOAD_RELEASE/, `${name}: том заливки из модуля, не clips2`);
+    assert.doesNotMatch(src, /gh release upload clips2 /, `${name}: больше не льёт в заполненный clips2`);
+  }
+  for (const tag of WORKER_RELEASES) {
+    assert.match(sync, new RegExp(`['"]${tag}['"]`), `weekly-sync видит том ${tag}`);
+  }
 });

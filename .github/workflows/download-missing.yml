@@ -19,7 +19,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
         run: |
+          eval "$(node --input-type=module -e "import { UPLOAD_RELEASE } from './scripts/iv-covers-plan.mjs'; console.log('UPLOAD_RELEASE=' + JSON.stringify(UPLOAD_RELEASE));")"
           gh release view clips -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create clips -R "$GITHUB_REPOSITORY" -t "progressive clips" -n "article cover videos"
+          gh release view "$UPLOAD_RELEASE" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$UPLOAD_RELEASE" -R "$GITHUB_REPOSITORY" -t "progressive clips ($UPLOAD_RELEASE)" -n "continuation volume after GitHub 1000-asset cap"
           N=$(node -e "console.log(require('./manifest-missing.json').length)")
           OK=0; FAIL=0
           for i in $(seq 0 $((N-1))); do
@@ -27,7 +29,7 @@ jobs:
             TYPE=$(node -e "console.log(require('./manifest-missing.json')[$i].type)")
             SRC=$(node -e "console.log(require('./manifest-missing.json')[$i].source)")
             echo "=== [$((i+1))/$N] $KEY ($TYPE) ==="
-            EXIST=$(gh release view clips -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
+            EXIST=$(gh release view "$UPLOAD_RELEASE" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
             if echo "$EXIST" | grep -qx "$KEY.mp4"; then echo "skip (exists)"; OK=$((OK+1)); continue; fi
             rm -f in.mp4 "$KEY.mp4"
             if [ "$TYPE" = wordpress ]; then
@@ -45,6 +47,6 @@ jobs:
             echo "size=$SZ dur=$DUR"
             ffmpeg -hide_banner -loglevel error -i in.mp4 -c copy -movflags +faststart "$KEY.mp4" 2>/dev/null \
               || ffmpeg -hide_banner -loglevel error -i in.mp4 -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "$KEY.mp4"
-            gh release upload clips "$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
+            gh release upload "$UPLOAD_RELEASE" "$KEY.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1))
           done
           echo "=== uploaded=$OK failed=$FAIL of $N ==="

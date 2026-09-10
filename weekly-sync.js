@@ -7,9 +7,9 @@ const LIVE='https://siliconvalleyinvestclub.com';
 async function txt(u,o){ const r=await fetch(u,o); return r.ok?await r.text():''; }
 async function companyVideo(slug){ const s=await txt(`${LIVE}/${slug}/`,{redirect:'follow'}); return (s.match(/https:\/\/videos\.files\.wordpress\.com\/[^"'\s)]+\.mp4/)||[])[0]||null; }
 async function existing(){
-  // два тома: clips упёрся в потолок GitHub 1000 ассетов (2026-08-02), новое льётся в clips2
+  // тома склада: GitHub 1000 ассетов на релиз. Список = WORKER_RELEASES в iv-covers-plan.mjs.
   const out=new Set();
-  for(const tag of ['clips','clips2']){
+  for(const tag of ['clips','clips2','clips3']){
     const r=await fetch(`https://api.github.com/repos/xqtrn/svic-visio-test/releases/tags/${tag}`,{headers:{'User-Agent':'sync','Authorization':`Bearer ${process.env.GH_TOKEN||''}`}});
     if(!r.ok) continue; const j=await r.json(); for(const a of (j.assets||[])) out.add(a.name.replace(/\.mp4$/,''));
   }

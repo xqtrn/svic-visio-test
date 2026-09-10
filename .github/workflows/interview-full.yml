@@ -35,8 +35,18 @@ jobs:
         id: list
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
+          eval "$(node --input-type=module -e "
+            import { WORKER_RELEASES, UPLOAD_RELEASE } from './scripts/iv-covers-plan.mjs';
+            console.log('WORKER_RELEASES=' + JSON.stringify(WORKER_RELEASES.join(' ')));
+            console.log('UPLOAD_RELEASE=' + JSON.stringify(UPLOAD_RELEASE));
+          ")"
+          echo "UPLOAD_RELEASE=$UPLOAD_RELEASE" >> "$GITHUB_ENV"
           if [ -n "${{ inputs.ids }}" ]; then echo "ids=${{ inputs.ids }}" >> $GITHUB_OUTPUT; exit 0; fi
-          HAVE=$(gh release view clips2 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | grep '^full-' | sed 's/^full-//;s/\.mp4$//' | sort -u)
+          HAVE=""
+          for TAG in $WORKER_RELEASES; do
+            HAVE="$HAVE"$'\n'$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
+          done
+          HAVE=$(printf '%s\n' "$HAVE" | grep '^full-' | sed 's/^full-//;s/\.mp4$//' | sort -u)
           printf '%s\n' "$HAVE" > have.txt
           node - <<'EOF' > wanted.txt
           const fs=require('fs');
@@ -93,7 +103,7 @@ jobs:
             SUB=$(ls subs*.vtt 2>/dev/null | head -1)
             if [ -n "$SUB" ]; then
               mv "$SUB" "full-$VID.en.vtt"
-              gh release upload clips2 "full-$VID.en.vtt" -R "$GITHUB_REPOSITORY" --clobber && echo "субтитры выложены" || echo "субтитры не залились"
+              gh release upload "$UPLOAD_RELEASE" "full-$VID.en.vtt" -R "$GITHUB_REPOSITORY" --clobber && echo "субтитры выложены" || echo "субтитры не залились"
             fi
             SRCH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 in.mp4 | head -1)
             echo "исходная высота: ${SRCH:-?}"
@@ -125,9 +135,9 @@ jobs:
               SH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "full-$VID.mp4" | head -1)
               [ -n "$SH" ] && [ "$SH" -gt "$QH" ] \
                 && ffmpeg -nostdin -hide_banner -loglevel error -i "full-$VID.mp4" -vf scale=-2:$QH -c:v libx264 -preset veryfast -crf 24 -c:a aac -movflags +faststart "full-$VID.$QH.mp4" \
-                && gh release upload clips2 "full-$VID.$QH.mp4" -R "$GITHUB_REPOSITORY" --clobber && rm -f "full-$VID.$QH.mp4"
+                && gh release upload "$UPLOAD_RELEASE" "full-$VID.$QH.mp4" -R "$GITHUB_REPOSITORY" --clobber && rm -f "full-$VID.$QH.mp4"
             done
-            gh release upload clips2 "full-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1)) || FAIL=$((FAIL+1))
+            gh release upload "$UPLOAD_RELEASE" "full-$VID.mp4" -R "$GITHUB_REPOSITORY" --clobber && OK=$((OK+1)) || FAIL=$((FAIL+1))
             ffprobe -v error -show_entries format=duration,size -of csv=p=0 "full-$VID.mp4"
           done
           echo "=== masters=$OK failed=$FAIL ==="
