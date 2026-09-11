@@ -17,6 +17,8 @@ jobs:
       - run: npm i pg@8 --no-save
       - run: node scripts/frontpage-guard.mjs
         env:
+          SVIC_HOST: https://siliconvalleyinvestclub.com
+          SVIC_API_ORIGIN: https://siliconvalleyinvestclub.com
           SVIC_PLATFORM_DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
           SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
           STAND_TOKEN: ${{ secrets.STAND_TOKEN }}
