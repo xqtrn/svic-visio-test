@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Сторож главной стенда — облачный (Артур 2026-07-28).
  *
- * Смотрит на живую выдачу test.siliconvalleyinvestclub.com глазами читателя и
+ * Смотрит на живую выдачу siliconvalleyinvestclub.com глазами читателя и
  * проверяет два условия, которых на главной не было и которые Артур поймал сам:
  *   1) карточка принадлежит ОДНОЙ статье — заголовок, адрес и дата не могут быть
  *      от разных (класс «сшитая карточка»: фото Anduril под заголовком Humanoid);
@@ -11,20 +11,22 @@
  *      (28 июля сайт отдал шапку с подвалом и пустой серединой).
  * Истина о статьях — база, а не разметка.
  *
- * Молчит, пока всё в порядке. Расхождение сначала ЛЕЧИТСЯ пересборкой снимка
- * (POST /api/internal/frontpage-refresh) — Harvey $550M 2026-09-10 три раза
- * открыл карточку на ссылку, которой в publish уже не было, хотя сборка умела
- * заменить жильца. Карточка на /developement — только если после пересборки
- * расхождение осталось. Проверка снова прошла — карточка закрывается сама.
+ * Молчит, пока всё в порядке. Расхождение сначала ЛЕЧИТСЯ в горле стенда
+ * (POST /api/internal/frontpage-refresh heal=true) — Harvey $550M 2026-09-11
+ * снова открыл карточку, потому что этот сторож после пересборки судил живую
+ * HTML из tagged fetch Next на 300с и ходил на test. (уже логин), а не снимок.
+ * Карточка на /developement — только если снимок после лечения всё ещё
+ * расходится. Проверка снова прошла — карточка закрывается сама.
  * Секреты: SVIC_PLATFORM_DATABASE_URL, SVIC_INTERNAL_KEY.
  */
 import pg from 'pg';
 import { openTask, closeTask } from './system-task.mjs';
 
-const HOST = process.env.SVIC_HOST || 'https://test.siliconvalleyinvestclub.com';
+const HOST = process.env.SVIC_HOST || 'https://siliconvalleyinvestclub.com';
 const API = (process.env.SVIC_API_ORIGIN || 'https://siliconvalleyinvestclub.com').replace(/\/+$/, '');
 const TASK_KEY = 'stand-frontpage';
 const STAND_TOKEN = process.env.STAND_TOKEN || 'edge-preview';
+const PROBE_UA = 'svic-frontpage-probe';
 const UNICORN_TAG = 1411;
 const MIN_CARDS = 40;
 
@@ -92,59 +94,52 @@ function inspectHtml(html, { bySlug, ruleOf, redirects }) {
 }
 
 async function fetchHome() {
-  return fetch(HOST + '/', { headers: { Cookie: 'svic_token=' + STAND_TOKEN, 'User-Agent': 'svic-frontpage-guard' } });
+  return fetch(HOST + '/', {
+    headers: {
+      Cookie: 'svic_token=' + STAND_TOKEN,
+      'User-Agent': PROBE_UA,
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+    redirect: 'manual',
+  });
 }
 
-async function rebuildFrontpage() {
+async function healFrontpage() {
   const key = process.env.SVIC_INTERNAL_KEY || '';
   if (!key) return { ok: false, error: 'no key' };
   try {
     const r = await fetch(API + '/api/internal/frontpage-refresh', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-internal-key': key },
-      body: '{}',
+      body: JSON.stringify({ heal: true }),
       signal: AbortSignal.timeout(120000),
     });
     const body = await r.json().catch(() => ({}));
-    return { ok: r.ok, http: r.status, ...body };
+    return { ok: r.ok && body.ok === true, http: r.status, ...body };
   } catch (err) {
     return { ok: false, error: err.message };
   }
 }
 
-const db = new pg.Pool({ connectionString: process.env.SVIC_PLATFORM_DATABASE_URL, ssl: { rejectUnauthorized: false } });
-let canon = await loadCanon(db);
+function snapshotIsHealed(heal) {
+  if (!heal || heal.ok !== true) return false;
+  return !Array.isArray(heal.bad) || heal.bad.length === 0;
+}
 
-const res = await fetchHome();
-if (!res.ok) {
-  await db.end();
+async function reportDown(status) {
   await openTask({
     key: TASK_KEY,
-    summary: `Главная стенда не открывается: отвечает ${res.status}. Карточки не проверены.`,
-    details: `GET ${HOST}/ вернул HTTP ${res.status} (сторож ходит с пропуском STAND_TOKEN, UA svic-frontpage-guard).`
-      + (res.status === 403 ? ' 403 у сторожа обычно значит устаревший пропуск, а не лежащий сайт — сперва проверь секрет STAND_TOKEN.' : ''),
+    summary: `Главная стенда не открывается: отвечает ${status}. Карточки не проверены.`,
+    details: `GET ${HOST}/ вернул HTTP ${status} (сторож ходит с пропуском STAND_TOKEN, UA ${PROBE_UA}).`
+      + (status === 403 ? ' 403 у сторожа обычно значит устаревший пропуск, а не лежащий сайт — сперва проверь секрет STAND_TOKEN.' : '')
+      + (status === 302 || status === 301 ? ' Редирект на логин — это не главная; хост сторожа должен быть публичным сайтом.' : ''),
     instructions: 'Вернуть выдачу главной стенда, затем прогнать сторожа главной и убедиться, что он проходит зелёным.',
   });
-  console.error('status', res.status);
-  process.exit(1);
+  console.error('status', status);
 }
 
-let { checked, bad } = inspectHtml(await res.text(), canon);
-let repaired = false;
-if (bad.length) {
-  const rebuild = await rebuildFrontpage();
-  repaired = Boolean(rebuild.ok);
-  if (rebuild.ok) {
-    canon = await loadCanon(db);
-    const again = await fetchHome();
-    if (again.ok) ({ checked, bad } = inspectHtml(await again.text(), canon));
-  } else {
-    console.error('пересборка не записалась: ' + (rebuild.error || ('HTTP ' + rebuild.http)));
-  }
-}
-await db.end();
-
-if (bad.length) {
+async function reportDrift(checked, bad) {
   const head = `Главная стенда разъехалась: ${bad.length} расхождений из ${checked} карточек.`;
   console.error('❌ ' + head);
   for (const b of bad.slice(0, 25)) console.error('   · ' + b);
@@ -154,8 +149,43 @@ if (bad.length) {
     details: [head, ...bad.slice(0, 25).map((b) => '· ' + b)].join('\n'),
     instructions: 'Пересобрать карточки главной и устранить причину расхождения (карточка целиком от одной статьи, статья стоит в своём блоке), затем прогнать сторожа главной.',
   });
+}
+
+const healed = await healFrontpage();
+if (snapshotIsHealed(healed)) {
+  await closeTask(TASK_KEY, 'Главная стенда снова собрана верно — сторож прошёл зелёным.');
+  console.log(`✓ главная: ${healed.checked} карточек — каждая от одной статьи и в своём блоке`
+    + (healed.repaired ? ' (пересобрана)' : ''));
+  process.exit(0);
+}
+if (Number(healed.status) >= 400 && !healed.checked) {
+  await reportDown(healed.status);
+  process.exit(1);
+}
+if (Array.isArray(healed.bad) && healed.bad.length) {
+  await reportDrift(healed.checked || 0, healed.bad);
+  process.exit(1);
+}
+
+const db = new pg.Pool({ connectionString: process.env.SVIC_PLATFORM_DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const canon = await loadCanon(db);
+const res = await fetchHome();
+if (res.status >= 300 && res.status < 400) {
+  await db.end();
+  await reportDown(res.status);
+  process.exit(1);
+}
+if (!res.ok) {
+  await db.end();
+  await reportDown(res.status);
+  process.exit(1);
+}
+const { checked, bad } = inspectHtml(await res.text(), canon);
+await db.end();
+if (bad.length) {
+  await reportDrift(checked, bad);
   process.exit(1);
 }
 await closeTask(TASK_KEY, 'Главная стенда снова собрана верно — сторож прошёл зелёным.');
-console.log(`✓ главная: ${checked} карточек — каждая от одной статьи и в своём блоке`
-  + (repaired ? ' (пересобрана)' : ''));
+console.log(`✓ главная: ${checked} карточек — каждая от одной статьи и в своём блоке`);
+process.exit(0);
