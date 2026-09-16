@@ -142,6 +142,62 @@ export async function checkSiteVersion(fetchImpl, base, { retries = 2, retryDela
   return describeJsonFailure('/api/site/__version', last, { retries });
 }
 
+// Cloudflare 5xx на пути к origin — не «байтов нет в бакете». 2026-09-16 проба
+// открыла карточку «хранилище не отдаёт файл HTTP 522, 0 байт» по одному тику:
+// объект в R2 был на месте (PNG 9 КБ), /api/status того же прогона был 200,
+// а край на секунды не достучался до Railway за подписанным редиректом.
+// JSON-проверки уже подтверждают не-200 повторами; медиатека ходила без них.
+const MEDIA_EDGE_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 527, 530]);
+
+export async function checkMediaFile(fetchImpl, origin, path, { retries = 2, retryDelayMs = 5000 } = {}) {
+  const attempt = async () => {
+    const url = String(origin || '').replace(/\/+$/, '')
+      + path
+      + (path.includes('?') ? '&' : '?')
+      + 'probe=' + Date.now();
+    const response = await fetchImpl(url, { redirect: 'follow' });
+    const status = Number(response && response.status) || 0;
+    const okStatus = Boolean(response && response.ok);
+    let type = '';
+    try {
+      if (response && response.headers && typeof response.headers.get === 'function') {
+        type = String(response.headers.get('content-type') || '');
+      }
+    } catch (_) { /* mock without headers */ }
+    let bytes = 0;
+    if (okStatus && response && typeof response.arrayBuffer === 'function') {
+      const buf = await response.arrayBuffer().catch(() => null);
+      bytes = buf ? buf.byteLength : 0;
+    }
+    return {
+      ok: okStatus && bytes >= 512 && type.startsWith('image/'),
+      status,
+      bytes,
+      type,
+    };
+  };
+  let last = await attempt();
+  for (let i = 0; i < retries && !last.ok; i += 1) {
+    await sleep(retryDelayMs);
+    last = await attempt();
+  }
+  if (last.ok) return null;
+  const tries = retries > 0 ? ` (${retries + 1} попытки)` : '';
+  if (MEDIA_EDGE_STATUSES.has(last.status)) {
+    return `край сайта не отдал картинку: ${path} (HTTP ${last.status}${tries}, ${last.bytes} байт)`;
+  }
+  return `хранилище картинок не отдаёт файл: ${path} (HTTP ${last.status}${tries}, ${last.bytes} байт)`;
+}
+
+export async function checkRecentMedia(fetchImpl, origin, paths, opts) {
+  for (const path of paths) {
+    if (!path || !String(path).startsWith('/')) continue;
+    const problem = await checkMediaFile(fetchImpl, origin, path, opts);
+    if (problem) return problem;
+  }
+  return null;
+}
+
 async function main() {
   const { default: pg } = await import('pg');
   const ORIGIN = origin();
@@ -169,22 +225,15 @@ async function main() {
 
   // ХРАНИЛИЩЕ МЕДИАТЕКИ ОТВЕЧАЕТ (2026-08-15). 15 августа AWS закрыл аккаунт по
   // исчерпанию кредитов — картинки и видео пропали со всего сайта, и заметил это
-  // Артур по скриншоту, а не мы. Проба берёт ЖИВУЮ картинку с главной и требует
-  // настоящие байты: молчащее хранилище (умерший ключ, закрытый аккаунт, пустой
-  // бакет) теперь становится задачей в тот же час.
+  // Артур по скриншоту, а не мы. Проба берёт ЖИВЫЕ картинки из медиатеки и
+  // требует настоящие байты: молчащее хранилище (умерший ключ, закрытый аккаунт,
+  // пустой бакет) становится задачей в тот же час. Одиночный 5xx края (522)
+  // подтверждаем повторами — тот же класс, что у /api/status 05.09 / 16.09.
   try {
     const { rows } = await pool.query(
       `SELECT coalesce(cdn_url, source_url) u FROM media WHERE mime LIKE 'image/%' ORDER BY id DESC LIMIT 3`);
-    for (const { u } of rows) {
-      if (!u || !u.startsWith('/')) continue;
-      const r = await fetch('https://siliconvalleyinvestclub.com' + u + (u.includes('?') ? '&' : '?') + 'probe=' + Date.now(),
-        { redirect: 'follow' });
-      const buf = r.ok ? await r.arrayBuffer() : null;
-      if (!r.ok || !buf || buf.byteLength < 512 || !String(r.headers.get('content-type') || '').startsWith('image/')) {
-        problems.push(`хранилище картинок не отдаёт файл: ${u} (HTTP ${r.status}, ${buf ? buf.byteLength : 0} байт)`);
-        break;
-      }
-    }
+    const mediaProblem = await checkRecentMedia(fetch, ORIGIN, rows.map((row) => row.u));
+    if (mediaProblem) problems.push(mediaProblem);
   } catch (e) { problems.push('проверка хранилища картинок упала: ' + e.message); }
 
   // контент на месте: у опубликованной статьи обязан быть чистый текст

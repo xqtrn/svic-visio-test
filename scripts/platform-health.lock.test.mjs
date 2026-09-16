@@ -7,6 +7,8 @@ import {
   checkAdminPosts,
   checkOriginStatus,
   checkSiteVersion,
+  checkMediaFile,
+  checkRecentMedia,
   readJsonResponse,
 } from './platform-health.mjs';
 
@@ -125,4 +127,84 @@ test('версия сайта тоже не падает на HTML', async () =>
   const msg = await checkSiteVersion(fake, 'https://siliconvalleyinvestclub.com', { retries: 0 });
   assert.match(msg, /\/api\/site\/__version: HTTP 200 HTML вместо JSON/);
   assert.doesNotMatch(msg, /Unexpected token/);
+});
+
+function mediaOk() {
+  return {
+    ok: true,
+    status: 200,
+    headers: { get: () => 'image/png' },
+    arrayBuffer: async () => new ArrayBuffer(1024),
+  };
+}
+
+function mediaFail(status) {
+  return {
+    ok: false,
+    status,
+    headers: { get: () => '' },
+    arrayBuffer: async () => new ArrayBuffer(0),
+  };
+}
+
+test('одиночный 522 медиатеки не становится карточкой', async () => {
+  let calls = 0;
+  const fake = async () => {
+    calls += 1;
+    if (calls === 1) return mediaFail(522);
+    return mediaOk();
+  };
+  const msg = await checkMediaFile(
+    fake,
+    'https://siliconvalleyinvestclub.com',
+    '/svic-media/logo.png',
+    { retries: 2, retryDelayMs: 1 },
+  );
+  assert.equal(msg, null);
+  assert.equal(calls, 2);
+});
+
+test('подтверждённый 522 медиатеки — отказ края, не пустой бакет', async () => {
+  const fake = async () => mediaFail(522);
+  const msg = await checkMediaFile(
+    fake,
+    'https://siliconvalleyinvestclub.com',
+    '/svic-media/logo.png',
+    { retries: 1, retryDelayMs: 1 },
+  );
+  assert.match(msg, /^край сайта не отдал картинку: \/svic-media\/logo\.png \(HTTP 522 \(2 попытки\), 0 байт\)$/);
+  assert.doesNotMatch(msg, /хранилище картинок/);
+});
+
+test('404 медиатеки остаётся поломкой хранилища', async () => {
+  const fake = async () => mediaFail(404);
+  const msg = await checkMediaFile(
+    fake,
+    'https://siliconvalleyinvestclub.com',
+    '/svic-media/missing.png',
+    { retries: 0 },
+  );
+  assert.match(msg, /^хранилище картинок не отдаёт файл: \/svic-media\/missing\.png \(HTTP 404, 0 байт\)$/);
+});
+
+test('первая живая картинка из трёх достаточна только если все отвечают', async () => {
+  const fake = async (url) => {
+    if (String(url).includes('dead.png')) return mediaFail(404);
+    return mediaOk();
+  };
+  const msg = await checkRecentMedia(
+    fake,
+    'https://siliconvalleyinvestclub.com',
+    ['/svic-media/ok.png', '/svic-media/dead.png'],
+    { retries: 0 },
+  );
+  assert.match(msg, /dead\.png/);
+});
+
+test('проба медиатеки ходит через checkMediaFile с повторами, не одним fetch', () => {
+  const src = readFileSync(new URL('./platform-health.mjs', import.meta.url), 'utf8');
+  assert.match(src, /checkMediaFile/);
+  assert.match(src, /checkRecentMedia\(fetch, ORIGIN/);
+  assert.match(src, /MEDIA_EDGE_STATUSES/);
+  assert.doesNotMatch(src, /problems\.push\(`хранилище картинок не отдаёт файл: \$\{u\} \(HTTP \$\{r\.status\}/);
 });
