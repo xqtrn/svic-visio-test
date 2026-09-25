@@ -268,6 +268,17 @@ const assets = requestedId
      WHERE captions_status IN ('processing','error') AND attempts < 5
      ORDER BY updated_at ASC LIMIT 20`)).rows;
 
+// Явно названный ролик, которого робот не нашёл, — это СБОЙ, а не «успех с нулём».
+// 10.09–25.09 робот читал старую копию базы сайта (переезд 09.09), на каждую
+// загрузку отвечал selected=0 и зеленел — 15 роликов остались без лёгкой копии,
+// герой главной тянул мастер 4K. Красный запуск видно, зелёный ноль — нет.
+if (requestedId && !assets.length) {
+  await audit('daemon.video-captions-miss', requestedId, { requested_id: requestedId }).catch(() => {});
+  await pool.end();
+  console.error(`[miss] ${requestedId}: нет строки в video_assets — не та база? (DATABASE_URL)`);
+  process.exit(1);
+}
+
 let succeeded = 0;
 let failed = 0;
 for (const asset of assets) {

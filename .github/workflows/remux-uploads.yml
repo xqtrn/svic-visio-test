@@ -15,25 +15,28 @@ concurrency:
 
 jobs:
   remux-and-caption:
-    runs-on: ubuntu-latest
+    # Наш исполнитель на Railway (сервис ci-runner, Debian bookworm, root), а не
+    # платные машины GitHub (2026-09-25: «GitHub исключаем из вычислений»).
+    # Бюджет GitHub кончился — копии роликов не должны останавливаться вместе с ним.
+    runs-on: [self-hosted, svic]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22' }
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: pip
-          cache-dependency-path: requirements-captions.txt
       - uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
           key: faster-whisper-small-v1
+      - name: ffmpeg + python для распознавания (ставятся один раз на контейнер)
+        run: |
+          SUDO=$(command -v sudo || true)
+          need=""
+          command -v ffmpeg >/dev/null || need="$need ffmpeg"
+          python3 -m venv --help >/dev/null 2>&1 || need="$need python3-venv"
+          if [ -n "$need" ]; then $SUDO apt-get update -qq && $SUDO apt-get install -y -qq $need; fi
+          [ -x "$HOME/.venv-captions/bin/python" ] || python3 -m venv "$HOME/.venv-captions"
+          "$HOME/.venv-captions/bin/pip" install -q -r requirements-captions.txt
+          echo "PYTHON=$HOME/.venv-captions/bin/python" >> "$GITHUB_ENV"
       - run: npm init -y >/dev/null 2>&1 && npm i pg >/dev/null 2>&1
-      - run: pip install -r requirements-captions.txt
-      - uses: ./.github/actions/repair-apt
-      - run: which ffmpeg || sudo apt-get install -y -qq ffmpeg
       - run: node remux-uploads.mjs
         env:
           DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
