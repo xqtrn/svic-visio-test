@@ -31,9 +31,9 @@ jobs:
           SUDO=$(command -v sudo || true)
           need=""
           command -v ffmpeg >/dev/null || need="$need ffmpeg"
-          python3 -m venv --help >/dev/null 2>&1 || need="$need python3-venv"
+          python3 -c 'import ensurepip' >/dev/null 2>&1 || need="$need python3-venv"
           if [ -n "$need" ]; then $SUDO apt-get update -qq && $SUDO apt-get install -y -qq $need; fi
-          [ -x "$HOME/.venv-captions/bin/python" ] || python3 -m venv "$HOME/.venv-captions"
+          [ -x "$HOME/.venv-captions/bin/pip" ] || { rm -rf "$HOME/.venv-captions"; python3 -m venv "$HOME/.venv-captions"; }
           "$HOME/.venv-captions/bin/pip" install -q -r requirements-captions.txt
           echo "PYTHON=$HOME/.venv-captions/bin/python" >> "$GITHUB_ENV"
       - run: npm init -y >/dev/null 2>&1 && npm i pg >/dev/null 2>&1
