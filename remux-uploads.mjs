@@ -262,6 +262,16 @@ async function processAsset(asset) {
     await audit('video.captions-ready', id, { status: 'ready', cues: cues.length, language, key: captionKey });
   } catch (e) {
     const message = String(e.message || e).replace(/\s+/g, ' ').slice(0, 500);
+    // Файла в складе НЕТ (ролик живёт только на YouTube — канон 31.08): это не
+    // сбой, повторять нечего. Попытки исчерпываются сразу, ночной прогон его
+    // больше не выбирает и не краснеет каждую ночь на одних и тех же id.
+    if (/^S3 GET 404$/.test(message)) {
+      await pool.query(
+        `UPDATE video_assets SET captions_status='error', error='no source file (YouTube-only)', attempts=GREATEST(attempts,5), updated_at=now() WHERE id=$1`,
+        [id]).catch(() => {});
+      await audit('video.no-source-file', id, { key: asset.object_key }).catch(() => {});
+      const err = new Error('no source file'); err.noSource = true; throw err;
+    }
     await pool.query(
       `UPDATE video_assets SET captions_status='error', error=$2, updated_at=now() WHERE id=$1`,
       [id, message]).catch(() => {});
@@ -306,6 +316,7 @@ for (const asset of assets) {
     succeeded++;
     console.log(`[caption] ${asset.id}: ready`);
   } catch (e) {
+    if (e.noSource && !requestedId) { console.log(`[caption] ${asset.id}: файла нет (только YouTube) — снят с повторов`); continue; }
     failed++;
     console.warn(`[caption] ${asset.id}: ${String(e.message || e).slice(0, 180)}`);
   }
