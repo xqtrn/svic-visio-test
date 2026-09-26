@@ -186,13 +186,32 @@ async function processAsset(asset) {
       execFileSync('ffmpeg', ['-y', '-i', output, ...vf,
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '27', '-color_range', 'tv',
         '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', card], { stdio: 'pipe' });
-      // копия обязана быть ЛЕГЧЕ мастера, иначе она бессмысленна — кладём всегда,
-      // но если вдруг вышла тяжелее (короткий и уже сжатый ролик), оставляем мастер
+      // ПОТОЛОК ВЕСА КОПИИ (2026-09-26, Артур «чтобы с другими видео такого не было»):
+      // карточка — беззвучный фон; копия тяжелее CARD_MAX_BYTES (Velaura 40 с
+      // быстрого монтажа дала 6.3 МБ на crf 27) пережимается ОДИН раз под потолок
+      // заданной скоростью потока. Та же планка у ежедневной сверки сайта.
+      const CARD_MAX_BYTES = 3 * 1024 * 1024;
+      if (fs.statSync(card).size > CARD_MAX_BYTES) {
+        const dur = duration(output) || 30;
+        const kbps = Math.max(350, Math.floor((CARD_MAX_BYTES * 8 * 0.9) / dur / 1000) - 96);
+        execFileSync('ffmpeg', ['-y', '-i', output, ...vf,
+          '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', kbps + 'k', '-maxrate', Math.floor(kbps * 1.2) + 'k',
+          '-bufsize', (kbps * 2) + 'k', '-color_range', 'tv',
+          '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', card], { stdio: 'pipe' });
+        console.log(`[card-copy] ${id}: пережата под потолок, ${kbps} кбит/с`);
+      }
       const masterSize = fs.statSync(output).size;
-      const cardSize = fs.statSync(card).size;
-      if (cardSize < masterSize) {
-        await s3Put(cardKey, fs.readFileSync(card), 'video/mp4');
+      let cardSize = fs.statSync(card).size;
+      // Копия не легче мастера (короткий, уже сжатый ролик) — копией служит сам
+      // мастер, если он в потолке: копия ОБЯЗАНА существовать, иначе замок
+      // публикации ждёт её вечно, а сверка открывает задачу.
+      let body = cardSize < masterSize ? fs.readFileSync(card) : null;
+      if (!body && masterSize <= CARD_MAX_BYTES) { body = fs.readFileSync(output); cardSize = masterSize; }
+      if (body) {
+        await s3Put(cardKey, body, 'video/mp4');
         await audit('video.card-copy-ready', id, { key: cardKey, bytes: cardSize, master: masterSize });
+      } else {
+        throw new Error(`копия ${cardSize} байт не легче мастера ${masterSize} и тяжелее потолка`);
       }
     } catch (e) {
       console.warn(`[card-copy] ${id}: ${e.message}`); // копия — не повод валить субтитры
