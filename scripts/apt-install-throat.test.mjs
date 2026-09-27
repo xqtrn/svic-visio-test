@@ -12,10 +12,28 @@ function read(rel) {
   return readFileSync(join(ROOT, rel), 'utf8');
 }
 
+// The lock guards GitHub-hosted machines, whose apt mirror flakes and killed
+// browser installs. A workflow that runs ONLY on our own Railway runner
+// (runs-on: [self-hosted, ...], Debian, root) never touches that mirror, so it
+// is outside this lock. 2026-09-26: remux-uploads.yml moved to ci-runner and
+// its one-time ffmpeg install red-lined every ui-audit run — the iOS WebKit
+// gate of all platform deploys stood dead from 09-25.
+function githubHosted(text) {
+  const runsOn = [...text.matchAll(/^\s*runs-on:\s*(.+)$/gm)].map((m) => m[1]);
+  return runsOn.length === 0 || runsOn.some((v) => !/self-hosted/.test(v));
+}
+
+test('self-hosted-only workflows are outside the lock; GitHub-hosted ones are not', () => {
+  assert.equal(githubHosted('jobs:\n  a:\n    runs-on: [self-hosted, svic]\n'), false);
+  assert.equal(githubHosted('jobs:\n  a:\n    runs-on: ubuntu-latest\n'), true);
+  assert.equal(githubHosted('jobs:\n  a:\n    runs-on: [self-hosted, svic]\n  b:\n    runs-on: ubuntu-latest\n'), true);
+});
+
 test('ни один workflow не вызывает сырой apt-get update или playwright --with-deps', () => {
   const hits = [];
   for (const name of WORKFLOWS) {
     const text = read(`.github/workflows/${name}`);
+    if (!githubHosted(text)) continue;
     if (/apt-get[^\n]*update/.test(text) || /playwright install --with-deps/.test(text)) {
       hits.push(name);
     }
@@ -77,6 +95,7 @@ test('ffmpeg-workflow чинит apt до install, а не зовёт update с�
   ];
   for (const name of must) {
     const text = read(`.github/workflows/${name}`);
+    if (!githubHosted(text)) continue; // our Railway runner: no GitHub apt mirror to repair
     assert.match(text, /\.\/\.github\/actions\/repair-apt|\.\/\.github\/actions\/install-playwright/, name);
     assert.doesNotMatch(text, /apt-get[^\n]*update/, name);
   }
