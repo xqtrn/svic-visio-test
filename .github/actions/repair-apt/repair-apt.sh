@@ -25,8 +25,17 @@ assert_workflows_use_throat() {
   local wf hits
   wf="$(repo_root)/.github/workflows"
   [ -d "$wf" ] || return 0
-  hits="$(grep -RInE --include='*.yml' --include='*.yaml' \
-    'apt-get.*update|playwright install --with-deps' "$wf" || true)"
+  # Only GitHub-hosted workflows are guarded: a workflow whose every runs-on
+  # is self-hosted runs on our Railway runner and never sees GitHub's apt
+  # mirror (remux-uploads.yml, 2026-09-25). Same rule as the node lock test.
+  hits=""
+  local f runs
+  for f in "$wf"/*.yml "$wf"/*.yaml; do
+    [ -f "$f" ] || continue
+    runs="$(grep -E '^[[:space:]]*runs-on:' "$f" || true)"
+    if [ -n "$runs" ] && ! printf '%s\n' "$runs" | grep -qv 'self-hosted'; then continue; fi
+    hits="$hits$(grep -InE 'apt-get.*update|playwright install --with-deps' "$f" | sed "s|^|$f:|" || true)"
+  done
   if [ -n "$hits" ]; then
     printf '%s\n' "$hits" >&2
     echo "ERR: raw apt-get update / playwright install --with-deps is forbidden; use ./.github/actions/repair-apt or install-playwright" >&2
