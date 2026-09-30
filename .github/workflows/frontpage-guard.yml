@@ -1,7 +1,8 @@
 name: frontpage-guard
 # Сторож главной стенда: карточка от одной статьи и в своём блоке (Артур 2026-07-28).
-# Молчит, пока всё в порядке; расхождение — задача на /developement и красный прогон
-# (Артур 2026-08-03: «вместо этих сообщений сразу добавь задачи»).
+# Правило судит горло стенда (heal=true) и само открывает/закрывает карточку.
+# Этот прогон — будильник горла; своя карточка — только если стенд молчит дольше
+# окна пересборки (2026-09-30). Доступа к базе у сторожа нет и не нужно.
 on:
   schedule:
     - cron: '7,37 * * * *'
@@ -9,16 +10,12 @@ on:
 jobs:
   guard:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npm i pg@8 --no-save
       - run: node scripts/frontpage-guard.mjs
         env:
-          SVIC_HOST: https://siliconvalleyinvestclub.com
           SVIC_API_ORIGIN: https://siliconvalleyinvestclub.com
-          SVIC_PLATFORM_DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
           SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
-          STAND_TOKEN: ${{ secrets.STAND_TOKEN }}
