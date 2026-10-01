@@ -132,6 +132,9 @@ await check('scroll-list', async () => {
 await check('select-and-copy', async () => {
   const c = await copyCenter('.msg .selectable-text', 2);
   await page.mouse.click(c.x, c.y, { clickCount: 3 });
+  await page.waitForTimeout(700);
+  const selected = await page.evaluate(() => String(document.querySelector('#wacHost iframe').contentDocument.defaultView.getSelection()));
+  expect(/Message number/.test(selected), `selection in the copy lost: "${selected.slice(0, 60)}"`);
   await page.keyboard.press('Control+C');
   await page.waitForTimeout(400);
   const clip = await page.evaluate(() => navigator.clipboard.readText());
@@ -150,6 +153,10 @@ await check('paste-text', async () => {
 });
 
 await check('search-field', async () => {
+  const top = await copyCenter('#pane-side');
+  await page.mouse.move(top.x, 40);
+  for (let i = 0; i < 6; i += 1) { await page.mouse.wheel(0, -600); await page.waitForTimeout(80); }
+  await page.waitForTimeout(800);
   const c = await copyCenter('#search');
   await page.mouse.click(c.x, c.y);
   await page.keyboard.type('find me', { delay: 80 });
