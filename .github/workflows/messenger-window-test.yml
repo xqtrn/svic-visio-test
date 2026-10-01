@@ -9,6 +9,9 @@ on:
       people:
         description: 'Order to pick the first linked window from'
         default: 'anna mariam daria emma'
+      script:
+        description: 'messenger-window-test.mjs (live, read-mostly) | messenger-fixture-test.mjs (test window)'
+        default: 'messenger-fixture-test.mjs'
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -22,7 +25,7 @@ jobs:
         with:
           browsers: chromium
           playwright-version: '1.49.0'
-      - run: rm -rf out && node messenger-window-test.mjs
+      - run: rm -rf out && node ${{ inputs.script }}
         env:
           TARGET: ${{ inputs.target }}
           PEOPLE: ${{ inputs.people }}
