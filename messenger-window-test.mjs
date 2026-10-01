@@ -58,6 +58,16 @@ async function step(name, fn) {
   n += 1;
 }
 
+// The page's security policy forbids string evaluation, so no waitForFunction.
+async function poll(fn, timeout = 10000, every = 100) {
+  const t0 = Date.now();
+  for (;;) {
+    const v = await fn().catch(() => null);
+    if (v) return v;
+    if (Date.now() - t0 > timeout) throw new Error('timeout');
+    await page.waitForTimeout(every);
+  }
+}
 const frameEl = () => page.$('#wacHost iframe');
 const frame = async () => (await frameEl()).contentFrame();
 // Page coordinates of an element inside the copy (the copy may be scaled).
@@ -104,7 +114,7 @@ console.log('window:', report.person, TARGET);
 await step('open', async () => {
   const t0 = Date.now();
   await page.goto(`${BASE}/messengers/${report.person}?app=${TARGET}&console=1`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.SvicWaConsole && window.SvicWaConsole.stats && window.SvicWaConsole.stats.snapshots > 0, null, { timeout: 90000 });
+  await poll(() => page.evaluate(() => Boolean(window.SvicWaConsole && window.SvicWaConsole.stats && window.SvicWaConsole.stats.snapshots > 0)), 90000, 250);
   return { firstPageMs: Date.now() - t0 };
 });
 
@@ -154,9 +164,11 @@ await step('search-type', async () => {
 await step('typing-latency', async () => {
   const t0 = Date.now();
   await page.keyboard.type('k');
-  const f = await frame();
-  await f.waitForFunction(() => (document.querySelector('#side [contenteditable="true"], .input-search input') || {}).textContent?.includes('zqxk')
-    || (document.querySelector('.input-search input') || {}).value?.includes('zqxk'), null, { timeout: 8000 });
+  await poll(() => page.evaluate(() => {
+    const d = document.querySelector('#wacHost iframe').contentDocument;
+    const e = d.querySelector('#side [contenteditable="true"], .input-search input');
+    return Boolean(e && ((e.value || '') + (e.textContent || '')).includes('zqxk'));
+  }), 8000, 40);
   const ms = Date.now() - t0;
   await page.keyboard.press('Backspace');
   return { keyToScreenMs: ms };
@@ -165,25 +177,6 @@ await step('typing-latency', async () => {
 await step('search-clear', async () => {
   for (let i = 0; i < 3; i += 1) { await page.keyboard.press('Backspace'); await page.waitForTimeout(150); }
   return '';
-});
-
-// A row clicked, then text WITH SPACES typed into search: every space must
-// reach the search field and nothing else may be clicked again (2026-10-01:
-// a space re-pressed the last clicked row in 5.0.1).
-await step('row-then-spaces', async () => {
-  const c = await centerOf(`${LIST} [role="listitem"], ${LIST} [role="row"]`, 1);
-  await page.mouse.move(c.x, c.y);
-  const s = await centerOf(SEARCH);
-  // focus the row in the copy without opening it on the server: a local focus only
-  await (await frame()).evaluate((sel) => { const r = document.querySelectorAll(sel)[1]; const f = r && (r.querySelector('[tabindex],a,button') || r); if (f && f.focus) f.focus(); }, `${LIST} [role="listitem"], ${LIST} [role="row"]`);
-  const sent = [];
-  page.on('request', (r) => { if (r.url().includes('/console/input') || r.url().includes('/console/type')) sent.push(r.postData()); });
-  await page.keyboard.type('q w e', { delay: 150 });
-  await page.waitForTimeout(1500);
-  const clicks = sent.filter((d) => d && d.includes('mousePressed')).length;
-  page.removeAllListeners('request');
-  for (let i = 0; i < 5; i += 1) { await page.keyboard.press('Backspace'); await page.waitForTimeout(120); }
-  return { pressesSentWhileTyping: clicks, inputs: sent.length };
 });
 
 // A chat with nothing unread (opening it changes nothing for its owner).
@@ -223,6 +216,27 @@ await step('select-and-copy', async () => {
 });
 
 await step('close-chat', async () => { await page.keyboard.press('Escape'); return ''; });
+
+// A row clicked, then text WITH SPACES typed into search: every space must
+// reach the search field and nothing else may be clicked again (2026-10-01:
+// a space re-pressed the last clicked row in 5.0.1).
+await step('row-then-spaces', async () => {
+  const c = await centerOf(`${LIST} [role="listitem"], ${LIST} [role="row"]`, 1);
+  await page.mouse.move(c.x, c.y);
+  const s = await centerOf(SEARCH);
+  await page.mouse.click(s.x, s.y);
+  await page.waitForTimeout(500);
+  // focus the row in the copy without opening it on the server: a local focus only
+  await (await frame()).evaluate((sel) => { const r = document.querySelectorAll(sel)[1]; const f = r && (r.querySelector('[tabindex],a,button') || r); if (f && f.focus) f.focus(); }, `${LIST} [role="listitem"], ${LIST} [role="row"]`);
+  const sent = [];
+  page.on('request', (r) => { if (r.url().includes('/console/input') || r.url().includes('/console/type')) sent.push(r.postData()); });
+  await page.keyboard.type('q w e', { delay: 150 });
+  await page.waitForTimeout(1500);
+  const clicks = sent.filter((d) => d && d.includes('mousePressed')).length;
+  page.removeAllListeners('request');
+  for (let i = 0; i < 5; i += 1) { await page.keyboard.press('Backspace'); await page.waitForTimeout(120); }
+  return { pressesSentWhileTyping: clicks, inputs: sent.length };
+});
 
 report.finishedAt = new Date().toISOString();
 fs.writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 2));
