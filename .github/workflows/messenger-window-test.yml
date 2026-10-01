@@ -1,0 +1,33 @@
+name: messenger-window-test
+# Video test of the person's WhatsApp / Telegram window as the Mac programs show it.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'whatsapp | telegram'
+        default: 'whatsapp'
+      people:
+        description: 'Order to pick the first linked window from'
+        default: 'anna mariam daria emma'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: chromium
+          playwright-version: '1.49.0'
+      - run: rm -rf out && node messenger-window-test.mjs
+        env:
+          TARGET: ${{ inputs.target }}
+          PEOPLE: ${{ inputs.people }}
+          # short-lived session, set for one run and deleted right after
+          MW_COOKIE: ${{ secrets.MW_COOKIE }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: messenger-window-test, path: out/ }
