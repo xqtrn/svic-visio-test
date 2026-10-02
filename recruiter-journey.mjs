@@ -223,6 +223,11 @@ try {
       await shot(page, 'call-card-timer');
     });
     await step('presentation', async () => {
+      // The presentation lives in the Trade Desk phase of the call (9:00): open it the way she would.
+      await page.locator('.iv-rail-i').filter({ hasText: /trade desk/i }).first().click();
+      await page.waitForTimeout(1500);
+      await page.locator('.iv-present a').first().scrollIntoViewIfNeeded();
+      await shot(page, 'call-card-trade-desk-phase');
       await Promise.all([page.waitForURL(/\/desk\/network/, { timeout: 30000 }), page.click('.iv-present a:has-text("Start presentation")')]);
       await page.waitForTimeout(4000);
       await shot(page, 'present-network');
