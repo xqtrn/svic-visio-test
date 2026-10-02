@@ -1,0 +1,37 @@
+name: recruiter-journey
+# A new recruiter's whole first day, screen by screen, in a real browser
+# (WebKit iPhone or desktop Chromium), on a QA recruiter account only.
+on:
+  workflow_dispatch:
+    inputs:
+      base: { description: 'Base URL', default: 'https://platform.siliconvalleyinvestclub.com' }
+      engine: { description: 'webkit | chromium', default: 'webkit' }
+      phase: { description: 'a | b | c (see recruiter-journey.mjs)', default: 'a' }
+      slug: { description: 'QA booking page slug', default: 'qa-recruiter' }
+      candidate_email: { description: 'Test candidate mailbox we own', required: true }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: ${{ inputs.engine }}
+          playwright-version: '1.49.0'
+          extra-apt: gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
+      - run: rm -rf out && timeout 900 node recruiter-journey.mjs
+        env:
+          BASE: ${{ inputs.base }}
+          ENGINE: ${{ inputs.engine }}
+          PHASE: ${{ inputs.phase }}
+          SLUG: ${{ inputs.slug }}
+          CANDIDATE_EMAIL: ${{ inputs.candidate_email }}
+          # short-lived QA session, set for the run and deleted right after
+          RJ_COOKIE: ${{ secrets.RJ_COOKIE }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: recruiter-journey-${{ inputs.engine }}-${{ inputs.phase }}, path: out/ }
