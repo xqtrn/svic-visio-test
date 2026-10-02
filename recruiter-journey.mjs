@@ -36,7 +36,7 @@ async function shot(page, name, extra = {}) {
   const file = `${String(n).padStart(2, '0')}-${name}.png`;
   await page.waitForTimeout(600);
   const probe = await page.evaluate(() => ({
-    url: location.pathname + location.search,
+    url: (location.pathname + location.search).replace(/\/sign\/[^?]+/, '/sign/<token>'),
     scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth,
     title: document.title,
   })).catch(() => ({}));
