@@ -82,7 +82,7 @@ try {
       // A real image for the photo: a rendered swatch of this very page.
       const png = await page.screenshot({ clip: { x: 0, y: 0, width: 240, height: 240 } });
       await page.setInputFiles('#photoFile', { name: 'qa-photo.png', mimeType: 'image/png', buffer: png });
-      await page.waitForSelector('#photoTag:not([hidden])', { timeout: 20000 });
+      await page.waitForSelector('#photoImg:not([hidden])', { timeout: 20000 }); // the «Added» tag is hidden on phones by design
       await shot(page, 'details-filled');
       await page.click('#btnDetails');
     });
