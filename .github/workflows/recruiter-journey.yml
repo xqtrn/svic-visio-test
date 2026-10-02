@@ -34,4 +34,6 @@ jobs:
           RJ_COOKIE: ${{ secrets.RJ_COOKIE }}
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: recruiter-journey-${{ inputs.engine }}-${{ inputs.phase }}, path: out/ }
+        with:
+          name: recruiter-journey-${{ inputs.engine }}-${{ inputs.phase }}
+          path: out/
