@@ -70,6 +70,7 @@ try {
       await page.waitForSelector('.ob-panel.on[data-step="1"], .ob-panel.on[data-step="2"]', { timeout: 30000 });
       await shot(page, 'account');
       if (await visible('#btnSkip1')) await page.click('#btnSkip1');
+      else if (await visible('#btnNext1')) await page.click('#btnNext1');
     });
     await step('details', async () => {
       await page.waitForSelector('.ob-panel.on[data-step="2"]', { timeout: 15000 });
