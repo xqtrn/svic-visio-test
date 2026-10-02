@@ -222,7 +222,7 @@ try {
       await shot(page, 'call-card-timer');
     });
     await step('presentation', async () => {
-      await Promise.all([page.waitForURL(/\/desk\/network/, { timeout: 30000 }), page.click('a:has-text("Start presentation")')]);
+      await Promise.all([page.waitForURL(/\/desk\/network/, { timeout: 30000 }), page.click('.iv-present a:has-text("Start presentation")')]);
       await page.waitForTimeout(4000);
       await shot(page, 'present-network');
       for (const [name, path] of [['present-marketplace', '/marketplaceadmin'], ['present-matches', '/desk/matches'], ['present-pipeline', '/desk/pipeline'],
@@ -232,6 +232,7 @@ try {
         await shot(page, name, { strip: await visible('.svic-present-x') });
       }
       await Promise.all([page.waitForURL(/\/interviews/, { timeout: 30000 }), page.click('a.svic-present-x')]);
+      report.backUrl = page.url().replace(BASE, '');
       await page.waitForTimeout(3500);
       await shot(page, 'present-ended-back-on-card');
     });
