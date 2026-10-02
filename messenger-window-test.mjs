@@ -119,6 +119,7 @@ await step('open', async () => {
 });
 
 await step('quality', async () => {
+  await page.waitForTimeout(6000);
   const f = await frame();
   return f.evaluate(() => {
     const imgs = [...document.images].filter((i) => { const r = i.getBoundingClientRect(); return r.width > 8 && r.height > 8 && r.bottom > 0 && r.top < innerHeight; });
@@ -130,6 +131,14 @@ await step('quality', async () => {
       text: document.body.innerText.slice(0, 160) };
   });
 });
+
+// READONLY: look at a live window, press nothing.
+if (process.env.READONLY === '1') {
+  report.finishedAt = new Date().toISOString();
+  fs.writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 2));
+  await ctx.close(); await browser.close();
+  process.exit(0);
+}
 
 const LIST = TARGET === 'whatsapp' ? '#pane-side' : '.chatlist-container, #chatlist-container';
 await step('scroll-list-down', async () => {

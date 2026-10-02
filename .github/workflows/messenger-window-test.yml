@@ -9,6 +9,9 @@ on:
       people:
         description: 'Order to pick the first linked window from'
         default: 'anna mariam daria emma'
+      readonly:
+        description: '1 = open and look only (live windows)'
+        default: '1'
       script:
         description: 'messenger-window-test.mjs (live, read-mostly) | messenger-fixture-test.mjs (test window)'
         default: 'messenger-fixture-test.mjs'
@@ -29,6 +32,7 @@ jobs:
         env:
           TARGET: ${{ inputs.target }}
           PEOPLE: ${{ inputs.people }}
+          READONLY: ${{ inputs.readonly }}
           # short-lived session, set for one run and deleted right after
           MW_COOKIE: ${{ secrets.MW_COOKIE }}
       - uses: actions/upload-artifact@v4
