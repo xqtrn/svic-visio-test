@@ -115,12 +115,17 @@ try {
       report.checks.successTitle = (await cp.locator('.sch-success h2').first().textContent()).trim();
       await shot(cp, 'success');
     });
-    if (COOKIE) {
+  }
+  if ((PHASE === 'book' || PHASE === 'interviews') && COOKIE) {
+    {
       await step('interviews', async () => {
         const staff = await browser.newContext(profile);
         const [name, ...rest] = COOKIE.split('=');
         await staff.addCookies([{ name, value: rest.join('='), domain: new URL(PLATFORM).hostname, path: '/', secure: true, httpOnly: true, sameSite: 'Lax' }]);
         const page = await staff.newPage();
+        page.on('pageerror', (e) => report.errors.push({ step: 'staff-pageerror', error: String(e).slice(0, 400) }));
+        page.on('console', (m) => { if (m.type() === 'error') report.errors.push({ step: 'staff-console', error: m.text().slice(0, 300) }); });
+        page.on('response', (r) => { if (/\/api\/interviews/.test(r.url())) (report.checks.staffApi = report.checks.staffApi || []).push(r.status() + ' ' + new URL(r.url()).pathname); });
         await page.goto(`${PLATFORM}/interviews`, { waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#ivRows tr', { timeout: 30000 }).catch(() => {});
         await page.waitForTimeout(2500);
@@ -137,7 +142,8 @@ try {
         await staff.close();
       });
     }
-  } else if (PHASE === 'cancel') {
+  }
+  if (PHASE === 'cancel') {
     await step('cancel-page', async () => {
       await cp.goto(CANCEL_URL, { waitUntil: 'domcontentloaded' });
       await cp.waitForSelector('.sch-stage-head h2, .sch-inline-status', { timeout: 45000 });
