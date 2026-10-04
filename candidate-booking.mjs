@@ -108,6 +108,10 @@ try {
       const body = await r.json().catch(() => null);
       report.checks.bookingResponse = { status: r.status(), url: r.url(), booking: body && body.booking ? { id: body.booking.id, status: body.booking.status, startsAt: body.booking.startsAt, inviteeEmail: body.booking.inviteeEmail } : body };
       await cp.waitForSelector('.sch-success h2', { timeout: 45000 });
+      report.checks.firstSuccessTitle = (await cp.locator('.sch-success h2').first().textContent()).trim();
+      if (report.checks.firstSuccessTitle !== 'You are scheduled') await shot(cp, 'booking-received');
+      // the page itself polls the booking until the platform confirms it
+      await cp.waitForFunction(() => /You are scheduled/.test((document.querySelector('.sch-success h2') || {}).textContent || ''), null, { timeout: 30000 }).catch(() => {});
       report.checks.successTitle = (await cp.locator('.sch-success h2').first().textContent()).trim();
       await shot(cp, 'success');
     });
@@ -118,13 +122,15 @@ try {
         await staff.addCookies([{ name, value: rest.join('='), domain: new URL(PLATFORM).hostname, path: '/', secure: true, httpOnly: true, sameSite: 'Lax' }]);
         const page = await staff.newPage();
         await page.goto(`${PLATFORM}/interviews`, { waitUntil: 'domcontentloaded' });
-        await page.waitForTimeout(5000);
+        await page.waitForSelector('#ivRows tr', { timeout: 30000 }).catch(() => {});
+        await page.waitForTimeout(2500);
         await shot(page, 'interviews-list');
         const row = page.locator('#ivRows tr').filter({ hasText: CANDIDATE_NAME }).first();
         report.checks.interviewsRow = (await row.count()) ? (await row.textContent()).replace(/\s+/g, ' ').trim().slice(0, 200) : null;
         if (await row.count()) {
           await row.click();
-          await page.waitForTimeout(4000);
+          await page.waitForFunction(() => !/Opening the call/.test(document.body.innerText), null, { timeout: 30000 }).catch(() => {});
+          await page.waitForTimeout(2500);
           await shot(page, 'call-card');
           report.checks.callCardText = (await page.textContent('body')).replace(/\s+/g, ' ').slice(0, 600);
         }
