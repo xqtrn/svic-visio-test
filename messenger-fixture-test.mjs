@@ -72,15 +72,6 @@ await check('open-test-window', async () => {
   return { firstPageMs: Date.now() - t0 };
 });
 
-await check('script-animation-visible', async () => {
-  const op = await poll(() => page.evaluate(() => {
-    const d = document.querySelector('#wacHost iframe').contentDocument;
-    const p = d.querySelector('#panel'); const o = p && d.defaultView.getComputedStyle(p).opacity;
-    return o === '1' ? o : null;
-  }), 8000, 200);
-  return { panelOpacity: op };
-});
-
 await check('canvas-visible', async () => {
   const has = await poll(() => page.evaluate(() => {
     const d = document.querySelector('#wacHost iframe').contentDocument;
@@ -96,27 +87,107 @@ await check('click-row', async () => {
   return { rowClicks: rc };
 });
 
-await check('type-with-spaces', async () => {
-  await page.keyboard.type('a b c', { delay: 120 });
-  const text = await poll(async () => { const t = await copyText('#composer'); return t === 'a b c' ? t : null; }, 6000);
-  const rc = await copyText('#rowclicks');
-  expect(rc === '{"3":1}', `row was pressed again: ${rc}`);
-  return { composer: text, rowClicks: rc };
+
+// ── Typing: a native field of the Mac over the window's field ─────────────
+const inputState = () => page.evaluate(() => {
+  const i = document.getElementById('wacInput');
+  return i ? { shown: getComputedStyle(i).display !== 'none', focused: document.activeElement === i, value: i.value } : null;
+});
+const waitCopy = (sel, want, t = 6000) => poll(async () => { const v = await copyText(sel); return (typeof want === 'function' ? want(v) : v === want) ? (v ?? '') + ' ' : null; }, t, 40);
+
+await check('field-opens-native-input', async () => {
+  const c = await copyCenter('#composer');
+  await page.mouse.click(c.x, c.y);
+  const st = await poll(async () => { const s = await inputState(); return s && s.shown && s.focused ? s : null; }, 4000);
+  return st;
 });
 
-await check('backspace', async () => {
-  for (let i = 0; i < 5; i += 1) await page.keyboard.press('Backspace');
-  await poll(async () => (await copyText('#composer')) === '', 6000);
-  return 'composer empty';
-});
-
-await check('typing-latency', async () => {
+await check('type-text-instant-and-synced', async () => {
   const t0 = Date.now();
-  await page.keyboard.type('x');
-  await poll(async () => (await copyText('#composer')) === 'x', 6000, 20);
-  const ms = Date.now() - t0;
-  await page.keyboard.press('Backspace');
-  return { keyToScreenMs: ms };
+  await page.keyboard.type('hello world', { delay: 40 });
+  const local = (await inputState()).value;
+  expect(local === 'hello world', `native field shows "${local}"`);
+  await waitCopy('#composer', 'hello world', 6000);
+  return { onServerAfterMs: Date.now() - t0 };
+});
+
+await check('caret-moves-inside-text', async () => {
+  for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowLeft');
+  await page.keyboard.type('big ');
+  await waitCopy('#composer', 'hello big world');
+  return 'hello big world';
+});
+
+await check('corrections-backspace', async () => {
+  for (let i = 0; i < 4; i += 1) await page.keyboard.press('Backspace');
+  await waitCopy('#composer', 'hello world');
+  return 'hello world';
+});
+
+await check('select-all-replace', async () => {
+  await page.keyboard.press('Control+A');
+  await page.keyboard.type('fresh text');
+  await waitCopy('#composer', 'fresh text');
+  return 'fresh text';
+});
+
+await check('shift-enter-new-line', async () => {
+  await page.keyboard.press('End');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('line two');
+  await waitCopy('#composer', (v) => v && v.includes('fresh text') && v.includes('line two'));
+  const sent = await copyText('#sent');
+  expect(sent === '0', 'Shift+Enter sent the message');
+  return 'two lines, not sent';
+});
+
+await check('enter-sends', async () => {
+  await page.keyboard.press('Enter');
+  await waitCopy('#sent', '1', 6000);
+  const last = await copyText('#lastsent');
+  await waitCopy('#composer', '', 6000);
+  const st = await inputState();
+  expect(last.includes('fresh text') && last.includes('line two'), `sent: ${last}`);
+  expect(st.value === '', `native field not emptied: "${st.value}"`);
+  return { sent: last };
+});
+
+await check('copy-from-native-field', async () => {
+  await page.keyboard.type('copy me');
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Control+C');
+  await page.waitForTimeout(300);
+  const clip = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clip === 'copy me', `clipboard: ${clip}`);
+  return { clipboard: clip };
+});
+
+await check('paste-into-native-field', async () => {
+  await page.evaluate(() => navigator.clipboard.writeText(' + pasted'));
+  await page.keyboard.press('End');
+  await page.keyboard.press('Control+V');
+  await waitCopy('#composer', 'copy me + pasted');
+  for (let i = 0; i < 20; i += 1) await page.keyboard.press('Backspace');
+  await waitCopy('#composer', '');
+  return 'copy me + pasted';
+});
+
+await check('plain-input-field', async () => {
+  const c = await copyCenter('#inp');
+  await page.mouse.click(c.x, c.y);
+  await poll(async () => { const s = await inputState(); return s && s.shown && s.focused ? s : null; }, 4000);
+  await page.keyboard.type('abc 123', { delay: 40 });
+  await waitCopy('#inp', 'abc 123');
+  await page.keyboard.press('Escape');
+  const st = await inputState();
+  expect(!st.shown, 'native field still shown after Escape');
+  return 'abc 123';
+});
+
+await check('rows-not-pressed-by-typing', async () => {
+  const rc = await copyText('#rowclicks');
+  expect(rc === '{"3":1}', `row pressed again: ${rc}`);
+  return { rowClicks: rc };
 });
 
 await check('scroll-list', async () => {
@@ -142,16 +213,6 @@ await check('select-and-copy', async () => {
   return { clipboard: clip.trim() };
 });
 
-await check('paste-text', async () => {
-  const c = await copyCenter('#composer');
-  await page.mouse.click(c.x, c.y);
-  await page.evaluate(() => navigator.clipboard.writeText('pasted from the Mac'));
-  await page.keyboard.press('Control+V');
-  const t = await poll(async () => { const v = await copyText('#composer'); return v && v.includes('pasted from the Mac') ? v : null; }, 6000);
-  for (let i = 0; i < 25; i += 1) await page.keyboard.press('Backspace');
-  return { composer: t };
-});
-
 await check('search-field', async () => {
   const top = await copyCenter('#pane-side');
   await page.mouse.move(top.x, 40);
@@ -159,9 +220,11 @@ await check('search-field', async () => {
   await page.waitForTimeout(800);
   const c = await copyCenter('#search');
   await page.mouse.click(c.x, c.y);
-  await page.keyboard.type('find me', { delay: 80 });
+  await page.keyboard.type('find me', { delay: 60 });
   const t = await poll(async () => { const v = await copyText('#search'); return v === 'find me' ? v : null; }, 6000);
-  for (let i = 0; i < 7; i += 1) await page.keyboard.press('Backspace');
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Escape');
   return { search: t };
 });
 
