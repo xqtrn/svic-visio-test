@@ -135,12 +135,13 @@ await step('quality', async () => {
 // The Mac's native typing field is on, and the copy's own editors are read-only
 // (no second caret) — checked by reading only, nothing is pressed.
 await step('native-typing-on', async () => {
-  const on = await page.evaluate(() => Boolean(window.SvicWaConsole && window.SvicWaConsole.typing));
   const f = await frame();
-  const eds = await f.evaluate(() => [...document.querySelectorAll('[contenteditable="true"]')].slice(0, 6).map((e) => getComputedStyle(e).webkitUserModify || getComputedStyle(e).getPropertyValue('-webkit-user-modify')));
-  if (!on) throw new Error('native typing is off');
-  if (eds.some((m) => m && m !== 'read-only')) throw new Error(`copy editors still writable: ${eds.join(',')}`);
-  return { nativeTyping: on, copyEditors: eds };
+  const eds = await f.evaluate(() => [...document.querySelectorAll('[contenteditable="true"]')].slice(0, 6).map((e) => getComputedStyle(e).getPropertyValue('-webkit-user-modify')));
+  if (!eds.length) throw new Error('no editors in the copy');
+  if (eds.some((m) => m !== 'read-only')) throw new Error(`copy editors still writable: ${eds.join(',')}`);
+  const field = await page.evaluate(() => Boolean(document.getElementById('wacInput')));
+  if (!field) throw new Error('no native field in the page');
+  return { copyEditors: eds, nativeField: field };
 });
 
 // READONLY: look at a live window, press nothing.
