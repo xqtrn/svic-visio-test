@@ -84,7 +84,10 @@ try {
       }
       if (!picked) throw new Error('no bookable slot found');
       await shot(cp, 'times');
-      await cp.locator('button.sch-slot').first().click();
+      // the LAST time of the day: the person has scrolled down a long list
+      const last = cp.locator('button.sch-slot').last();
+      await last.scrollIntoViewIfNeeded();
+      await last.click();
       await cp.waitForSelector('button.sch-slot-confirm', { timeout: 10000 });
       report.checks.armedLabel = (await cp.locator('button.sch-slot-confirm').first().textContent()).trim();
       await shot(cp, 'time-armed');
@@ -93,6 +96,14 @@ try {
     await step('details', async () => {
       await cp.waitForSelector('#inviteeName', { timeout: 20000 });
       await cp.waitForTimeout(1500);
+      report.checks.detailsInView = await cp.evaluate(() => {
+        const h = document.querySelector('.sch-stage-head h2').getBoundingClientRect();
+        const bar = document.querySelector('header.topbar');
+        const barBottom = bar ? bar.getBoundingClientRect().bottom : 0;
+        return { headTop: Math.round(h.top), barBottom: Math.round(barBottom), innerHeight, visible: h.top >= barBottom && h.bottom <= innerHeight };
+      });
+      await cp.screenshot({ path: `${OUT}/${String(++n).padStart(2, '0')}-details-viewport.png` });
+      report.steps.push({ n, name: 'details-viewport', file: `${String(n).padStart(2, '0')}-details-viewport.png` });
       report.checks.prefill = { name: await cp.inputValue('#inviteeName'), email: await cp.inputValue('#inviteeEmail') };
       report.checks.prefillOk = report.checks.prefill.name === CANDIDATE_NAME && report.checks.prefill.email === CANDIDATE_EMAIL;
       report.checks.detailsHeading = (await cp.locator('.sch-stage-head h2').first().textContent()).trim();
