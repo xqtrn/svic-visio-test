@@ -1,0 +1,31 @@
+name: careers-apply
+# The careers form a candidate opens from SITE/apply/<code>, in real WebKit
+# (iPhone) or desktop Chromium: autosave works and the browser never contacts
+# platform.* (Arthur 2026-10-04). QA candidate code only.
+on:
+  workflow_dispatch:
+    inputs:
+      engine: { description: 'webkit | chromium', default: 'webkit' }
+      code: { description: 'QA candidate code (/apply/<code>)', default: '' }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: ${{ inputs.engine }}
+          playwright-version: '1.49.0'
+      - run: rm -rf out && timeout 600 node careers-apply.mjs
+        env:
+          ENGINE: ${{ inputs.engine }}
+          CODE: ${{ inputs.code }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: careers-apply-${{ inputs.engine }}
+          path: out/
