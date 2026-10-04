@@ -1,0 +1,41 @@
+name: candidate-booking
+# A candidate's booking path on siliconvalleyinvestclub.com (letter link →
+# booking page → details → Confirm booking), in real WebKit (iPhone) or desktop
+# Chromium, against a QA host and a QA candidate only.
+on:
+  workflow_dispatch:
+    inputs:
+      engine: { description: 'webkit | chromium', default: 'webkit' }
+      phase: { description: 'book | cancel | open', default: 'book' }
+      code: { description: 'Invitation code (/meet/<code>)', default: '' }
+      candidate_name: { description: 'Expected pre-filled name', default: 'QA Candidate' }
+      candidate_email: { description: 'Expected pre-filled email (a mailbox we own)', default: '' }
+      cancel_url: { description: 'Cancel link from the confirmation email (phase cancel)', default: '' }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: ${{ inputs.engine }}
+          playwright-version: '1.49.0'
+      - run: rm -rf out && timeout 900 node candidate-booking.mjs
+        env:
+          ENGINE: ${{ inputs.engine }}
+          PHASE: ${{ inputs.phase }}
+          CODE: ${{ inputs.code }}
+          CANDIDATE_NAME: ${{ inputs.candidate_name }}
+          CANDIDATE_EMAIL: ${{ inputs.candidate_email }}
+          CANCEL_URL: ${{ inputs.cancel_url }}
+          # short-lived QA recruiter session, set for the run and deleted right after
+          RJ_COOKIE: ${{ secrets.RJ_COOKIE }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: candidate-booking-${{ inputs.engine }}-${{ inputs.phase }}
+          path: out/
