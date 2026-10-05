@@ -136,12 +136,15 @@ await step('quality', async () => {
 // (no second caret) — checked by reading only, nothing is pressed.
 await step('native-typing-on', async () => {
   const f = await frame();
-  const eds = await f.evaluate(() => [...document.querySelectorAll('[contenteditable="true"]')].slice(0, 6).map((e) => getComputedStyle(e).getPropertyValue('-webkit-user-modify')));
-  if (!eds.length) throw new Error('no editors in the copy');
-  if (eds.some((m) => m !== 'read-only')) throw new Error(`copy editors still writable: ${eds.join(',')}`);
+  const copy = await f.evaluate(() => ({
+    readOnlyRule: [...document.styleSheets].some((sh) => { try { return [...sh.cssRules].some((r) => /contenteditable[\s\S]{0,120}user-modify:\s*read-only/.test(r.cssText)); } catch (e) { return false; } }),
+    editors: [...document.querySelectorAll('[contenteditable="true"]')].map((e) => getComputedStyle(e).getPropertyValue('-webkit-user-modify')),
+  }));
   const field = await page.evaluate(() => Boolean(document.getElementById('wacInput')));
   if (!field) throw new Error('no native field in the page');
-  return { copyEditors: eds, nativeField: field };
+  if (!copy.readOnlyRule) throw new Error('copy editors are not made read-only');
+  if (copy.editors.some((m) => m !== 'read-only')) throw new Error(`copy editors still writable: ${copy.editors.join(',')}`);
+  return { nativeField: field, ...copy };
 });
 
 // READONLY: look at a live window, press nothing.
