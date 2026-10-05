@@ -18,13 +18,6 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb xclip xdotool libgtk-3-0 libnss3 libasound2t64 libgbm1 >/dev/null
       - run: npm init -y >/dev/null && npm i playwright@1.55.0 >/dev/null
       - run: cd program && npm i --no-audit --no-fund electron@44.1.1 ws@8 >/dev/null
-      - name: program self-test (diagnostics)
-        if: false
-        run: cd program && SVIC_USER_DATA=$PWD/../selftest-profile timeout 120 xvfb-run -a ./node_modules/.bin/electron . --target=whatsapp-svic --no-sandbox --selftest --person=$DESK 2>&1 | grep -vE 'Gtk|dbus|libva|GLib|Fontconfig' | tail -40 || true
-        env:
-          DESK: ${{ inputs.desk }}
-          DESK_DEVICE_TOKEN: ${{ secrets.DESK_DEVICE_TOKEN }}
-          SVIC_DESK_DEVICE_TOKEN: ${{ secrets.DESK_DEVICE_TOKEN }}
       - run: rm -rf out program-profile && xvfb-run -a -s "-screen 0 1440x960x24" node messenger-program-test.mjs
         env:
           DESK: ${{ inputs.desk }}
