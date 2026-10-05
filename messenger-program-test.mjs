@@ -108,7 +108,7 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 async function check(name, fn) {
   const t0 = Date.now();
   let ok = true; let note = '';
-  try { note = (await fn()) ?? ''; } catch (e) { ok = false; note = String(e.message || e).slice(0, 300); }
+  try { note = (await fn()) ?? ''; } catch (e) { ok = false; note = String(e.message || e).slice(0, 200) + ' ' + JSON.stringify(await diag().catch(() => ({}))).slice(0, 400); }
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/${String(n).padStart(2, '0')}-${name}.png` }).catch(() => {});
   if (!ok) report.failures += 1;
@@ -137,10 +137,18 @@ await check('clipboard-diagnostics', async () => {
   return out;
 });
 
+await mainEval(`(() => { const { BrowserWindow } = process.mainModule.require('electron'); global.__keys = []; for (const w of BrowserWindow.getAllWindows()) w.webContents.on('before-input-event', (e, i) => { if (i.type === 'keyDown') global.__keys.push([i.key, i.meta, i.control, i.alt, i.shift].join(':')); }); return true; })()`);
+const keysSeen = () => mainEval('JSON.stringify((global.__keys || []).splice(0))');
+const diag = async () => ({ field: (await field())?.value, other: otherAppRead(), keys: await keysSeen(), sel: await page.evaluate(() => String(document.querySelector('#wacHost iframe').contentDocument.defaultView.getSelection())).catch(() => '') });
+
 await check('field-opens', async () => {
   const c = await copyCenter('#composer');
   await page.mouse.click(c.x, c.y);
-  return poll(async () => { const s = await field(); return s && s.shown && s.focused ? s : null; }, 4000);
+  const st = await poll(async () => { const s = await field(); return s && s.shown && s.focused ? s : null; }, 4000);
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Backspace');
+  await poll(async () => (await copyText('#composer')) === '', 6000);
+  return st;
 });
 
 await check('type-in-field', async () => {
