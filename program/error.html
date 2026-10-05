@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>SVIC</title>
+<style>
+  :root{--navy:#0a1733;--accent:#0a64bc;--ink:#0c1626;--muted:#586273;--line:#e6eaf1;--bg:#f5f7fa;--panel:#fff;--bad:#a12727;--bad-soft:#fbeeee}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+  .wrap{max-width:560px;margin:80px auto;padding:0 26px}
+  .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  h1{font-family:"Source Serif 4",Georgia,serif;font-weight:600;font-size:28px;margin:8px 0 14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:22px 24px}
+  .msg{background:var(--bad-soft);color:var(--bad);border-radius:4px;padding:10px 14px;margin:0 0 18px}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin:0}
+  dt,dd{background:var(--panel);margin:0;padding:8px 12px}
+  dt{color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding-top:11px}
+  dd{font-variant-numeric:tabular-nums}
+  p.help{color:var(--muted);margin:18px 0 0}
+</style></head>
+<body><div class="wrap">
+  <div class="eyebrow" id="app">SVIC</div>
+  <h1>The desk did not open</h1>
+  <div class="panel">
+    <p class="msg" id="msg"></p>
+    <p class="help">Quit the program (⌘Q) and open it again. If it keeps happening, tell Arthur in Telegram.</p>
+  </div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  document.title = q.get('app') || 'SVIC';
+  document.getElementById('app').textContent = q.get('app') || 'SVIC';
+  document.getElementById('msg').textContent = q.get('msg') || 'Unknown error';
+</script></body></html>

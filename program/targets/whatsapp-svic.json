@@ -1,0 +1,15 @@
+{
+  "id": "whatsapp-svic",
+  "channel": "whatsapp",
+  "channelLabel": "WhatsApp",
+  "name": "WhatsApp SVIC",
+  "bundleId": "net.svic.wa",
+  "scheme": "svic-wa",
+  "url": "https://web.whatsapp.com/",
+  "origins": [
+    "https://web.whatsapp.com"
+  ],
+  "platformBase": "https://platform.siliconvalleyinvestclub.com",
+  "icon": "assets/whatsapp-logo.svg",
+  "fileStem": "WhatsApp-SVIC"
+}

@@ -1,0 +1,28 @@
+name: messenger-program-test
+# The Mac program itself (Electron, under Xvfb) on the person's TEST window:
+# Copy / Paste between the window and another app (xclip) through the program.
+on:
+  workflow_dispatch:
+    inputs:
+      desk:
+        description: 'Desk whose test window is used'
+        default: 'emma'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb xclip libgtk-3-0 libnss3 libasound2t64 libgbm1 >/dev/null
+      - run: npm init -y >/dev/null && npm i playwright@1.55.0 >/dev/null
+      - run: cd program && npm i --no-audit --no-fund electron@44.1.1 ws@8 >/dev/null
+      - run: rm -rf out program-profile && xvfb-run -a -s "-screen 0 1440x960x24" node messenger-program-test.mjs
+        env:
+          DESK: ${{ inputs.desk }}
+          # short-lived device key, issued for one run and revoked right after
+          DESK_DEVICE_TOKEN: ${{ secrets.DESK_DEVICE_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: messenger-program-test, path: out/ }

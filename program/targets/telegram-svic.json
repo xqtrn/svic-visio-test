@@ -1,0 +1,15 @@
+{
+  "id": "telegram-svic",
+  "channel": "telegram",
+  "channelLabel": "Telegram",
+  "name": "Telegram SVIC",
+  "bundleId": "net.svic.tg",
+  "scheme": "svic-tg",
+  "url": "https://web.telegram.org/k/",
+  "origins": [
+    "https://web.telegram.org"
+  ],
+  "platformBase": "https://platform.siliconvalleyinvestclub.com",
+  "icon": "assets/telegram-logo.svg",
+  "fileStem": "Telegram-SVIC"
+}

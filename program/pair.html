@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Connect this Mac</title>
+<style>
+  :root{--navy:#0a1733;--accent:#0a64bc;--ink:#0c1626;--muted:#586273;--line:#e6eaf1;--bg:#f5f7fa;--panel:#fff;--bad:#a12727;--bad-soft:#fbeeee;--ok:#1f7a4d;--ok-soft:#eaf6ef}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+  .wrap{max-width:560px;margin:48px auto;padding:0 26px}
+  .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  h1{font-family:"Source Serif 4",Georgia,serif;font-weight:600;font-size:28px;margin:8px 0 14px}
+  p.lead{color:var(--muted);margin:0 0 22px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:22px 24px}
+  .msg{border-radius:4px;padding:10px 14px;margin:0 0 18px;display:none}
+  .msg.bad{display:block;background:var(--bad-soft);color:var(--bad)}
+  .msg.ok{display:block;background:var(--ok-soft);color:var(--ok)}
+  .btn{display:inline-flex;align-items:center;height:36px;padding:0 16px;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:#fff;font:inherit;font-weight:500;cursor:pointer}
+  .btn.ghost{background:var(--panel);color:var(--ink);border-color:var(--line)}
+  .btn[disabled]{opacity:.6;cursor:default}
+  ol{margin:0 0 18px;padding-left:20px;color:var(--ink)}
+  ol li{margin:6px 0}
+  label{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:18px 0 6px}
+  .row{display:flex;gap:8px}
+  input{flex:1;height:36px;border:1px solid var(--line);border-radius:4px;padding:0 12px;font:inherit;font-variant-numeric:tabular-nums}
+  .help{color:var(--muted);font-size:12.5px;margin-top:16px}
+  hr{border:0;border-top:1px solid var(--line);margin:20px 0}
+</style></head>
+<body><div class="wrap">
+  <div class="eyebrow" id="app">SVIC</div>
+  <h1>Connect this Mac</h1>
+  <p class="lead" id="lead"></p>
+  <div class="panel">
+    <p class="msg" id="msg"></p>
+    <ol>
+      <li>Press <strong>Open the apps page</strong>. Your browser opens the platform, where you are already signed in.</li>
+      <li>Press <strong>Allow this Mac</strong> there. This program connects by itself.</li>
+    </ol>
+    <button class="btn" id="open" type="button">Open the apps page</button>
+    <hr>
+    <label for="code">If nothing happened, paste the code shown on the apps page</label>
+    <div class="row"><input id="code" autocomplete="off" spellcheck="false" placeholder="Code from the apps page"><button class="btn ghost" id="submit" type="button">Connect</button></div>
+    <p class="help">Only the apps page issues codes. A code works once and expires in ten minutes.</p>
+  </div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const app = q.get('app') || 'SVIC';
+  document.title = app;
+  document.getElementById('app').textContent = app;
+  document.getElementById('lead').textContent = app + ' opens your ' + (q.get('channel') === 'telegram' ? 'Telegram' : 'WhatsApp') + ' chats through your own server. Allow this Mac once, on the apps page.';
+  const msg = document.getElementById('msg');
+  const note = q.get('note');
+  if (note) { msg.textContent = note; msg.className = 'msg bad'; }
+  const openBtn = document.getElementById('open');
+  openBtn.addEventListener('click', async () => {
+    openBtn.disabled = true;
+    try { await window.pairing.open(); msg.textContent = 'Waiting for the apps page…'; msg.className = 'msg ok'; }
+    catch (e) { msg.textContent = 'The browser could not be opened.'; msg.className = 'msg bad'; }
+    setTimeout(() => { openBtn.disabled = false; }, 4000);
+  });
+  const submit = document.getElementById('submit');
+  const code = document.getElementById('code');
+  async function send() {
+    const value = code.value.trim();
+    if (!value) return;
+    submit.disabled = true;
+    const res = await window.pairing.submit(value);
+    submit.disabled = false;
+    if (res && res.ok) { msg.textContent = 'Connected. Opening…'; msg.className = 'msg ok'; }
+    else { msg.textContent = (res && res.error) || 'The code was not accepted.'; msg.className = 'msg bad'; }
+  }
+  submit.addEventListener('click', send);
+  code.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+</script></body></html>
