@@ -3,7 +3,7 @@
 // device key; "another app" is xclip, a separate process on the same clipboard.
 // Keys go through the program's own shortcut path (before-input-event) and the
 // Edit menu, exactly as on a Mac.
-import { _electron as electron } from 'playwright';
+import { chromium } from 'playwright';
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,30 +22,53 @@ const otherAppWrite = (text) => new Promise((resolve) => {
   p.stdin.end(text); p.unref(); setTimeout(resolve, 400);
 });
 
-const app = await electron.launch({
-  executablePath: createRequire(path.resolve('program/package.json'))('electron'),
+// The program is started as on a Mac (no test harness inside it): its windows
+// are reached over the DevTools port, its main process over the Node inspector.
+const ELECTRON = createRequire(path.resolve('program/package.json'))('electron');
+const proc = spawn(ELECTRON, ['.', '--target=whatsapp-svic', '--no-sandbox', '--remote-debugging-port=9333', '--inspect=9339'], {
   cwd: path.resolve('program'),
-  args: ['.', '--target=whatsapp-svic', '--no-sandbox'],
   env: { ...process.env, SVIC_USER_DATA: path.resolve('program-profile'), SVIC_DESK_DEVICE_TOKEN: process.env.DESK_DEVICE_TOKEN || '' },
-  recordVideo: { dir: OUT, size: { width: 1280, height: 860 } },
+  stdio: ['ignore', 'pipe', 'pipe'],
 });
-app.process().stdout.on('data', (d) => process.stdout.write(`[program] ${d}`));
-app.process().stderr.on('data', (d) => { const s = String(d); if (!/Gtk|dbus|libva|GLib|Fontconfig/i.test(s)) process.stdout.write(`[program!] ${s}`); });
+proc.stdout.on('data', (d) => process.stdout.write(`[program] ${d}`));
+proc.stderr.on('data', (d) => { const s = String(d); if (!/Gtk|dbus|libva|GLib|Fontconfig|Debugger|devtools|inspector/i.test(s)) process.stdout.write(`[program!] ${s}`); });
+proc.on('exit', (code, sig) => console.log(`[program exit] ${code} ${sig}`));
 
-app.on('window', (w) => console.log(`[window] ${w.url()}`));
-app.process().on('exit', (code, sig) => console.log(`[program exit] ${code} ${sig}`));
+async function waitJson(url, timeout = 60000) {
+  const t0 = Date.now();
+  for (;;) {
+    try { const r = await fetch(url); if (r.ok) return r.json(); } catch (_) { /* not up yet */ }
+    if (Date.now() - t0 > timeout) throw new Error(`no answer from ${url}`);
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+// Main-process calls through the Node inspector (Runtime.evaluate).
+const inspector = (await waitJson('http://127.0.0.1:9339/json/list'))[0].webSocketDebuggerUrl;
+const mainWs = new WebSocket(inspector);
+await new Promise((r) => mainWs.addEventListener('open', r, { once: true }));
+let msgId = 0;
+function mainEval(expression) {
+  const id = ++msgId;
+  return new Promise((resolve, reject) => {
+    const onMsg = (ev) => {
+      const m = JSON.parse(ev.data);
+      if (m.id !== id) return;
+      mainWs.removeEventListener('message', onMsg);
+      if (m.result && m.result.exceptionDetails) reject(new Error(JSON.stringify(m.result.exceptionDetails).slice(0, 300)));
+      else resolve(m.result && m.result.result && m.result.result.value);
+    };
+    mainWs.addEventListener('message', onMsg);
+    mainWs.send(JSON.stringify({ id, method: 'Runtime.evaluate', params: { expression, awaitPromise: true, returnByValue: true } }));
+  });
+}
+
+const browser = await chromium.connectOverCDP('http://127.0.0.1:9333');
 async function deskPage(timeout = 150000) {
   const t0 = Date.now();
-  let last = 0;
   for (;;) {
-    if (Date.now() - last > 10000) {
-      last = Date.now();
-      const main = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => `${w.id}:${w.isVisible()}:${w.webContents.getURL()}`)).catch((e) => `eval failed: ${e.message}`);
-      console.log(`[main windows] ${JSON.stringify(main)} | pw: ${JSON.stringify(app.windows().map((w) => w.url()))}`);
-    }
-    for (const w of app.windows()) { if (/\/messengers\//.test(w.url())) return w; }
-    if (Date.now() - t0 > timeout) throw new Error(`no desk window (${app.windows().map((w) => w.url()).join(', ')})`);
-    await new Promise((r) => setTimeout(r, 300));
+    for (const c of browser.contexts()) for (const p of c.pages()) { if (/\/messengers\//.test(p.url())) return p; }
+    if (Date.now() - t0 > timeout) throw new Error(`no desk window (${browser.contexts().flatMap((c) => c.pages().map((p) => p.url())).join(', ')})`);
+    await new Promise((r) => setTimeout(r, 500));
   }
 }
 const page = await deskPage();
@@ -70,14 +93,15 @@ const copyCenter = (sel, i = 0) => page.evaluate(({ sel, i }) => {
   return { x: fr.left + (r.left + r.width / 2) * k, y: fr.top + (r.top + r.height / 2) * k };
 }, { sel, i });
 const field = () => page.evaluate(() => { const i = document.getElementById('wacInput'); return i ? { shown: getComputedStyle(i).display !== 'none', focused: document.activeElement === i, value: i.value } : null; });
-const menuClick = (label) => app.evaluate(({ Menu, BrowserWindow }, label) => {
-  const win = BrowserWindow.getAllWindows().find((w) => /\/messengers\//.test(w.webContents.getURL()));
+const menuClick = (label) => mainEval(`(() => {
+  const { Menu, BrowserWindow } = process.mainModule.require('electron');
+  const win = BrowserWindow.getAllWindows().find((w) => /\\/messengers\\//.test(w.webContents.getURL()));
   if (win) win.focus();
   const edit = Menu.getApplicationMenu().items.find((i) => i.label === 'Edit');
-  const item = edit.submenu.items.find((i) => i.label === label);
+  const item = edit.submenu.items.find((i) => i.label === ${JSON.stringify(label)});
   item.click(undefined, win, undefined);
-  return Boolean(item);
-}, label);
+  return true;
+})()`);
 const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
 async function check(name, fn) {
@@ -192,6 +216,7 @@ await check('nothing-sent-by-copy-paste', async () => {
 report.ok = report.failures === 0;
 fs.writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 2));
 await page.evaluate(() => window.SvicWaConsole && window.SvicWaConsole.unmount()).catch(() => {});
-await app.close();
+await browser.close().catch(() => {});
+proc.kill('SIGTERM');
 console.log(report.ok ? 'ALL PASS' : `FAILURES: ${report.failures}`);
 process.exit(report.ok ? 0 : 1);
