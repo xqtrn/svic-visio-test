@@ -100,8 +100,9 @@ const menuClick = (label) => mainEval(`(() => {
   if (win) win.focus();
   const edit = Menu.getApplicationMenu().items.find((i) => i.label === 'Edit');
   const item = edit.submenu.items.find((i) => i.label === ${JSON.stringify(label)});
+  const before = { focused: (BrowserWindow.getFocusedWindow() || {}).id || null, win: win && win.id, all: BrowserWindow.getAllWindows().map((w) => w.id + ':' + w.webContents.getURL().replace(/^https:\\/\\/[^/]+/, '')) };
   item.click(undefined, win, undefined);
-  return true;
+  return before;
 })()`);
 const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
@@ -221,7 +222,8 @@ await check('menu-copy-window-selection', async () => {
   const c = await copyCenter('.msg .selectable-text', 4);
   await page.mouse.click(c.x, c.y, { clickCount: 3 });
   await page.waitForTimeout(500);
-  await menuClick('Copy');
+  const how = await menuClick('Copy');
+  console.log('[menu copy]', JSON.stringify(how));
   const got = await poll(async () => { const t = otherAppRead(); return /Message number 4\b/.test(t) ? t : null; }, 4000);
   return { otherAppSees: got.trim() };
 });
