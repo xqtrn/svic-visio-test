@@ -7,6 +7,7 @@ import { _electron as electron } from 'playwright';
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 
 const DESK = process.env.DESK || 'emma';
 const OUT = path.resolve('out');
@@ -22,6 +23,7 @@ const otherAppWrite = (text) => new Promise((resolve) => {
 });
 
 const app = await electron.launch({
+  executablePath: createRequire(path.resolve('program/package.json'))('electron'),
   cwd: path.resolve('program'),
   args: ['.', '--target=whatsapp-svic', '--no-sandbox'],
   env: { ...process.env, SVIC_USER_DATA: path.resolve('program-profile'), SVIC_DESK_DEVICE_TOKEN: process.env.DESK_DEVICE_TOKEN || '' },
