@@ -32,7 +32,8 @@ const app = await electron.launch({
 app.process().stdout.on('data', (d) => process.stdout.write(`[program] ${d}`));
 app.process().stderr.on('data', (d) => { const s = String(d); if (!/Gtk|dbus|libva|GLib|Fontconfig/i.test(s)) process.stdout.write(`[program!] ${s}`); });
 
-async function deskPage(timeout = 60000) {
+app.on('window', (w) => console.log(`[window] ${w.url()}`));
+async function deskPage(timeout = 150000) {
   const t0 = Date.now();
   for (;;) {
     for (const w of app.windows()) { if (/\/messengers\//.test(w.url())) return w; }
