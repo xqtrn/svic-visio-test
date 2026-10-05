@@ -62,6 +62,7 @@ function mainEval(expression) {
   });
 }
 
+await waitJson('http://127.0.0.1:9333/json/version', 90000);
 const browser = await chromium.connectOverCDP('http://127.0.0.1:9333');
 async function deskPage(timeout = 150000) {
   const t0 = Date.now();
