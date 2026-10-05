@@ -19,6 +19,7 @@ jobs:
       - run: npm init -y >/dev/null && npm i playwright@1.55.0 >/dev/null
       - run: cd program && npm i --no-audit --no-fund electron@44.1.1 ws@8 >/dev/null
       - name: program self-test (diagnostics)
+        if: false
         run: cd program && SVIC_USER_DATA=$PWD/../selftest-profile timeout 120 xvfb-run -a ./node_modules/.bin/electron . --target=whatsapp-svic --no-sandbox --selftest --person=$DESK 2>&1 | grep -vE 'Gtk|dbus|libva|GLib|Fontconfig' | tail -40 || true
         env:
           DESK: ${{ inputs.desk }}

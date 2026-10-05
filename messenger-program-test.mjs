@@ -33,9 +33,16 @@ app.process().stdout.on('data', (d) => process.stdout.write(`[program] ${d}`));
 app.process().stderr.on('data', (d) => { const s = String(d); if (!/Gtk|dbus|libva|GLib|Fontconfig/i.test(s)) process.stdout.write(`[program!] ${s}`); });
 
 app.on('window', (w) => console.log(`[window] ${w.url()}`));
+app.process().on('exit', (code, sig) => console.log(`[program exit] ${code} ${sig}`));
 async function deskPage(timeout = 150000) {
   const t0 = Date.now();
+  let last = 0;
   for (;;) {
+    if (Date.now() - last > 10000) {
+      last = Date.now();
+      const main = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => `${w.id}:${w.isVisible()}:${w.webContents.getURL()}`)).catch((e) => `eval failed: ${e.message}`);
+      console.log(`[main windows] ${JSON.stringify(main)} | pw: ${JSON.stringify(app.windows().map((w) => w.url()))}`);
+    }
     for (const w of app.windows()) { if (/\/messengers\//.test(w.url())) return w; }
     if (Date.now() - t0 > timeout) throw new Error(`no desk window (${app.windows().map((w) => w.url()).join(', ')})`);
     await new Promise((r) => setTimeout(r, 300));
