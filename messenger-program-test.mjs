@@ -124,6 +124,19 @@ await check('program-opens-test-window', async () => {
   return { url: page.url().replace(/\?.*/, '') };
 });
 
+await check('clipboard-diagnostics', async () => {
+  const out = {};
+  out.api = await mainEval(`(() => { const { clipboard } = process.mainModule.require('electron'); return Object.keys(Object.getPrototypeOf(clipboard) || {}).concat(Object.keys(clipboard)).slice(0, 40).join(','); })()`).catch((e) => e.message);
+  out.write = await mainEval(`(async () => { const { clipboard } = process.mainModule.require('electron'); const r = clipboard.writeText('from program'); return String(r && r.then ? 'promise' : typeof r); })()`).catch((e) => e.message);
+  await new Promise((r) => setTimeout(r, 500));
+  out.otherAppReads = otherAppRead();
+  await otherAppWrite('from xclip');
+  out.programReads = await mainEval(`(async () => { const { clipboard } = process.mainModule.require('electron'); return String(await clipboard.readText()); })()`).catch((e) => e.message);
+  out.editTarget = await page.evaluate(() => window.SvicWaConsole.editTarget());
+  out.ozone = await mainEval(`process.argv.join(' ') + ' | ' + (process.env.XDG_SESSION_TYPE || '') + ' | ' + (process.env.DISPLAY || '')`).catch((e) => e.message);
+  return out;
+});
+
 await check('field-opens', async () => {
   const c = await copyCenter('#composer');
   await page.mouse.click(c.x, c.y);
