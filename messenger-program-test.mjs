@@ -139,7 +139,18 @@ await check('clipboard-diagnostics', async () => {
 
 await mainEval(`(() => { const { BrowserWindow } = process.mainModule.require('electron'); global.__keys = []; for (const w of BrowserWindow.getAllWindows()) w.webContents.on('before-input-event', (e, i) => { if (i.type === 'keyDown') global.__keys.push([i.key, i.meta, i.control, i.alt, i.shift].join(':')); }); return true; })()`);
 const keysSeen = () => mainEval('JSON.stringify((global.__keys || []).splice(0))');
-const diag = async () => ({ field: (await field())?.value, other: otherAppRead(), keys: await keysSeen(), sel: await page.evaluate(() => String(document.querySelector('#wacHost iframe').contentDocument.defaultView.getSelection())).catch(() => '') });
+// Shortcuts are real X key presses (as a Mac keyboard reaches the program),
+// not DevTools keys: those never pass the program's own shortcut hook.
+async function realKey(combo) {
+  await mainEval(`(() => { const { BrowserWindow } = process.mainModule.require('electron'); const w = BrowserWindow.getAllWindows().find((x) => /\\/messengers\\//.test(x.webContents.getURL())); if (w) w.focus(); return true; })()`);
+  try {
+    const ids = execFileSync('xdotool', ['search', '--pid', String(proc.pid)], { timeout: 4000 }).toString().trim().split(/\s+/).filter(Boolean);
+    for (const id of ids) { try { execFileSync('xdotool', ['windowfocus', '--sync', id], { timeout: 3000 }); break; } catch (_) { /* next */ } }
+  } catch (_) { /* focus by the program only */ }
+  execFileSync('xdotool', ['key', '--clearmodifiers', combo], { timeout: 4000 });
+  await page.waitForTimeout(300);
+}
+const diag = async () => ({ programHas: await mainEval(`(async () => String(await process.mainModule.require('electron').clipboard.readText()))()`).catch((e) => e.message), pageGives: await page.evaluate(() => window.SvicWaConsole.selectedText()).catch((e) => e.message), field: (await field())?.value, other: otherAppRead(), keys: await keysSeen(), sel: await page.evaluate(() => String(document.querySelector('#wacHost iframe').contentDocument.defaultView.getSelection())).catch(() => '') });
 
 await check('field-opens', async () => {
   const c = await copyCenter('#composer');
@@ -159,7 +170,7 @@ await check('type-in-field', async () => {
 
 await check('cmd-c-field-to-other-app', async () => {
   await page.keyboard.press('Control+A');
-  await page.keyboard.press('Meta+C');
+  await realKey('super+c');
   const got = await poll(async () => { const t = otherAppRead(); return t === 'alpha beta' ? t : null; }, 4000);
   return { otherAppSees: got };
 });
@@ -167,7 +178,7 @@ await check('cmd-c-field-to-other-app', async () => {
 await check('cmd-x-field-to-other-app', async () => {
   await otherAppWrite('placeholder');
   await page.keyboard.press('Control+A');
-  await page.keyboard.press('Meta+X');
+  await realKey('super+x');
   const got = await poll(async () => { const t = otherAppRead(); return t === 'alpha beta' ? t : null; }, 4000);
   expect((await field()).value === '', 'field not emptied by Cut');
   await poll(async () => (await copyText('#composer')) === '', 6000);
@@ -176,7 +187,7 @@ await check('cmd-x-field-to-other-app', async () => {
 
 await check('cmd-v-other-app-into-field', async () => {
   await otherAppWrite('from another app');
-  await page.keyboard.press('Meta+V');
+  await realKey('super+v');
   await poll(async () => (await field()).value === 'from another app', 4000);
   await poll(async () => (await copyText('#composer')) === 'from another app', 6000);
   return 'in the field and on the server';
@@ -200,7 +211,7 @@ await check('cmd-c-window-selection-to-other-app', async () => {
   const c = await copyCenter('.msg .selectable-text', 2);
   await page.mouse.click(c.x, c.y, { clickCount: 3 });
   await page.waitForTimeout(500);
-  await page.keyboard.press('Meta+C');
+  await realKey('super+c');
   const got = await poll(async () => { const t = otherAppRead(); return /Message number 2\b/.test(t) ? t : null; }, 4000);
   return { otherAppSees: got.trim() };
 });
@@ -220,7 +231,7 @@ await check('cmd-v-other-app-into-plain-input', async () => {
   const c = await copyCenter('#inp');
   await page.mouse.click(c.x, c.y);
   await poll(async () => { const s = await field(); return s && s.shown && s.focused ? s : null; }, 4000);
-  await page.keyboard.press('Meta+V');
+  await realKey('super+v');
   await poll(async () => (await copyText('#inp')) === 'abc 123', 6000);
   await page.keyboard.press('Control+A');
   await page.keyboard.press('Backspace');
