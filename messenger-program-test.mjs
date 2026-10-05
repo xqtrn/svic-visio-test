@@ -169,6 +169,18 @@ await check('type-in-field', async () => {
   return 'alpha beta on the server';
 });
 
+await check('field-survives-reconnect', async () => {
+  const before = await page.evaluate(() => window.SvicWaConsole.stats.snapshots);
+  await page.evaluate(() => window.SvicWaConsole.reconnect());
+  await poll(async () => (await page.evaluate(() => window.SvicWaConsole.stats.snapshots)) > before, 20000, 200);
+  const st = await poll(async () => { const s = await field(); return s && s.shown && s.focused && s.value === 'alpha beta' ? s : null; }, 4000);
+  await page.keyboard.type(' gamma', { delay: 30 });
+  await poll(async () => (await copyText('#composer')) === 'alpha beta gamma', 6000);
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('Backspace');
+  await poll(async () => (await copyText('#composer')) === 'alpha beta', 6000);
+  return { kept: st.value, typingContinued: true };
+});
+
 await check('cmd-c-field-to-other-app', async () => {
   await page.keyboard.press('Control+A');
   await realKey('super+c');
