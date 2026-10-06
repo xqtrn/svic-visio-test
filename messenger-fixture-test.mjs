@@ -33,7 +33,7 @@ async function poll(fn, timeout = 10000, every = 100) {
   }
 }
 // The page forbids eval; read the copy through plain evaluate callbacks instead.
-const copyText = (sel) => page.evaluate((sel) => { const d = document.querySelector('#wacHost iframe').contentDocument; const e = d.querySelector(sel); return e ? (e.value != null ? e.value : e.textContent) : null; }, sel);
+const copyText = (sel) => page.evaluate((sel) => { const d = document.querySelector('#wacHost iframe').contentDocument; const e = d.querySelector(sel); return e ? String(e.value != null ? e.value : e.textContent).replace(/\u00a0/g, ' ') : null; }, sel);
 const copyCenter = (sel, i = 0, fx = 0.5) => page.evaluate(({ sel, i, fx }) => {
   const f = document.querySelector('#wacHost iframe');
   const e = f.contentDocument.querySelectorAll(sel)[i];
