@@ -34,15 +34,15 @@ async function poll(fn, timeout = 10000, every = 100) {
 }
 // The page forbids eval; read the copy through plain evaluate callbacks instead.
 const copyText = (sel) => page.evaluate((sel) => { const d = document.querySelector('#wacHost iframe').contentDocument; const e = d.querySelector(sel); return e ? (e.value != null ? e.value : e.textContent) : null; }, sel);
-const copyCenter = (sel, i = 0) => page.evaluate(({ sel, i }) => {
+const copyCenter = (sel, i = 0, fx = 0.5) => page.evaluate(({ sel, i, fx }) => {
   const f = document.querySelector('#wacHost iframe');
   const e = f.contentDocument.querySelectorAll(sel)[i];
   if (!e) return null;
   const r = e.getBoundingClientRect(); const fr = f.getBoundingClientRect();
   const w = document.querySelector('#wacHost .replayer-wrapper');
   const m = w && /scale\(([\d.]+)\)/.exec(w.style.transform || ''); const k = m ? Number(m[1]) : 1;
-  return { x: fr.left + (r.left + r.width / 2) * k, y: fr.top + (r.top + r.height / 2) * k };
-}, { sel, i });
+  return { x: fr.left + (r.left + r.width * fx) * k, y: fr.top + (r.top + r.height / 2) * k };
+}, { sel, i, fx });
 
 async function shot(name) {
   const tag = `${String(n).padStart(2, '0')}-${name}`;
@@ -99,9 +99,14 @@ const caret = () => page.evaluate(() => {
 });
 
 await check('click-puts-caret-in-field', async () => {
-  const c = await copyCenter('#composer');
+  const c = await copyCenter('#composer', 0, 0.15);
   await page.mouse.click(c.x, c.y);
-  return poll(async () => { const s = await caret(); return s.focused && s.inComposer ? s : null; }, 4000);
+  const st = await poll(async () => { const s = await caret(); return s.focused && s.inComposer ? s : null; }, 4000);
+  // the test window lives on between runs: start from an empty field
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Backspace');
+  await waitCopy('#composer', '', 6000);
+  return st;
 });
 
 await check('type-text-reaches-window', async () => {
@@ -195,6 +200,9 @@ await check('paste-into-window', async () => {
 await check('plain-input-field', async () => {
   const c = await copyCenter('#inp');
   await page.mouse.click(c.x, c.y);
+  await page.keyboard.press('Control+A');
+  await page.keyboard.press('Backspace');
+  await waitCopy('#inp', '');
   await page.keyboard.type('abc 123', { delay: 40 });
   await waitCopy('#inp', 'abc 123');
   await page.keyboard.press('Control+A');

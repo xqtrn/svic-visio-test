@@ -84,15 +84,15 @@ async function poll(fn, timeout = 8000, every = 100) {
   }
 }
 const copyText = (sel) => page.evaluate((sel) => { const d = document.querySelector('#wacHost iframe').contentDocument; const e = d.querySelector(sel); return e ? (e.value != null ? e.value : e.textContent) : null; }, sel);
-const copyCenter = (sel, i = 0) => page.evaluate(({ sel, i }) => {
+const copyCenter = (sel, i = 0, fx = 0.5) => page.evaluate(({ sel, i, fx }) => {
   const f = document.querySelector('#wacHost iframe');
   const e = f.contentDocument.querySelectorAll(sel)[i];
   if (!e) return null;
   const r = e.getBoundingClientRect(); const fr = f.getBoundingClientRect();
   const w = document.querySelector('#wacHost .replayer-wrapper');
   const m = w && /scale\(([\d.]+)\)/.exec(w.style.transform || ''); const k = m ? Number(m[1]) : 1;
-  return { x: fr.left + (r.left + r.width / 2) * k, y: fr.top + (r.top + r.height / 2) * k };
-}, { sel, i });
+  return { x: fr.left + (r.left + r.width * fx) * k, y: fr.top + (r.top + r.height / 2) * k };
+}, { sel, i, fx });
 const caret = () => page.evaluate(() => {
   const d = document.querySelector('#wacHost iframe').contentDocument;
   const sel = d.getSelection();
@@ -160,7 +160,7 @@ async function realKey(combo) {
 const diag = async () => ({ programHas: await mainEval(`(async () => String(await process.mainModule.require('electron').clipboard.readText()))()`).catch((e) => e.message), pageGives: await page.evaluate(() => window.SvicWaConsole.selectedText()).catch((e) => e.message), composer: await copyText('#composer').catch(() => null), other: otherAppRead(), keys: await keysSeen(), sel: await page.evaluate(() => String(document.querySelector('#wacHost iframe').contentDocument.defaultView.getSelection())).catch(() => '') });
 
 await check('click-puts-caret-in-field', async () => {
-  const c = await copyCenter('#composer');
+  const c = await copyCenter('#composer', 0, 0.15);
   await page.mouse.click(c.x, c.y);
   const st = await poll(async () => { const s = await caret(); return s.focused && s.inComposer ? s : null; }, 4000);
   await realKey('super+a');
@@ -254,6 +254,9 @@ await check('cmd-v-other-app-into-plain-input', async () => {
   const c = await copyCenter('#inp');
   await page.mouse.click(c.x, c.y);
   await page.waitForTimeout(400);
+  await realKey('super+a');
+  await realKey('BackSpace');
+  await poll(async () => (await copyText('#inp')) === '', 6000);
   await realKey('super+v');
   await poll(async () => (await copyText('#inp')) === 'abc 123', 6000);
   await realKey('super+a');
