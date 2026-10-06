@@ -231,7 +231,7 @@ await check('typing-continues-after-reconnect', async () => {
   await page.waitForTimeout(1500);
   const sentBy = (await page.evaluate(() => window.SvicWaConsole.stats.sent)) - sent0;
   const now = await copyText('#composer');
-  expect(now === 'from another app + menu!', `after one key: "${now}", sent ${sentBy} events, keys ${await keysSeen()}`);
+  expect(now === 'from another app + menu!', `after one key: "${now}", sent ${sentBy} events, page heard ${JSON.stringify(await page.evaluate(() => window.SvicWaConsole.stats.keys.slice(-4)))}, active ${await page.evaluate(() => (document.activeElement || {}).tagName)}`);
   await realKey('super+a');
   await realKey('BackSpace');
   await poll(async () => (await copyText('#composer')) === '', 6000);

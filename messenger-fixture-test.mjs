@@ -223,6 +223,18 @@ await check('plain-input-field', async () => {
   return 'abc 123';
 });
 
+await check('late-emoji-is-drawn', async () => {
+  const bg = await poll(async () => {
+    const v = await page.evaluate(() => {
+      const d = document.querySelector('#wacHost iframe').contentDocument;
+      const e = d.getElementById('late-emoji');
+      return e ? getComputedStyle(e).backgroundImage : null;
+    });
+    return v && /url\("?data:image\/png/.test(v) ? v.slice(0, 40) : null;
+  }, 15000, 300);
+  return { background: bg };
+});
+
 await check('window-copy-button-lands-here', async () => {
   const out = {};
   for (const [sel, want] of [['#copy-new', 'Copied by the window: async'], ['#copy-old', 'Copied by the window: command']]) {
