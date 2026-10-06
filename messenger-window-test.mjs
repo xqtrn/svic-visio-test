@@ -134,17 +134,16 @@ await step('quality', async () => {
 
 // The Mac's native typing field is on, and the copy's own editors are read-only
 // (no second caret) — checked by reading only, nothing is pressed.
-await step('native-typing-on', async () => {
-  const f = await frame();
-  const copy = await f.evaluate(() => ({
-    readOnlyRule: [...document.styleSheets].some((sh) => { try { return [...sh.cssRules].some((r) => /contenteditable[\s\S]{0,120}user-modify:\s*read-only/.test(r.cssText)); } catch (e) { return false; } }),
-    editors: [...document.querySelectorAll('[contenteditable="true"]')].map((e) => getComputedStyle(e).getPropertyValue('-webkit-user-modify')),
+await step('one-connection-nothing-over-window', async () => {
+  const st = await page.evaluate(() => ({
+    overlay: Boolean(document.getElementById('wacInput')),
+    stats: window.SvicWaConsole && window.SvicWaConsole.stats,
+    editTarget: window.SvicWaConsole && window.SvicWaConsole.editTarget && window.SvicWaConsole.editTarget(),
   }));
-  const field = await page.evaluate(() => Boolean(document.getElementById('wacInput')));
-  if (!field) throw new Error('no native field in the page');
-  if (!copy.readOnlyRule) throw new Error('copy editors are not made read-only');
-  if (copy.editors.some((m) => m !== 'read-only')) throw new Error(`copy editors still writable: ${copy.editors.join(',')}`);
-  return { nativeField: field, ...copy };
+  if (st.overlay) throw new Error('a field of ours lies over the window');
+  if (!st.stats || !(st.stats.snapshots > 0)) throw new Error('the window page did not arrive');
+  if (st.stats.errors > 0) throw new Error(`replay errors: ${st.stats.lastError}`);
+  return { snapshots: st.stats.snapshots, batches: st.stats.batches, editTarget: st.editTarget };
 });
 
 // READONLY: look at a live window, press nothing.
