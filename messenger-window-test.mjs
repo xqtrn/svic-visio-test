@@ -146,6 +146,25 @@ await step('one-connection-nothing-over-window', async () => {
   return { snapshots: st.stats.snapshots, batches: st.stats.batches, editTarget: st.editTarget };
 });
 
+// What the messenger draws emoji with, and whether the copy can show it.
+await step('emoji-probe', async () => {
+  const f = await frame();
+  return f.evaluate(() => {
+    const nodes = [...document.querySelectorAll('img, [style*="background"], span, div')].filter((e) => {
+      const cls = String(e.className && e.className.baseVal != null ? e.className.baseVal : e.className || '');
+      const src = e.getAttribute && (e.getAttribute('src') || '');
+      const bg = getComputedStyle(e).backgroundImage || '';
+      return /emoji/i.test(cls) || /emoji/i.test(src) || /emoji/i.test(bg) || (e.tagName === 'IMG' && /^data:image\/gif/.test(src));
+    }).slice(0, 12);
+    return nodes.map((e) => ({
+      tag: e.tagName, cls: String(e.className || '').slice(0, 60), alt: e.getAttribute('alt'),
+      src: (e.getAttribute('src') || '').slice(0, 120), crossorigin: e.getAttribute('crossorigin'),
+      bg: (getComputedStyle(e).backgroundImage || '').slice(0, 160),
+      loaded: e.tagName === 'IMG' ? { complete: e.complete, w: e.naturalWidth } : null,
+    }));
+  });
+});
+
 // READONLY: look at a live window, press nothing.
 if (process.env.READONLY === '1') {
   report.finishedAt = new Date().toISOString();
