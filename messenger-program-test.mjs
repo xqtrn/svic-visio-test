@@ -186,7 +186,10 @@ await check('cmd-arrow-and-option-arrow', async () => {
   await realKey('super+Right');         // line end
   // Option on a Linux test desktop opens the program's menu bar (never on a
   // Mac), so the Option key itself is pressed at the page.
-  await page.keyboard.press('Alt+Backspace');   // delete a word
+  await page.evaluate(() => {
+    const d = document.querySelector('#wacHost iframe').contentDocument;
+    (d.activeElement || d.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace', altKey: true, bubbles: true, cancelable: true }));
+  });
   await poll(async () => (await copyText('#composer')) === '1 alpha ', 6000);
   execFileSync('xdotool', ['type', '--delay', '40', 'beta'], { timeout: 5000 });
   await poll(async () => (await copyText('#composer')) === '1 alpha beta', 6000);
@@ -223,8 +226,12 @@ await check('typing-continues-after-reconnect', async () => {
   await page.evaluate(() => window.SvicWaConsole.reconnect());
   await poll(async () => (await page.evaluate(() => window.SvicWaConsole.stats.snapshots)) > before, 20000, 200);
   await page.waitForTimeout(500);
+  const sent0 = await page.evaluate(() => window.SvicWaConsole.stats.sent);
   execFileSync('xdotool', ['type', '--delay', '40', '!'], { timeout: 5000 });
-  await poll(async () => (await copyText('#composer')) === 'from another app + menu!', 6000);
+  await page.waitForTimeout(1500);
+  const sentBy = (await page.evaluate(() => window.SvicWaConsole.stats.sent)) - sent0;
+  const now = await copyText('#composer');
+  expect(now === 'from another app + menu!', `after one key: "${now}", sent ${sentBy} events, keys ${await keysSeen()}`);
   await realKey('super+a');
   await realKey('BackSpace');
   await poll(async () => (await copyText('#composer')) === '', 6000);
