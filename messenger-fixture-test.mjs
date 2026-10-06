@@ -150,7 +150,15 @@ await check('russian-layout', async () => {
   await page.keyboard.press('End');
   // keyboard.type inserts letters outside the US layout without a key press;
   // a Mac in the Russian layout sends real key presses, so press them.
-  for (const ch of ' привет') await page.keyboard.press(ch);
+  // A Mac in the Russian layout: the physical key (KeyG…) carrying a Russian letter.
+  const cdp = await page.context().newCDPSession(page);
+  const RU = { ' ': ['Space', 32], 'п': ['KeyG', 71], 'р': ['KeyH', 72], 'и': ['KeyB', 66], 'в': ['KeyD', 68], 'е': ['KeyT', 84], 'т': ['KeyN', 78] };
+  for (const ch of ' привет') {
+    const [code, vk] = RU[ch];
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, code, text: ch, windowsVirtualKeyCode: vk });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch, code, windowsVirtualKeyCode: vk });
+    await page.waitForTimeout(40);
+  }
   await waitCopy('#composer', 'fresh text привет');
   for (let i = 0; i < 7; i += 1) await page.keyboard.press('Backspace');
   await waitCopy('#composer', 'fresh text');
