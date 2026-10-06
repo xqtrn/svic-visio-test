@@ -115,7 +115,7 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 async function check(name, fn) {
   const t0 = Date.now();
   let ok = true; let note = '';
-  try { note = (await fn()) ?? ''; } catch (e) { ok = false; note = String(e.message || e).slice(0, 200) + ' ' + JSON.stringify(await diag().catch(() => ({}))).slice(0, 400); }
+  try { note = (await fn()) ?? ''; } catch (e) { ok = false; note = String(e.message || e).slice(0, 200) + ' ' + JSON.stringify(await Promise.resolve().then(() => diag()).catch(() => ({}))).slice(0, 400); }
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/${String(n).padStart(2, '0')}-${name}.png` }).catch(() => {});
   if (!ok) report.failures += 1;
