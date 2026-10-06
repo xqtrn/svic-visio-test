@@ -93,7 +93,13 @@ const copyCenter = (sel, i = 0) => page.evaluate(({ sel, i }) => {
   const m = w && /scale\(([\d.]+)\)/.exec(w.style.transform || ''); const k = m ? Number(m[1]) : 1;
   return { x: fr.left + (r.left + r.width / 2) * k, y: fr.top + (r.top + r.height / 2) * k };
 }, { sel, i });
-const field = () => page.evaluate(() => { const i = document.getElementById('wacInput'); return i ? { shown: getComputedStyle(i).display !== 'none', focused: document.activeElement === i, value: i.value } : null; });
+const caret = () => page.evaluate(() => {
+  const d = document.querySelector('#wacHost iframe').contentDocument;
+  const sel = d.getSelection();
+  const n = sel && sel.anchorNode;
+  const host = n && (n.nodeType === 1 ? n : n.parentElement);
+  return { focused: d.hasFocus(), inComposer: Boolean(host && host.closest && host.closest('#composer')) };
+});
 const menuClick = (label) => mainEval(`(() => {
   const { Menu, BrowserWindow } = process.mainModule.require('electron');
   const win = BrowserWindow.getAllWindows().find((w) => /\\/messengers\\//.test(w.webContents.getURL()));
@@ -151,81 +157,83 @@ async function realKey(combo) {
   execFileSync('xdotool', ['key', '--clearmodifiers', combo], { timeout: 4000 });
   await page.waitForTimeout(300);
 }
-const diag = async () => ({ programHas: await mainEval(`(async () => String(await process.mainModule.require('electron').clipboard.readText()))()`).catch((e) => e.message), pageGives: await page.evaluate(() => window.SvicWaConsole.selectedText()).catch((e) => e.message), field: (await field())?.value, other: otherAppRead(), keys: await keysSeen(), sel: await page.evaluate(() => String(document.querySelector('#wacHost iframe').contentDocument.defaultView.getSelection())).catch(() => '') });
+const diag = async () => ({ programHas: await mainEval(`(async () => String(await process.mainModule.require('electron').clipboard.readText()))()`).catch((e) => e.message), pageGives: await page.evaluate(() => window.SvicWaConsole.selectedText()).catch((e) => e.message), composer: await copyText('#composer').catch(() => null), other: otherAppRead(), keys: await keysSeen(), sel: await page.evaluate(() => String(document.querySelector('#wacHost iframe').contentDocument.defaultView.getSelection())).catch(() => '') });
 
-await check('field-opens', async () => {
+await check('click-puts-caret-in-field', async () => {
   const c = await copyCenter('#composer');
   await page.mouse.click(c.x, c.y);
-  const st = await poll(async () => { const s = await field(); return s && s.shown && s.focused ? s : null; }, 4000);
-  await page.keyboard.press('Control+A');
-  await page.keyboard.press('Backspace');
+  const st = await poll(async () => { const s = await caret(); return s.focused && s.inComposer ? s : null; }, 4000);
+  await realKey('super+a');
+  await realKey('BackSpace');
   await poll(async () => (await copyText('#composer')) === '', 6000);
   return st;
 });
 
-await check('type-in-field', async () => {
-  await page.keyboard.type('alpha beta', { delay: 30 });
-  await poll(async () => (await copyText('#composer')) === 'alpha beta', 6000);
-  return 'alpha beta on the server';
+await check('real-keyboard-types-in-window', async () => {
+  await mainEval(`(() => { const { BrowserWindow } = process.mainModule.require('electron'); const w = BrowserWindow.getAllWindows().find((x) => /\\/messengers\\//.test(x.webContents.getURL())); if (w) w.focus(); return true; })()`);
+  const t0 = Date.now();
+  execFileSync('xdotool', ['type', '--delay', '40', 'alpha beta'], { timeout: 10000 });
+  await poll(async () => (await copyText('#composer')) === 'alpha beta', 8000, 40);
+  return { onScreenAfterMs: Date.now() - t0 };
 });
 
-await check('field-survives-reconnect', async () => {
+await check('cmd-arrow-and-option-arrow', async () => {
+  await realKey('super+Left');          // line start
+  execFileSync('xdotool', ['type', '--delay', '40', '1 '], { timeout: 5000 });
+  await poll(async () => (await copyText('#composer')) === '1 alpha beta', 6000);
+  await realKey('super+Right');         // line end
+  await realKey('alt+BackSpace');       // delete a word
+  await poll(async () => (await copyText('#composer')) === '1 alpha ', 6000);
+  execFileSync('xdotool', ['type', '--delay', '40', 'beta'], { timeout: 5000 });
+  await poll(async () => (await copyText('#composer')) === '1 alpha beta', 6000);
+  return '1 alpha beta';
+});
+
+await check('cmd-a-cmd-c-to-other-app', async () => {
+  await otherAppWrite('placeholder');
+  await realKey('super+a');
+  await page.waitForTimeout(500);
+  await realKey('super+c');
+  const got = await poll(async () => { const t = otherAppRead(); return t === '1 alpha beta' ? t : null; }, 5000);
+  return { otherAppSees: got };
+});
+
+await check('cmd-v-other-app-into-window', async () => {
+  await otherAppWrite('from another app');
+  await realKey('super+a');
+  await realKey('super+v');
+  await poll(async () => (await copyText('#composer')) === 'from another app', 6000);
+  return 'from another app';
+});
+
+await check('menu-paste-into-window', async () => {
+  await otherAppWrite(' + menu');
+  await realKey('End');
+  await menuClick('Paste');
+  await poll(async () => (await copyText('#composer')) === 'from another app + menu', 6000);
+  return 'Edit > Paste';
+});
+
+await check('typing-continues-after-reconnect', async () => {
   const before = await page.evaluate(() => window.SvicWaConsole.stats.snapshots);
   await page.evaluate(() => window.SvicWaConsole.reconnect());
   await poll(async () => (await page.evaluate(() => window.SvicWaConsole.stats.snapshots)) > before, 20000, 200);
-  const st = await poll(async () => { const s = await field(); return s && s.shown && s.focused && s.value === 'alpha beta' ? s : null; }, 4000);
-  await page.keyboard.type(' gamma', { delay: 30 });
-  await poll(async () => (await copyText('#composer')) === 'alpha beta gamma', 6000);
-  for (let i = 0; i < 6; i += 1) await page.keyboard.press('Backspace');
-  await poll(async () => (await copyText('#composer')) === 'alpha beta', 6000);
-  return { kept: st.value, typingContinued: true };
-});
-
-await check('cmd-c-field-to-other-app', async () => {
-  await page.keyboard.press('Control+A');
-  await realKey('super+c');
-  const got = await poll(async () => { const t = otherAppRead(); return t === 'alpha beta' ? t : null; }, 4000);
-  return { otherAppSees: got };
-});
-
-await check('cmd-x-field-to-other-app', async () => {
-  await otherAppWrite('placeholder');
-  await page.keyboard.press('Control+A');
-  await realKey('super+x');
-  const got = await poll(async () => { const t = otherAppRead(); return t === 'alpha beta' ? t : null; }, 4000);
-  expect((await field()).value === '', 'field not emptied by Cut');
+  await page.waitForTimeout(500);
+  execFileSync('xdotool', ['type', '--delay', '40', '!'], { timeout: 5000 });
+  await poll(async () => (await copyText('#composer')) === 'from another app + menu!', 6000);
+  await realKey('super+a');
+  await realKey('BackSpace');
   await poll(async () => (await copyText('#composer')) === '', 6000);
-  return { otherAppSees: got };
-});
-
-await check('cmd-v-other-app-into-field', async () => {
-  await otherAppWrite('from another app');
-  await realKey('super+v');
-  await poll(async () => (await field()).value === 'from another app', 4000);
-  await poll(async () => (await copyText('#composer')) === 'from another app', 6000);
-  return 'in the field and on the server';
-});
-
-await check('menu-paste-into-field', async () => {
-  await otherAppWrite(' + menu');
-  await page.keyboard.press('End');
-  await menuClick('Paste');
-  await poll(async () => (await field()).value === 'from another app + menu', 4000);
-  await poll(async () => (await copyText('#composer')) === 'from another app + menu', 6000);
-  await page.keyboard.press('Control+A');
-  await page.keyboard.press('Backspace');
-  await poll(async () => (await copyText('#composer')) === '', 6000);
-  await page.keyboard.press('Escape');
-  return 'Edit > Paste';
+  return 'kept typing in the same field';
 });
 
 await check('cmd-c-window-selection-to-other-app', async () => {
   await otherAppWrite('placeholder');
   const c = await copyCenter('.msg .selectable-text', 2);
   await page.mouse.click(c.x, c.y, { clickCount: 3 });
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(600);
   await realKey('super+c');
-  const got = await poll(async () => { const t = otherAppRead(); return /Message number 2\b/.test(t) ? t : null; }, 4000);
+  const got = await poll(async () => { const t = otherAppRead(); return /Message number 2\b/.test(t) ? t : null; }, 5000);
   return { otherAppSees: got.trim() };
 });
 
@@ -233,10 +241,9 @@ await check('menu-copy-window-selection', async () => {
   await otherAppWrite('placeholder');
   const c = await copyCenter('.msg .selectable-text', 4);
   await page.mouse.click(c.x, c.y, { clickCount: 3 });
-  await page.waitForTimeout(500);
-  const how = await menuClick('Copy');
-  console.log('[menu copy]', JSON.stringify(how));
-  const got = await poll(async () => { const t = otherAppRead(); return /Message number 4\b/.test(t) ? t : null; }, 4000);
+  await page.waitForTimeout(600);
+  await menuClick('Copy');
+  const got = await poll(async () => { const t = otherAppRead(); return /Message number 4\b/.test(t) ? t : null; }, 5000);
   return { otherAppSees: got.trim() };
 });
 
@@ -244,13 +251,12 @@ await check('cmd-v-other-app-into-plain-input', async () => {
   await otherAppWrite('abc 123');
   const c = await copyCenter('#inp');
   await page.mouse.click(c.x, c.y);
-  await poll(async () => { const s = await field(); return s && s.shown && s.focused ? s : null; }, 4000);
+  await page.waitForTimeout(400);
   await realKey('super+v');
   await poll(async () => (await copyText('#inp')) === 'abc 123', 6000);
-  await page.keyboard.press('Control+A');
-  await page.keyboard.press('Backspace');
+  await realKey('super+a');
+  await realKey('BackSpace');
   await poll(async () => (await copyText('#inp')) === '', 6000);
-  await page.keyboard.press('Escape');
   return 'abc 123';
 });
 
