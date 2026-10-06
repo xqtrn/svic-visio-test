@@ -148,26 +148,30 @@ await check('select-all-replace', async () => {
 
 await check('russian-layout', async () => {
   await page.keyboard.press('End');
-  await page.keyboard.type(' привет');
+  // keyboard.type inserts letters outside the US layout without a key press;
+  // a Mac in the Russian layout sends real key presses, so press them.
+  for (const ch of ' привет') await page.keyboard.press(ch);
   await waitCopy('#composer', 'fresh text привет');
   for (let i = 0; i < 7; i += 1) await page.keyboard.press('Backspace');
   await waitCopy('#composer', 'fresh text');
   return 'привет typed and removed';
 });
 
+let sentBefore = 0;
 await check('shift-enter-new-line', async () => {
+  sentBefore = Number(await copyText('#sent')) || 0;   // the test window keeps its count between runs
   await page.keyboard.press('End');
   await page.keyboard.press('Shift+Enter');
   await page.keyboard.type('line two');
   await waitCopy('#composer', (v) => v && v.includes('fresh text') && v.includes('line two'));
-  const sent = await copyText('#sent');
-  expect(sent === '0', 'Shift+Enter sent the message');
+  const sent = Number(await copyText('#sent')) || 0;
+  expect(sent === sentBefore, 'Shift+Enter sent the message');
   return 'two lines, not sent';
 });
 
 await check('enter-sends', async () => {
   await page.keyboard.press('Enter');
-  await waitCopy('#sent', '1', 6000);
+  await waitCopy('#sent', String(sentBefore + 1), 6000);
   const last = await copyText('#lastsent');
   await waitCopy('#composer', '', 6000);
   expect(last.includes('fresh text') && last.includes('line two'), `sent: ${last}`);

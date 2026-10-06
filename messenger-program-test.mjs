@@ -159,7 +159,9 @@ async function realKey(combo) {
 }
 const diag = async () => ({ programHas: await mainEval(`(async () => String(await process.mainModule.require('electron').clipboard.readText()))()`).catch((e) => e.message), pageGives: await page.evaluate(() => window.SvicWaConsole.selectedText()).catch((e) => e.message), composer: await copyText('#composer').catch(() => null), other: otherAppRead(), keys: await keysSeen(), sel: await page.evaluate(() => String(document.querySelector('#wacHost iframe').contentDocument.defaultView.getSelection())).catch(() => '') });
 
+let sentAtStart = 0;
 await check('click-puts-caret-in-field', async () => {
+  sentAtStart = Number(await copyText('#sent')) || 0;
   const c = await copyCenter('#composer', 0, 0.15);
   await page.mouse.click(c.x, c.y);
   const st = await poll(async () => { const s = await caret(); return s.focused && s.inComposer ? s : null; }, 4000);
@@ -266,8 +268,8 @@ await check('cmd-v-other-app-into-plain-input', async () => {
 });
 
 await check('nothing-sent-by-copy-paste', async () => {
-  const sent = await copyText('#sent');
-  expect(sent === '0', `a message was sent: ${sent}`);
+  const sent = Number(await copyText('#sent')) || 0;
+  expect(sent === sentAtStart, `a message was sent: ${sent - sentAtStart}`);
   return { sent };
 });
 
