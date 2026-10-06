@@ -146,6 +146,24 @@ await step('one-connection-nothing-over-window', async () => {
   return { snapshots: st.stats.snapshots, batches: st.stats.batches, editTarget: st.editTarget };
 });
 
+await step('emoji-styles', async () => {
+  const f = await frame();
+  return f.evaluate(() => {
+    const out = { sheets: document.styleSheets.length, unreadable: 0, links: [], hits: [] };
+    for (const sh of document.styleSheets) {
+      let rules;
+      try { rules = sh.cssRules; } catch (e) { out.unreadable += 1; out.links.push(String(sh.href || '').slice(0, 120)); continue; }
+      for (const r of rules) {
+        const t = r.cssText || '';
+        if (/\.b93\b|\.emoji\.apple|\.apple\.emoji|emoji[^{]*\{[^}]*background/i.test(t) && out.hits.length < 8) out.hits.push(t.slice(0, 220));
+      }
+    }
+    out.links = out.links.concat([...document.querySelectorAll('link[rel=stylesheet]')].map((l) => l.getAttribute('href')).slice(0, 6));
+    out.adopted = (document.adoptedStyleSheets || []).length;
+    return out;
+  });
+});
+
 // What the messenger draws emoji with, and whether the copy can show it.
 await step('emoji-probe', async () => {
   const f = await frame();
