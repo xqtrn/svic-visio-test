@@ -182,7 +182,9 @@ await check('cmd-arrow-and-option-arrow', async () => {
   execFileSync('xdotool', ['type', '--delay', '40', '1 '], { timeout: 5000 });
   await poll(async () => (await copyText('#composer')) === '1 alpha beta', 6000);
   await realKey('super+Right');         // line end
-  await realKey('alt+BackSpace');       // delete a word
+  // Option on a Linux test desktop opens the program's menu bar (never on a
+  // Mac), so the Option key itself is pressed at the page.
+  await page.keyboard.press('Alt+Backspace');   // delete a word
   await poll(async () => (await copyText('#composer')) === '1 alpha ', 6000);
   execFileSync('xdotool', ['type', '--delay', '40', 'beta'], { timeout: 5000 });
   await poll(async () => (await copyText('#composer')) === '1 alpha beta', 6000);
