@@ -89,6 +89,7 @@ await check('click-row', async () => {
 
 
 // ── Typing: keys go to the window, the window types (2026-10-06) ──────────
+const waitCopy = (sel, want, t = 6000) => poll(async () => { const v = await copyText(sel); return (typeof want === 'function' ? want(v) : v === want) ? (v ?? '') + ' ' : null; }, t, 40);
 const caret = () => page.evaluate(() => {
   const d = document.querySelector('#wacHost iframe').contentDocument;
   const sel = d.getSelection();
