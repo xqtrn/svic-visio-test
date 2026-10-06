@@ -274,6 +274,17 @@ await check('cmd-v-other-app-into-plain-input', async () => {
   return 'abc 123';
 });
 
+await check('window-copy-button-to-other-app', async () => {
+  const out = {};
+  for (const [sel, want] of [['#copy-new', 'Copied by the window: async'], ['#copy-old', 'Copied by the window: command']]) {
+    await otherAppWrite('placeholder');
+    const c = await copyCenter(sel);
+    await page.mouse.click(c.x, c.y);
+    out[sel] = await poll(async () => { const t = otherAppRead(); return t === want ? t : null; }, 5000);
+  }
+  return out;
+});
+
 await check('nothing-sent-by-copy-paste', async () => {
   const sent = Number(await copyText('#sent')) || 0;
   expect(sent === sentAtStart, `a message was sent: ${sent - sentAtStart}`);

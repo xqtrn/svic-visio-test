@@ -223,6 +223,17 @@ await check('plain-input-field', async () => {
   return 'abc 123';
 });
 
+await check('window-copy-button-lands-here', async () => {
+  const out = {};
+  for (const [sel, want] of [['#copy-new', 'Copied by the window: async'], ['#copy-old', 'Copied by the window: command']]) {
+    await page.evaluate(() => navigator.clipboard.writeText('placeholder'));
+    const c = await copyCenter(sel);
+    await page.mouse.click(c.x, c.y);
+    out[sel] = await poll(async () => { const t = await page.evaluate(() => navigator.clipboard.readText()); return t === want ? t : null; }, 5000);
+  }
+  return out;
+});
+
 await check('rows-not-pressed-by-typing', async () => {
   const rc = await copyText('#rowclicks');
   expect(rc === '{"3":1}', `row pressed again: ${rc}`);
