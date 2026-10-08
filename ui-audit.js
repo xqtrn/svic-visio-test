@@ -75,7 +75,9 @@ setInterval(() => console.log('[hb]', step), 15000).unref();
       }
       bc('shoot ' + path);
       await page.screenshot({ path: `out/${slug}-viewport.png` });
-      await page.screenshot({ path: `out/${slug}-full.png`, fullPage: true }).catch(e => entry.defects.push('fullpage-shot-failed: ' + String(e).slice(0, 100)));
+      // Long research pages exceed WebKit's 32767px bitmap ceiling at the
+      // iPhone device scale of 2. CSS-pixel output preserves the whole page.
+      await page.screenshot({ path: `out/${slug}-full.png`, fullPage: true, scale: 'css' }).catch(e => entry.defects.push('fullpage-shot-failed: ' + String(e).slice(0, 100)));
     } catch (e) {
       entry.defects.push('navigation-failed: ' + String(e).slice(0, 200));
       worst = Math.max(worst, 2);
