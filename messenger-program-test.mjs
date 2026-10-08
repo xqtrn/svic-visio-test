@@ -112,9 +112,31 @@ const menuClick = (label) => mainEval(`(() => {
 })()`);
 const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
+// SAFETY: every step after the first acts only on the TEST window. If the copy
+// is not showing it (a step left another window up), it is mounted again, and
+// if that fails the step does nothing at all — never a key into a live window
+// (2026-10-08: a failed step left Emma's window up for the next steps).
+async function onTestWindow() {
+  const isFixture = () => page.evaluate(() => {
+    const f = document.querySelector('#wacHost iframe');
+    return Boolean(f && f.contentDocument && f.contentDocument.getElementById('log') && f.contentDocument.getElementById('composer'));
+  }).catch(() => false);
+  if (await isFixture()) return true;
+  await page.evaluate((desk) => { window.SvicWaConsole.unmount(); return window.SvicWaConsole.mount({ desk, target: 'fixture' }); }, DESK).catch(() => {});
+  for (let i = 0; i < 150; i += 1) { if (await isFixture()) return true; await page.waitForTimeout(200); }
+  return false;
+}
+
 async function check(name, fn) {
   const t0 = Date.now();
   let ok = true; let note = '';
+  if (n > 0 && !(await onTestWindow())) {
+    report.failures += 1;
+    report.steps.push({ n, name, ok: false, ms: 0, note: 'not on the test window — nothing pressed' });
+    console.log(`[${n}] FAIL ${name} — not on the test window — nothing pressed`);
+    n += 1;
+    return;
+  }
   try { note = (await fn()) ?? ''; } catch (e) { ok = false; note = String(e.message || e).slice(0, 200) + ' ' + JSON.stringify(await Promise.resolve().then(() => diag()).catch(() => ({}))).slice(0, 400); }
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/${String(n).padStart(2, '0')}-${name}.png` }).catch(() => {});
@@ -157,11 +179,10 @@ await check('no-desk-flash-on-open', async () => {
   }
   await poll(() => page.evaluate(() => Boolean(window.SvicWaConsole && window.SvicWaConsole.stats && window.SvicWaConsole.stats.snapshots > 0)), 30000, 200);
   const r = await page.evaluate(() => ({ frames: window.__frames, deskFrames: window.__deskFrames }));
+  // back to the test window BEFORE judging, so the steps after never see a live one
+  if (!(await onTestWindow())) throw new Error('could not return to the test window');
   expect(r.frames > 5, 'no frames counted');
   expect(r.deskFrames === 0, `the desk was on screen in ${r.deskFrames} of ${r.frames} frames`);
-  // back to the test window for the steps that follow
-  await page.evaluate((desk) => { window.SvicWaConsole.unmount(); return window.SvicWaConsole.mount({ desk, target: 'fixture' }); }, DESK);
-  await poll(async () => (await copyText('#log')) !== null, 60000, 200);
   return { ...r, shotsAtMs: shots.slice(0, 4) };
 });
 
