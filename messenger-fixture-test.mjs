@@ -235,6 +235,15 @@ await check('late-emoji-is-drawn', async () => {
   return { background: bg };
 });
 
+await check('preloaded-picture-is-shown', async () => {
+  const pic = await poll(async () => page.evaluate(() => {
+    const d = document.querySelector('#wacHost iframe').contentDocument;
+    const e = d.getElementById('late-picture');
+    return e && e.naturalWidth > 0 && /^data:image/.test(e.getAttribute('src') || e.src) ? { w: e.naturalWidth, src: (e.getAttribute('src') || '').slice(0, 22) } : null;
+  }), 20000, 300);
+  return pic;
+});
+
 await check('window-copy-button-lands-here', async () => {
   const out = {};
   for (const [sel, want] of [['#copy-new', 'Copied by the window: async'], ['#copy-old', 'Copied by the window: command']]) {
