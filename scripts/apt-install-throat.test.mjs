@@ -74,6 +74,8 @@ test('каждый playwright-install workflow идёт через горло', 
     'card-shot.yml',
     'caption-smoke.yml',
     'artshot.yml',
+    'messenger-program-test.yml',
+    'messenger-window-test.yml',
   ];
   for (const name of must) {
     const text = read(`.github/workflows/${name}`);

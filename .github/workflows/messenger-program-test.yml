@@ -15,8 +15,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb xclip xdotool libgtk-3-0 libnss3 libasound2t64 libgbm1 >/dev/null
       - run: npm init -y >/dev/null && npm i playwright@1.55.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: chromium
+          playwright-version: '1.55.0'
+          extra-apt: xvfb xclip xdotool libgtk-3-0 libnss3 libasound2t64 libgbm1
+      - run: command -v xvfb-run && command -v xclip && command -v xdotool
       - run: cd program && npm i --no-audit --no-fund electron@44.1.1 ws@8 >/dev/null
       - run: rm -rf out program-profile && xvfb-run -a -s "-screen 0 1440x960x24" node messenger-program-test.mjs
         env:
