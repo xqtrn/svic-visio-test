@@ -131,6 +131,40 @@ await check('program-opens-test-window', async () => {
   return { url: page.url().replace(/\?.*/, '') };
 });
 
+await check('no-desk-flash-on-open', async () => {
+  // Every frame from the very first one: was any part of the desk on screen?
+  await page.addInitScript(() => {
+    window.__deskFrames = 0; window.__frames = 0;
+    const look = () => {
+      window.__frames += 1;
+      const seen = ['.topbar', '.md-wrap', '#conversationPane'].some((sel) => {
+        const e = document.querySelector(sel);
+        return e && e.getClientRects().length && getComputedStyle(e).display !== 'none' && getComputedStyle(e).visibility !== 'hidden';
+      });
+      if (seen) window.__deskFrames += 1;
+      if (window.__frames < 600) requestAnimationFrame(look);
+    };
+    requestAnimationFrame(look);
+  });
+  const shots = [];
+  const t0 = Date.now();
+  await page.reload({ waitUntil: 'commit' });
+  for (let i = 0; i < 12; i += 1) {
+    const f = `${OUT}/flash-${String(i).padStart(2, '0')}.png`;
+    await page.screenshot({ path: f }).catch(() => {});
+    shots.push(Date.now() - t0);
+    await page.waitForTimeout(120);
+  }
+  await poll(() => page.evaluate(() => Boolean(window.SvicWaConsole && window.SvicWaConsole.stats && window.SvicWaConsole.stats.snapshots > 0)), 30000, 200);
+  const r = await page.evaluate(() => ({ frames: window.__frames, deskFrames: window.__deskFrames }));
+  expect(r.frames > 5, 'no frames counted');
+  expect(r.deskFrames === 0, `the desk was on screen in ${r.deskFrames} of ${r.frames} frames`);
+  // back to the test window for the steps that follow
+  await page.evaluate((desk) => { window.SvicWaConsole.unmount(); return window.SvicWaConsole.mount({ desk, target: 'fixture' }); }, DESK);
+  await poll(async () => (await copyText('#log')) !== null, 60000, 200);
+  return { ...r, shotsAtMs: shots.slice(0, 4) };
+});
+
 await check('clipboard-diagnostics', async () => {
   const out = {};
   out.api = await mainEval(`(() => { const { clipboard } = process.mainModule.require('electron'); return Object.keys(Object.getPrototypeOf(clipboard) || {}).concat(Object.keys(clipboard)).slice(0, 40).join(','); })()`).catch((e) => e.message);
