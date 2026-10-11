@@ -1,0 +1,25 @@
+name: date-tone-check
+# Живая проверка цвета даты над кадром YouTube на карточках сайта (scripts/date-tone-check.mjs).
+on:
+  workflow_dispatch:
+    inputs:
+      url: { description: 'страница', required: false, default: 'https://siliconvalleyinvestclub.com/test/' }
+      ids: { description: 'id роликов через запятую (пусто — первые две карточки)', required: false, default: '' }
+permissions: { contents: read }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: chromium
+          playwright-version: '1.49.0'
+      - run: CHECK_URL="${{ inputs.url }}" CHECK_IDS="${{ inputs.ids }}" node scripts/date-tone-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: date-tone-check, path: out/ }
