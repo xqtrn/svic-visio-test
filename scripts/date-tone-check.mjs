@@ -12,8 +12,12 @@ const IDS = (process.env.CHECK_IDS || '').split(',').map((s) => s.trim()).filter
 const SECS = Number(process.env.CHECK_SECS || 40);
 mkdirSync('out', { recursive: true });
 
-const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+// YouTube не пускает плеер с адресов дата-центров — ходим через Пингвина
+// (мост HTTP→SOCKS поднимает workflow, CHECK_PROXY=http://127.0.0.1:8118)
+const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'],
+  ...(process.env.CHECK_PROXY ? { proxy: { server: process.env.CHECK_PROXY } } : {}) });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+const errs = []; page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 160)); });
 await page.goto(URL_, { waitUntil: 'domcontentloaded', timeout: 60000 });
 await page.waitForTimeout(4000);
 const ids = await page.evaluate((want) => [...document.querySelectorAll('.cs-entry__overlay')]
@@ -51,6 +55,8 @@ for (const id of pick){
   if (track && frames > 8 && bad > 0) failed++;
   report.push({ ...res, rows });
 }
+console.log('диагностика: ' + JSON.stringify(await page.evaluate(() => ({ yt: !!(window.YT && window.YT.Player), frames: document.querySelectorAll('.svic-ytc').length, iframes: [...document.querySelectorAll('iframe')].map((f) => f.src.slice(0, 60)).slice(0, 4), done: [...document.querySelectorAll('[data-svic-done]')].map((w) => w.getAttribute('data-svic-done')).slice(0, 6) }))));
+console.log('ошибки консоли: ' + JSON.stringify([...new Set(errs)].slice(0, 8)));
 writeFileSync('out/report.json', JSON.stringify(report, null, 1));
 await browser.close();
 process.exit(failed ? 1 : 0);

@@ -19,7 +19,19 @@ jobs:
         with:
           browsers: chromium
           playwright-version: '1.49.0'
-      - run: CHECK_URL="${{ inputs.url }}" CHECK_IDS="${{ inputs.ids }}" node scripts/date-tone-check.mjs
+      - name: check
+        env:
+          PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
+        run: |
+          if [ -n "$PENGUIN_SOCKS" ]; then
+            python3 -m pip install --quiet pproxy
+            REMOTE=$(python3 -c "import sys,urllib.parse as u;p=u.urlparse(sys.argv[1]);print(f'socks5://{p.hostname}:{p.port}'+(f'#{u.unquote(p.username)}:{u.unquote(p.password)}' if p.username else ''))" "$PENGUIN_SOCKS")
+            python3 -c "import sys,asyncio; asyncio.set_event_loop(asyncio.new_event_loop()); sys.argv=['pproxy']+sys.argv[1:]; from pproxy.server import main; main()" \
+              -l http://127.0.0.1:8118 -r "$REMOTE" </dev/null >bridge.log 2>&1 &
+            for _ in $(seq 1 20); do python3 -c "import socket;socket.create_connection(('127.0.0.1',8118),1).close()" 2>/dev/null && break; sleep 0.5; done
+            export CHECK_PROXY=http://127.0.0.1:8118
+          fi
+          CHECK_URL="${{ inputs.url }}" CHECK_IDS="${{ inputs.ids }}" node scripts/date-tone-check.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: date-tone-check, path: out/ }
