@@ -1,0 +1,125 @@
+name: date-lum
+# Шкалы цвета даты над кадром YouTube в карточках сайта (Артур 2026-10-11:
+# «цвет должен меняться»). До 03.09 сайт читал кадр своего ролика прямо в
+# браузере и перекрашивал дату белая ↔ тёмно-синяя; с 03.09 в карточках играет
+# плеер YouTube, его кадр браузер не отдаёт, и дата застывала в цвете заставки.
+# Здесь яркость того же угла кадра считается заранее — по нашей копии ролика,
+# если её длительность и картинка совпали с миниатюрами самого YouTube, иначе по
+# самому ролику с YouTube в лёгком виде (через Пингвина). На сайт едут моменты
+# смены цвета: ассет date-lum.json релиза date-lum, край отдаёт /svic-lum/<id>.json.
+# Вся логика и юнит-тесты — scripts/date-lum.mjs, scripts/date-lum.test.mjs.
+#
+# Расписание раз в 3 часа: первый проход по ~1000 роликам — за несколько
+# прогонов, дальше в работу идут только новые посты. Сторож покрытия в конце:
+# YouTube-карточка старше 3 дней без шкалы = карточка на /developement.
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: 'Сколько параллельных потоков'
+        required: false
+        default: '4'
+  schedule:
+    - cron: '23 */3 * * *'
+permissions: { contents: write }
+concurrency: { group: date-lum, cancel-in-progress: false }
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: unit tests
+        run: node --test scripts/date-lum.test.mjs
+      - name: inputs — manifest, current map, copies in releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -sfL https://siliconvalleyinvestclub.com/__covers.json -o covers.json
+          curl -sfL "https://github.com/$GITHUB_REPOSITORY/releases/download/date-lum/date-lum.json" -o date-lum.json || echo '{}' > date-lum.json
+          : > assets.txt
+          for TAG in clips3 clips2 clips; do
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" -q .id)
+            gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$ID/assets?per_page=100" -q '.[].name' | sed "s|^|$TAG/|" >> assets.txt
+          done
+          echo "копий в релизах: $(wc -l < assets.txt)"
+      - name: plan
+        id: plan
+        run: |
+          node scripts/date-lum.mjs plan covers.json date-lum.json assets.txt "${{ inputs.shards || '4' }}" plan
+          echo "shards=$(cat plan/shards.json)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with: { name: date-lum-plan, path: plan/, retention-days: 3 }
+
+  run:
+    needs: plan
+    if: needs.plan.outputs.shards != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: ./.github/actions/repair-apt
+      - name: tools
+        run: |
+          sudo apt-get install -y -qq ffmpeg
+          python3 -m pip install --quiet --upgrade yt-dlp pproxy
+      - uses: actions/download-artifact@v4
+        with: { name: date-lum-plan, path: plan }
+      - name: tracks
+        env:
+          PENGUIN_SOCKS: ${{ secrets.PENGUIN_SOCKS }}
+        run: |
+          # Ссылки googlevideo/ytimg YouTube выдаёт под IP того, кто спросил (Пингвин);
+          # ffmpeg внутри yt-dlp SOCKS не умеет — мост HTTP→SOCKS, как в iv-covers.yml.
+          if [ -n "$PENGUIN_SOCKS" ]; then
+            REMOTE=$(python3 -c "import sys,urllib.parse as u;p=u.urlparse(sys.argv[1]);print(f'socks5://{p.hostname}:{p.port}'+(f'#{u.unquote(p.username)}:{u.unquote(p.password)}' if p.username else ''))" "$PENGUIN_SOCKS")
+            python3 -c "import sys,asyncio; asyncio.set_event_loop(asyncio.new_event_loop()); sys.argv=['pproxy']+sys.argv[1:]; from pproxy.server import main; main()" \
+              -l http://127.0.0.1:8118 -r "$REMOTE" </dev/null >bridge.log 2>&1 &
+            BRIDGE=$!
+            for _ in $(seq 1 20); do python3 -c "import socket;socket.create_connection(('127.0.0.1',8118),1).close()" 2>/dev/null && break; sleep 0.5; done
+            if kill -0 "$BRIDGE" 2>/dev/null; then export YTDLP_PROXY="http://127.0.0.1:8118"; echo "мост к Пингвину поднят"; else export YTDLP_PROXY="$PENGUIN_SOCKS"; echo "мост не поднялся — иду через SOCKS"; fi
+          fi
+          node scripts/date-lum.mjs run "plan/plan-${{ matrix.shard }}.tsv" "out-${{ matrix.shard }}" 4800
+          [ -n "${BRIDGE:-}" ] && kill "$BRIDGE" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: 'date-lum-out-${{ matrix.shard }}', path: 'out-${{ matrix.shard }}/', retention-days: 7, if-no-files-found: ignore }
+
+  publish:
+    needs: [plan, run]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: actions/download-artifact@v4
+        with: { pattern: 'date-lum-out-*', path: results }
+        continue-on-error: true
+      - name: merge into the map and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # карта читается заново: прогон шёл больше часа
+          curl -sfL "https://github.com/$GITHUB_REPOSITORY/releases/download/date-lum/date-lum.json" -o date-lum.json || echo '{}' > date-lum.json
+          node scripts/date-lum.mjs merge date-lum.json results
+          gh release view date-lum -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create date-lum -R "$GITHUB_REPOSITORY" --title 'date-lum' --notes 'Шкалы цвета даты над кадром YouTube в карточках сайта (scripts/date-lum.mjs).'
+          gh release upload date-lum date-lum.json -R "$GITHUB_REPOSITORY" --clobber
+      - name: coverage watch
+        env:
+          SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
+        run: |
+          curl -sfL https://siliconvalleyinvestclub.com/__covers.json -o covers.json
+          node scripts/date-lum.mjs watch covers.json date-lum.json
