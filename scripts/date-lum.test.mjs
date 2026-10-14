@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { verify, switches, darkAt, planList, copyCandidates, mergeResults, coverageGap, RATE } from './date-lum.mjs';
+import { verify, switches, darkAt, planList, copyCandidates, mergeResults, coverageGap, RATE,
+  settleYtInfo, refreshMap, ENGINE, DEAD_YT, YT_INFO_CLIENTS, YT_DL_ATTEMPTS } from './date-lum.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -109,4 +110,57 @@ test('workflow: замок теста в прогоне, горло apt, сто�
   assert.match(yml, /\.\/\.github\/actions\/repair-apt/);
   assert.match(yml, /date-lum\.mjs watch/);
   assert.match(yml, /gh release upload date-lum date-lum\.json/);
+});
+
+// Замок бага: карточка #b1851043-bcf5-4954-bcdc-01723ae40132
+// 11 карточек без шкалы: web-клиент yt-dlp упёрся в бот-стену/возраст и не
+// доходил до android/ios; 24-с нарезка не той длины, а скачивание с YouTube
+// рвалось на DASH («Did not get any data blocks» / обрыв / обрезанный mp4).
+test('Замок бага: карточка #b1851043-bcf5-4954-bcdc-01723ae40132 — бот-стена web не хоронит шкалу: android даёт длительность, возраст — unavailable', () => {
+  const bot = 'ERROR: [youtube] x: Sign in to confirm you’re not a bot. Use --cookies';
+  const age = 'ERROR: [youtube] WFtSptmNP3Q: Sign in to confirm your age. Use --cookies';
+  const android = { duration: 208, formats: [] };
+  const webSb = { duration: 208, formats: [{ format_note: 'storyboard', fragments: [{}], fps: 0.2, rows: 5, columns: 5, width: 160, height: 90 }] };
+  assert.equal(settleYtInfo([{ error: bot, client: 'web_safari' }, { info: android, client: 'android' }]).info.duration, 208);
+  assert.equal(settleYtInfo([{ error: bot, client: 'web_safari' }]).unavailable, false);
+  assert.equal(settleYtInfo([{ error: bot, client: 'web_safari' }]).error.includes('not a bot'), true);
+  assert.equal(settleYtInfo([{ error: age, client: 'web_safari' }, { error: age, client: 'tv_embedded' }]).unavailable, true);
+  assert.equal(settleYtInfo([{ info: webSb, client: 'web_safari' }, { info: android, client: 'android' }]).client, 'web_safari');
+  assert.equal(DEAD_YT.test(bot), false);
+  assert.equal(DEAD_YT.test(age), true);
+  for (const c of ['ios', 'android', 'tv_embedded']) assert.ok(YT_INFO_CLIENTS.includes(c), c);
+});
+
+test('Замок бага: карточка #b1851043-bcf5-4954-bcdc-01723ae40132 — скачивание идёт прогрессивным mp4, потом tv; обрезанный файл не стоп', () => {
+  assert.ok(YT_DL_ATTEMPTS[0].format.includes('b[height<=360][ext=mp4]'));
+  assert.ok(YT_DL_ATTEMPTS.some((a) => /tv_embedded/.test(a.clients)));
+  const src = readFileSync(join(ROOT, 'scripts/date-lum.mjs'), 'utf8');
+  assert.match(src, /function readTrack/);
+  assert.match(src, /reason: 'error'/);
+  assert.doesNotMatch(src, /wv\*\[height>=144\]\[height<=360\]\/bv\*\[height<=360\]\/wv\*\/worst/);
+});
+
+test('Замок бага: карточка #b1851043-bcf5-4954-bcdc-01723ae40132 — новый движок сразу повторяет yt-info/no-source/error', () => {
+  const now = Date.parse('2026-10-14T19:00:00Z');
+  const stale = { engine: 1, tracks: {}, fails: {
+    WFtSptmNP3Q: { reason: 'yt-info', n: 2, at: '2026-10-14T19:19:38.872Z' },
+    '0VD7T0wbras': { reason: 'no-source', n: 2, at: '2026-10-14T19:19:38.872Z' },
+    JlChTvX4U4E: { reason: 'error', n: 2, at: '2026-10-14T19:19:38.872Z' },
+    deadvideo11: { reason: 'unavailable', n: 1, at: '2026-10-14T19:19:38.872Z' },
+  } };
+  const { map, reset } = refreshMap(stale);
+  assert.equal(map.engine, ENGINE);
+  assert.deepEqual(reset.sort(), ['0VD7T0wbras', 'JlChTvX4U4E', 'WFtSptmNP3Q']);
+  assert.equal(map.fails.deadvideo11.reason, 'unavailable');
+  const covers = [
+    { v: 'WFtSptmNP3Q', d: '2023-06-06' },
+    { v: '0VD7T0wbras', d: '2024-01-09' },
+    { v: 'JlChTvX4U4E', d: '2022-02-11' },
+    { v: 'deadvideo11', d: '2022-01-01' },
+  ];
+  const list = planList(covers, map, new Set(), now);
+  assert.deepEqual(list.map((x) => x.id).sort(), ['0VD7T0wbras', 'JlChTvX4U4E', 'WFtSptmNP3Q']);
+  const again = refreshMap(map);
+  assert.deepEqual(again.reset, []);
+  assert.equal(again.map.fails.deadvideo11.reason, 'unavailable');
 });

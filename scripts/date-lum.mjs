@@ -7,6 +7,8 @@
 // в цвете, посчитанном по заставке (Morpho: тёмная дата на чёрном кадре).
 // Теперь яркость того же угла считается здесь, заранее, по нашей копии ролика —
 // 4 замера в секунду, — а страница берёт замер по текущему времени плеера.
+// Длительность и файл YouTube берём клиентами ios/android/tv_embedded, если
+// web упёрся в бот-стену (карточка b1851043, 11 дыр: yt-info / no-source / error).
 //
 // ХРОНОМЕТРАЖ (Артур: «точно не будет путаницы?»): копия обязана быть ТЕМ ЖЕ
 // роликом, что на YouTube. У интервью <id>.mp4 — 24-секундная нарезка, ролик
@@ -218,6 +220,11 @@ export const isYt = (v) => /^[A-Za-z0-9_-]{11}$/.test(String(v || ''));
 export const RETRY_DAYS = 3;           // неудача (сеть, бот-стена, сверка) — повтор через 3 дня
 export const UNAVAILABLE_DAYS = 30;    // ролика на YouTube нет — карточка играет наш файл, шкала не нужна
 export const RELEASES = ['clips3', 'clips2', 'clips']; // тома склада копий, новые первыми
+// Версия движка карты: при смене сбрасываем yt-info/no-source/error, чтобы
+// починка клиентов YouTube сразу пересчитала дыру, а не ждала RETRY_DAYS.
+// unavailable не трогаем — снятый ролик от смены клиента не оживает.
+export const ENGINE = 2;
+export const RETRYABLE_FAILS = ['yt-info', 'no-source', 'error'];
 
 export function copyCandidates(id, assets){
   // полная запись интервью, обычная копия, облегчённая .480 — по порядку; у
@@ -256,20 +263,74 @@ export function shard(list, n){
 // ─── один ролик ─────────────────────────────────────────────────────────
 const PROXY = process.env.YTDLP_PROXY || '';
 const REPO = process.env.GITHUB_REPOSITORY || 'xqtrn/svic-visio-test';
-function sh(cmd, args, opts = {}){ return spawnSync(cmd, args, { maxBuffer: 1 << 28, encoding: 'utf8', timeout: 15 * 60000, ...opts }); }
+function sh(cmd, args, opts = {}){
+  const { timeout = 15 * 60000, ...rest } = opts;
+  const r = spawnSync(cmd, args, { maxBuffer: 1 << 28, encoding: 'utf8', timeout, ...rest });
+  if (r.error) r.stderr = String(r.stderr || '') + '\n' + (r.error.code === 'ETIMEDOUT' ? 'timeout' : r.error.message);
+  if (r.signal) r.stderr = String(r.stderr || '') + '\nsignal=' + r.signal;
+  return r;
+}
 function proxyArgs(){ return PROXY ? ['--proxy', PROXY] : []; }
+function ytErr(r){
+  const t = String((r && r.stderr) || '') + '\n' + String((r && r.stdout) || '');
+  return (t.split('\n').find((l) => /ERROR|timeout|signal=/.test(l)) || t.trim().split('\n').filter(Boolean).pop() || '').slice(0, 200);
+}
+
+// Снятый / закрытый по возрасту / стране — карточка играет наш файл, шкала
+// не нужна. «Confirm you’re not a bot» сюда не входит: ролик на сайте играет,
+// это отказ web-клиента yt-dlp, не самого YouTube.
+export const DEAD_YT = /unavailable|private|removed|terminated|does not exist|not made this video available|not available in your country|confirm your age|this video is private|copyright/i;
+
+// web_safari даёт миниатюры перемотки (сверка копии). ios/android/tv_embedded
+// длительность без бот-стены web. tv_embedded ещё и возрастную заглушку.
+export const YT_INFO_CLIENTS = ['web_safari', 'web', 'ios', 'android', 'tv_embedded'];
+
+// Первая попытка — прогрессивный mp4 (без ffmpeg внутри yt-dlp: «Did not get
+// any data blocks» и обрыв googlevideo на склейке DASH). Вторая — раздельные
+// потоки через клиент телевизора, если прогрессивного нет.
+export const YT_DL_ATTEMPTS = [
+  { clients: 'ios,android,web_safari', format: 'b[height<=360][ext=mp4]/bv*[height<=360][ext=mp4]/b[height<=360][ext=mp4]' },
+  { clients: 'tv_embedded,android,ios', format: 'bv*[height<=360]+ba/b[height<=360]/worst' },
+];
+
+export function settleYtInfo(attempts){
+  let fallback = null, last = '';
+  for (const a of attempts || []){
+    if (a && a.info){
+      if (pickStoryboard(a.info)) return { info: a.info, client: a.client };
+      if (!fallback && Number(a.info.duration) > 0) fallback = a;
+    } else if (a && a.error) last = a.error;
+  }
+  if (fallback) return { info: fallback.info, client: fallback.client };
+  return { error: String(last).slice(0, 200), unavailable: DEAD_YT.test(last) };
+}
 
 export function ytInfo(id){
   const url = 'https://www.youtube.com/watch?v=' + id;
-  let last = '';
-  // миниатюры перемотки отдаёт веб-клиент; ios/android их не несут
-  for (const extra of [[], ['--extractor-args', 'youtube:player_client=web_safari']]){
-    const r = sh('yt-dlp', ['-J', '--skip-download', '--no-playlist', '--no-warnings', ...proxyArgs(), ...extra, url]);
-    if (r.status === 0){ try { const j = JSON.parse(r.stdout); if (pickStoryboard(j) || extra.length) return { info: j }; } catch (e) { last = 'json'; } }
-    else last = String(r.stderr || '').split('\n').find((l) => /ERROR/.test(l)) || String(r.stderr || '').slice(-200);
+  const attempts = [];
+  for (const client of YT_INFO_CLIENTS){
+    const r = sh('yt-dlp', ['-J', '--skip-download', '--no-playlist', '--no-warnings', ...proxyArgs(),
+      '--extractor-args', 'youtube:player_client=' + client, url]);
+    if (r.status === 0){
+      try { attempts.push({ info: JSON.parse(r.stdout), client }); }
+      catch (e) { attempts.push({ error: 'json', client }); }
+    } else attempts.push({ error: ytErr(r), client });
+    const last = attempts[attempts.length - 1];
+    if (last.info && pickStoryboard(last.info)) break;
   }
-  const unavailable = /unavailable|private|removed|terminated|not available|does not exist/i.test(last);
-  return { error: last.slice(0, 200), unavailable };
+  return settleYtInfo(attempts);
+}
+
+export function refreshMap(map){
+  const src = map && typeof map === 'object' ? map : {};
+  const out = { v: src.v || 1, engine: ENGINE, since: src.since, updated: src.updated,
+    tracks: { ...(src.tracks || {}) }, fails: { ...(src.fails || {}) } };
+  const reset = [];
+  if (src.engine === ENGINE) return { map: out, reset };
+  for (const [id, f] of Object.entries(out.fails)){
+    if (f && RETRYABLE_FAILS.includes(f.reason)){ delete out.fails[id]; reset.push(id); }
+  }
+  return { map: out, reset };
 }
 
 function curlTo(url, file){
@@ -280,6 +341,36 @@ function curlTo(url, file){
 async function fetchViaCurl(url){
   const r = spawnSync('curl', ['-sfL', '--retry', '2', ...(PROXY ? ['--proxy', PROXY] : []), url], { maxBuffer: 1 << 26 });
   return { ok: r.status === 0, status: r.status, arrayBuffer: async () => r.stdout };
+}
+
+function readTrack(file, label, tried){
+  try {
+    const track = trackFromVideo(file);
+    if (!track.length){ tried.push({ c: label, reason: 'empty-track' }); return null; }
+    return track;
+  } catch (e) {
+    tried.push({ c: label, reason: 'error', error: String(e && e.message || e).slice(0, 200) });
+    return null;
+  }
+}
+
+export function downloadYoutube(id, dest){
+  let last = '';
+  for (const a of YT_DL_ATTEMPTS){
+    rmSync(dest, { force: true });
+    const r = sh('yt-dlp', ['--no-playlist', '--no-continue', '--no-progress', '--no-warnings',
+      '--retries', '8', '--fragment-retries', '8', '--socket-timeout', '30',
+      ...proxyArgs(),
+      '--extractor-args', 'youtube:player_client=' + a.clients,
+      '-f', a.format, '--merge-output-format', 'mp4', '-o', dest,
+      'https://www.youtube.com/watch?v=' + id], { timeout: 8 * 60000 });
+    if (r.status === 0 && existsSync(dest) && statSync(dest).size > 10000){
+      const dur = probeDuration(dest);
+      if (dur > 1) return { ok: true, dur, attempt: a };
+    }
+    last = ytErr(r) || 'download-failed';
+  }
+  return { ok: false, error: last };
 }
 
 export async function processOne(id, copies, work){
@@ -299,27 +390,26 @@ export async function processOne(id, copies, work){
     if (!curlTo(`https://github.com/${REPO}/releases/download/${c}`, f)){ tried.push({ c, reason: 'download' }); continue; }
     const copyDur = probeDuration(f);
     if (Math.abs(copyDur - ytDur) > DUR_TOL){ tried.push({ c, reason: 'duration', copyDur: +copyDur.toFixed(2), ytDur }); continue; }
-    const track = trackFromVideo(f);
+    const track = readTrack(f, c, tried);
+    if (!track) continue;
     const v = verify({ track, points: await getPoints(), copyDur, ytDur });
     tried.push({ c, ...v });
     if (v.ok){ rmSync(f, { force: true }); return { id, ok: true, src: 'copy:' + c, v: slimV(v), ...switches(track), n: track.length }; }
   }
   // Ни одна копия не прошла — берём сам ролик с YouTube в самом лёгком виде:
   // это ровно то, что играет карточка, сверка тут лишь для отчёта.
-  const yf = join(work, 'yt.mp4'); rmSync(yf, { force: true });
-  const r = sh('yt-dlp', ['--no-playlist', '--no-continue', '--no-progress', '--no-warnings', ...proxyArgs(),
-    '--extractor-args', 'youtube:player_client=ios,android,web_safari',
-    '-f', 'wv*[height>=144][height<=360]/bv*[height<=360]/wv*/worst', '-o', yf, 'https://www.youtube.com/watch?v=' + id]);
-  if (r.status === 0 && existsSync(yf)){
-    const copyDur = probeDuration(yf);
-    if (Math.abs(copyDur - ytDur) <= DUR_TOL){
-      const track = trackFromVideo(yf);
-      const v = verify({ track, points: await getPoints(), copyDur, ytDur });
-      rmSync(yf, { force: true });
-      return { id, ok: true, src: 'youtube', v: slimV(v), tried, ...switches(track), n: track.length };
-    }
-    tried.push({ c: 'youtube', reason: 'duration', copyDur: +copyDur.toFixed(2), ytDur });
-  } else tried.push({ c: 'youtube', reason: 'download', error: (String(r.stderr || '').split('\n').find((l) => /ERROR/.test(l)) || '').slice(0, 200) });
+  const yf = join(work, 'yt.mp4');
+  const dl = downloadYoutube(id, yf);
+  if (dl.ok){
+    if (Math.abs(dl.dur - ytDur) <= DUR_TOL){
+      const track = readTrack(yf, 'youtube', tried);
+      if (track){
+        const v = verify({ track, points: await getPoints(), copyDur: dl.dur, ytDur });
+        rmSync(yf, { force: true });
+        return { id, ok: true, src: 'youtube', v: slimV(v), tried, ...switches(track), n: track.length };
+      }
+    } else tried.push({ c: 'youtube', reason: 'duration', copyDur: +dl.dur.toFixed(2), ytDur });
+  } else tried.push({ c: 'youtube', reason: 'download', error: dl.error });
   rmSync(yf, { force: true });
   return { id, ok: false, reason: 'no-source', tried };
 }
@@ -327,7 +417,7 @@ const slimV = (v) => ({ reason: v.reason, mad: v.mad, agree: v.agree, step: v.st
 
 // ─── сборка карты ──────────────────────────────────────────────────────
 export function mergeResults(map, results, now = Date.now()){
-  const out = { v: 1, since: (map && map.since) || new Date(now).toISOString(), updated: new Date(now).toISOString(), tracks: { ...((map && map.tracks) || {}) }, fails: { ...((map && map.fails) || {}) } };
+  const out = { v: 1, engine: ENGINE, since: (map && map.since) || new Date(now).toISOString(), updated: new Date(now).toISOString(), tracks: { ...((map && map.tracks) || {}) }, fails: { ...((map && map.fails) || {}) } };
   const stat = { ok: 0, fail: 0, bySrc: {}, byReason: {} };
   for (const r of results){
     if (!r || !isYt(r.id)) continue;
@@ -372,7 +462,9 @@ async function main(){
     const covers = readJson(coversF, []);
     if (!Array.isArray(covers) || !covers.length){ console.error('манифест роликов сайта пуст — план не строю'); process.exit(1); }
     const assets = new Set(readFileSync(assetsF, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean));
-    const list = planList(covers, readJson(mapF, {}), assets);
+    const { map, reset } = refreshMap(readJson(mapF, {}));
+    if (reset.length) console.log(`движок ${ENGINE}: повтор ${reset.length} неудач (yt-info/no-source/error)`);
+    const list = planList(covers, map, assets);
     const shards = shard(list, Math.max(1, Number(nS) || 1));
     mkdirSync(outdir, { recursive: true });
     shards.forEach((sh_, k) => writeFileSync(join(outdir, `plan-${k}.tsv`), sh_.map((x) => [x.id, x.copies.join(',') || '-'].join('\t')).join('\n') + '\n'));
@@ -407,7 +499,8 @@ async function main(){
   if (cmd === 'merge'){
     const [mapF, dir] = a;
     const results = existsSync(dir) ? readdirSync(dir, { recursive: true }).filter((f) => String(f).endsWith('.json')).map((f) => readJson(join(dir, String(f)), null)) : [];
-    const { map, stat } = mergeResults(readJson(mapF, {}), results);
+    const { map: base } = refreshMap(readJson(mapF, {}));
+    const { map, stat } = mergeResults(base, results);
     writeFileSync(mapF, JSON.stringify(map));
     console.log(`шкал в карте: ${Object.keys(map.tracks).length}; этот прогон: +${stat.ok}, неудач ${stat.fail}; источники ${JSON.stringify(stat.bySrc)}; причины ${JSON.stringify(stat.byReason)}`);
     return;
