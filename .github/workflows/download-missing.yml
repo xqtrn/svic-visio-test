@@ -13,7 +13,7 @@ jobs:
       - name: tools
         run: |
           sudo apt-get install -y -qq ffmpeg
-          python3 -m pip install --quiet --upgrade yt-dlp
+          python3 -m pip install --quiet --upgrade "yt-dlp[default]"
       - name: download + faststart + upload
         env:
           GH_TOKEN: ${{ github.token }}
@@ -35,7 +35,7 @@ jobs:
             if [ "$TYPE" = wordpress ]; then
               curl -sL "$SRC" -o in.mp4
             else
-              yt-dlp --no-playlist --no-progress --no-warnings \
+              yt-dlp --no-playlist --no-progress --no-warnings --js-runtimes node \
                 --proxy "$PENGUIN_SOCKS" \
                 --extractor-args "youtube:player_client=ios,android,web_safari" \
                 -f 'b[height<=720][ext=mp4]/bv*[height<=720]+ba/b[height<=720]/b' \

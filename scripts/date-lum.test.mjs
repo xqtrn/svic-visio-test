@@ -6,7 +6,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verify, switches, darkAt, planList, copyCandidates, mergeResults, coverageGap, RATE,
-  settleYtInfo, refreshMap, ENGINE, DEAD_YT, YT_INFO_CLIENTS, YT_DL_ATTEMPTS } from './date-lum.mjs';
+  settleYtInfo, refreshMap, ENGINE, DEAD_YT, YT_INFO_CLIENTS, YT_DL_ATTEMPTS,
+  YT_JS_RUNTIME, ytDlpArgs } from './date-lum.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -110,6 +111,7 @@ test('workflow: замок теста в прогоне, горло apt, сто�
   assert.match(yml, /\.\/\.github\/actions\/repair-apt/);
   assert.match(yml, /date-lum\.mjs watch/);
   assert.match(yml, /gh release upload date-lum date-lum\.json/);
+  assert.match(yml, /yt-dlp\[default\]/);
 });
 
 // Замок бага: карточка #b1851043-bcf5-4954-bcdc-01723ae40132
@@ -163,4 +165,53 @@ test('Замок бага: карточка #b1851043-bcf5-4954-bcdc-01723ae4013
   const again = refreshMap(map);
   assert.deepEqual(again.reset, []);
   assert.equal(again.map.fails.deadvideo11.reason, 'unavailable');
+});
+
+// Замок бага: карточка #f4fed8bd-3bb9-4e0f-89da-e49b8e492632
+// 10 карточек без шкалы: мост к Пингвину был поднят, а все player_client
+// (web/ios/android/tv) отвечали «confirm you’re not a bot» — yt-dlp на
+// ubuntu-latest ставится из pip без EJS и без JS-рантайма (Deno нет, Node 22
+// есть, но флаг --js-runtimes node не передавался), PO-token не чеканится.
+test('Замок бага: карточка #f4fed8bd-3bb9-4e0f-89da-e49b8e492632 — бот-стена лечится EJS на Node, не новым клиентом', () => {
+  assert.deepEqual(YT_JS_RUNTIME, ['--js-runtimes', 'node']);
+  assert.deepEqual(ytDlpArgs().slice(0, 2), ['--js-runtimes', 'node']);
+  assert.equal(ENGINE, 3);
+  const src = readFileSync(join(ROOT, 'scripts/date-lum.mjs'), 'utf8');
+  assert.match(src, /function ytInfo/);
+  assert.equal((src.match(/sh\('yt-dlp'/g) || []).length, 2);
+  assert.equal((src.match(/\.\.\.ytDlpArgs\(\)/g) || []).length, 2);
+  const yml = readFileSync(join(ROOT, '.github/workflows/date-lum.yml'), 'utf8');
+  assert.match(yml, /yt-dlp\[default\]/);
+  assert.match(yml, /yt-dlp --js-runtimes node --version/);
+  for (const c of ['ios', 'android', 'tv_embedded']) assert.ok(YT_INFO_CLIENTS.includes(c), c);
+});
+
+test('Замок бага: карточка #f4fed8bd-3bb9-4e0f-89da-e49b8e492632 — класс: любой yt-dlp YouTube на раннере с Node и EJS', () => {
+  const files = [
+    '.github/workflows/date-lum.yml',
+    '.github/workflows/iv-covers.yml',
+    '.github/workflows/convert.yml',
+    '.github/workflows/download-missing.yml',
+    '.github/workflows/interview-full.yml',
+    '.github/workflows/archive-clips.yml',
+    'archive-missing-clips.mjs',
+  ];
+  for (const f of files){
+    const t = readFileSync(join(ROOT, f), 'utf8');
+    if (f.endsWith('.yml')) assert.match(t, /yt-dlp\[default\]/, f);
+    if (t.includes('player_client')) assert.match(t, /--js-runtimes node/, f);
+  }
+});
+
+test('Замок бага: карточка #f4fed8bd-3bb9-4e0f-89da-e49b8e492632 — движок 3 сразу повторяет десять yt-info', () => {
+  const now = Date.parse('2026-10-17T21:40:00Z');
+  const ids = ['0VD7T0wbras', 'D4yCLAxfhDA', 'JlChTvX4U4E', 'YAqaymcxk44', 'WaX6PX0gRvY',
+    'sZL_B3zLV2g', 'gcnlR0iIJ3I', 'dmDkwKCbyN8', 'hxJv8AKEeG4', 'gve7QsHaiVs'];
+  const fails = Object.fromEntries(ids.map((id) => [id, { reason: 'yt-info', n: 2, at: '2026-10-17T21:31:45.178Z' }]));
+  const { map, reset } = refreshMap({ engine: 2, tracks: {}, fails });
+  assert.equal(map.engine, ENGINE);
+  assert.deepEqual(reset.sort(), ids.slice().sort());
+  const covers = ids.map((v) => ({ v, d: '2021-08-01' }));
+  const list = planList(covers, map, new Set(), now);
+  assert.deepEqual(list.map((x) => x.id).sort(), ids.slice().sort());
 });

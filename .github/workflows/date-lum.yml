@@ -72,7 +72,11 @@ jobs:
       - name: tools
         run: |
           sudo apt-get install -y -qq ffmpeg
-          python3 -m pip install --quiet --upgrade yt-dlp pproxy
+          # [default] тянет yt-dlp-ejs (PO-token). Node 22 уже в PATH — date-lum.mjs
+          # передаёт --js-runtimes node; без EJS/рантайма YouTube отвечает бот-стеной
+          # даже через живой мост Пингвина (карточка f4fed8bd).
+          python3 -m pip install --quiet --upgrade "yt-dlp[default]" pproxy
+          yt-dlp --js-runtimes node --version
       - uses: actions/download-artifact@v4
         with: { name: date-lum-plan, path: plan }
       - name: tracks

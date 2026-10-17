@@ -23,11 +23,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
       - uses: ./.github/actions/repair-apt
       - name: tools
         run: |
           sudo apt-get install -y -qq ffmpeg
-          python3 -m pip install --quiet --upgrade yt-dlp
+          python3 -m pip install --quiet --upgrade "yt-dlp[default]"
       # СПИСОК САМ (Артур 2026-08-04 «применить плеер везде»): без ручного ввода
       # берём интервью с публичного сайта и отбрасываем те, чья запись уже лежит в
       # хранилище. Новое интервью попадает сюда в ближайший шестичасовой прогон.
@@ -87,7 +89,7 @@ jobs:
             # Всё — через домашний узел: с адреса дата-центра YouTube требует
             # «подтвердите, что вы не робот».
             FMT='bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b'
-            yt-dlp --no-playlist --no-progress --no-warnings --proxy "$PENGUIN_SOCKS" \
+            yt-dlp --no-playlist --no-progress --no-warnings --js-runtimes node --proxy "$PENGUIN_SOCKS" \
               --extractor-args "youtube:player_client=tv_embedded,mediaconnect,android_vr" \
               -f "$FMT" --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" \
             || { FAIL=$((FAIL+1)); continue; }
@@ -96,7 +98,7 @@ jobs:
             # свои или автоматические. Забираем вместе с записью и кладём рядом, иначе
             # наш плеер честно не покажет кнопку CC, а зритель потеряет то, что было.
             rm -f subs.en.vtt "full-$VID.en.vtt"
-            yt-dlp --no-playlist --no-warnings --skip-download --proxy "$PENGUIN_SOCKS" \
+            yt-dlp --no-playlist --no-warnings --skip-download --js-runtimes node --proxy "$PENGUIN_SOCKS" \
               --extractor-args "youtube:player_client=web_safari,web,ios,android" \
               --write-subs --write-auto-subs --sub-langs "en.*,en" --convert-subs vtt \
               -o "subs.%(ext)s" "https://www.youtube.com/watch?v=$VID" || echo "субтитров нет"
@@ -113,7 +115,7 @@ jobs:
               echo "СЛИШКОМ НИЗКОЕ КАЧЕСТВО ($SRCH) — не выкладываю. Что вообще отдаёт YouTube:"
               for CL in web_safari web tv mweb ios android; do
                 echo "--- клиент $CL:"
-                yt-dlp --no-playlist --no-warnings --skip-download --proxy "$PENGUIN_SOCKS" \
+                yt-dlp --no-playlist --no-warnings --skip-download --js-runtimes node --proxy "$PENGUIN_SOCKS" \
                   --extractor-args "youtube:player_client=$CL" -F "https://www.youtube.com/watch?v=$VID" 2>&1 | tail -12
               done
               FAIL=$((FAIL+1)); continue

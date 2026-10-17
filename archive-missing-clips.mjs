@@ -56,7 +56,7 @@ for (const w of wanted.slice(0, LIMIT)) {
   console.log(`=== ${w.id} · ${w.title.slice(0, 60)}`);
   try {
     fs.rmSync('in.mp4', { force: true }); fs.rmSync('out.mp4', { force: true });
-    execSync(`yt-dlp --no-playlist --no-progress --no-warnings ${PROXY ? `--proxy "${PROXY}"` : ''} `
+    execSync(`yt-dlp --no-playlist --no-progress --no-warnings --js-runtimes node ${PROXY ? `--proxy "${PROXY}"` : ''} `
       + `--extractor-args "youtube:player_client=ios,android,web_safari" `
       + `-f 'b[height<=720][ext=mp4]/bv*[height<=720]+ba/b[height<=720]/b' --merge-output-format mp4 `
       + `-o in.mp4 "https://www.youtube.com/watch?v=${w.id}"`, { stdio: 'inherit', shell: '/bin/bash' });

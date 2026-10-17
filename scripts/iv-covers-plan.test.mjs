@@ -172,6 +172,8 @@ test('воркфлоу: источник — /__covers.json, лимит парт
   // к Пингвину ссылки googlevideo, выданные под IP прокси, с IP раннера дают 403
   assert.match(yml, /pproxy/);
   assert.match(yml, /--proxy "\$YTDLP_PROXY"/);
+  assert.match(yml, /yt-dlp\[default\]/);
+  assert.match(yml, /--js-runtimes node/);
   assert.match(yml, /report "\$\{OK:-0\}" "\$\{FAIL:-0\}" "\$\{DEAD:-0\}"/);
   assert.doesNotMatch(yml, /\[ "\$FAIL" = "0" \]/);
   assert.match(yml, /interview-covers\.json/);

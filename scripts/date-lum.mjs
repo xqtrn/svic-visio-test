@@ -9,6 +9,11 @@
 // 4 замера в секунду, — а страница берёт замер по текущему времени плеера.
 // Длительность и файл YouTube берём клиентами ios/android/tv_embedded, если
 // web упёрся в бот-стену (карточка b1851043, 11 дыр: yt-info / no-source / error).
+// С 17.10 этого мало: все клиенты, включая android/ios/tv, отвечают
+// «confirm you’re not a bot», пока yt-dlp не решает JS-задачу YouTube и не
+// чеканит PO-token. На раннере стоит Node 22, Deno нет; без --js-runtimes node
+// экстрактор молча идёт без EJS — Пингвин живой, ответ всё равно бот-стена
+// (карточка f4fed8bd, 10 дыр yt-info).
 //
 // ХРОНОМЕТРАЖ (Артур: «точно не будет путаницы?»): копия обязана быть ТЕМ ЖЕ
 // роликом, что на YouTube. У интервью <id>.mp4 — 24-секундная нарезка, ролик
@@ -223,7 +228,7 @@ export const RELEASES = ['clips3', 'clips2', 'clips']; // тома склада 
 // Версия движка карты: при смене сбрасываем yt-info/no-source/error, чтобы
 // починка клиентов YouTube сразу пересчитала дыру, а не ждала RETRY_DAYS.
 // unavailable не трогаем — снятый ролик от смены клиента не оживает.
-export const ENGINE = 2;
+export const ENGINE = 3;
 export const RETRYABLE_FAILS = ['yt-info', 'no-source', 'error'];
 
 export function copyCandidates(id, assets){
@@ -270,7 +275,15 @@ function sh(cmd, args, opts = {}){
   if (r.signal) r.stderr = String(r.stderr || '') + '\nsignal=' + r.signal;
   return r;
 }
+// YouTube с 2025 требует PO-token: его чеканит EJS на внешнем JS-рантайме.
+// Deno у yt-dlp включён по умолчанию, на ubuntu-latest его нет; Node 22 уже
+// ставит setup-node — его и указываем. Без этого флага любой player_client
+// ловит бот-стену, даже через жилой SOCKS Пингвина.
+export const YT_JS_RUNTIME = ['--js-runtimes', 'node'];
 function proxyArgs(){ return PROXY ? ['--proxy', PROXY] : []; }
+export function ytDlpArgs(extra = []){
+  return [...YT_JS_RUNTIME, ...proxyArgs(), ...extra];
+}
 function ytErr(r){
   const t = String((r && r.stderr) || '') + '\n' + String((r && r.stdout) || '');
   return (t.split('\n').find((l) => /ERROR|timeout|signal=/.test(l)) || t.trim().split('\n').filter(Boolean).pop() || '').slice(0, 200);
@@ -309,7 +322,7 @@ export function ytInfo(id){
   const url = 'https://www.youtube.com/watch?v=' + id;
   const attempts = [];
   for (const client of YT_INFO_CLIENTS){
-    const r = sh('yt-dlp', ['-J', '--skip-download', '--no-playlist', '--no-warnings', ...proxyArgs(),
+    const r = sh('yt-dlp', ['-J', '--skip-download', '--no-playlist', '--no-warnings', ...ytDlpArgs(),
       '--extractor-args', 'youtube:player_client=' + client, url]);
     if (r.status === 0){
       try { attempts.push({ info: JSON.parse(r.stdout), client }); }
@@ -360,7 +373,7 @@ export function downloadYoutube(id, dest){
     rmSync(dest, { force: true });
     const r = sh('yt-dlp', ['--no-playlist', '--no-continue', '--no-progress', '--no-warnings',
       '--retries', '8', '--fragment-retries', '8', '--socket-timeout', '30',
-      ...proxyArgs(),
+      ...ytDlpArgs(),
       '--extractor-args', 'youtube:player_client=' + a.clients,
       '-f', a.format, '--merge-output-format', 'mp4', '-o', dest,
       'https://www.youtube.com/watch?v=' + id], { timeout: 8 * 60000 });
