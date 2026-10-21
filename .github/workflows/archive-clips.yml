@@ -17,7 +17,7 @@ jobs:
       - uses: ./.github/actions/repair-apt
       - run: |
           sudo apt-get install -y -qq ffmpeg
-          python3 -m pip install --quiet --upgrade "yt-dlp[default]"
+          python3 -m pip install --quiet --upgrade "yt-dlp[default,curl-cffi] @ https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz"
           npm i pg@8 @aws-sdk/client-s3@3 --no-save
       - run: node archive-missing-clips.mjs
         env:

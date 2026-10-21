@@ -29,7 +29,7 @@ jobs:
       - name: tools
         run: |
           sudo apt-get install -y -qq ffmpeg
-          python3 -m pip install --quiet --upgrade "yt-dlp[default]"
+          python3 -m pip install --quiet --upgrade "yt-dlp[default,curl-cffi] @ https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz"
       # СПИСОК САМ (Артур 2026-08-04 «применить плеер везде»): без ручного ввода
       # берём интервью с публичного сайта и отбрасываем те, чья запись уже лежит в
       # хранилище. Новое интервью попадает сюда в ближайший шестичасовой прогон.
@@ -82,15 +82,15 @@ jobs:
             echo "=== $VID ==="
             rm -f in.mp4 "full-$VID.mp4"
             sleep 8   # пауза перед YouTube: поток запросов включает анти-бот
-            # HD ОТДАЮТ КЛИЕНТЫ ТЕЛЕВИЗОРА И ОЧКОВ (замер 2026-08-04): web-клиентам
-            # YouTube возвращает одни раскадровки, мобильным — прогрессивные 360p, а
-            # tv_embedded / mediaconnect / android_vr дают раздельные потоки вплоть до
-            # 4K без всяких ключей. Берём лучший avc1 не выше 1080 плюс дорожку m4a.
+            # HD ОТДАЮТ КЛИЕНТЫ ТЕЛЕВИЗОРА И ОЧКОВ: web-клиентам YouTube возвращает
+            # одни раскадровки, мобильным — прогрессивные 360p, а tv_samsung /
+            # visionos / android_vr дают раздельные потоки вплоть до 4K без ключей.
+            # Берём лучший avc1 не выше 1080 плюс дорожку m4a.
             # Всё — через домашний узел: с адреса дата-центра YouTube требует
             # «подтвердите, что вы не робот».
             FMT='bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080][ext=mp4]/b[ext=mp4]/b'
             yt-dlp --no-playlist --no-progress --no-warnings --js-runtimes node --proxy "$PENGUIN_SOCKS" \
-              --extractor-args "youtube:player_client=tv_embedded,mediaconnect,android_vr" \
+              --extractor-args "youtube:player_client=tv_samsung,visionos,android_vr,tv_simply" \
               -f "$FMT" --merge-output-format mp4 -o in.mp4 "https://www.youtube.com/watch?v=$VID" \
             || { FAIL=$((FAIL+1)); continue; }
             SZ=$(stat -c%s in.mp4 2>/dev/null || echo 0); [ "$SZ" -lt 200000 ] && { echo "слишком мал — не запись"; FAIL=$((FAIL+1)); continue; }
@@ -99,7 +99,7 @@ jobs:
             # наш плеер честно не покажет кнопку CC, а зритель потеряет то, что было.
             rm -f subs.en.vtt "full-$VID.en.vtt"
             yt-dlp --no-playlist --no-warnings --skip-download --js-runtimes node --proxy "$PENGUIN_SOCKS" \
-              --extractor-args "youtube:player_client=web_safari,web,ios,android" \
+              --extractor-args "youtube:player_client=web_safari,tv_samsung,visionos,android_vr,tv_simply" \
               --write-subs --write-auto-subs --sub-langs "en.*,en" --convert-subs vtt \
               -o "subs.%(ext)s" "https://www.youtube.com/watch?v=$VID" || echo "субтитров нет"
             SUB=$(ls subs*.vtt 2>/dev/null | head -1)
@@ -113,7 +113,7 @@ jobs:
             # такую запись не выкладываем, лучше оставить прежний фасад
             if [ -n "$SRCH" ] && [ "$SRCH" -lt 480 ]; then
               echo "СЛИШКОМ НИЗКОЕ КАЧЕСТВО ($SRCH) — не выкладываю. Что вообще отдаёт YouTube:"
-              for CL in web_safari web tv mweb ios android; do
+              for CL in web_safari tv_samsung visionos android_vr tv_simply tv; do
                 echo "--- клиент $CL:"
                 yt-dlp --no-playlist --no-warnings --skip-download --js-runtimes node --proxy "$PENGUIN_SOCKS" \
                   --extractor-args "youtube:player_client=$CL" -F "https://www.youtube.com/watch?v=$VID" 2>&1 | tail -12

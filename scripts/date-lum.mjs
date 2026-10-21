@@ -7,13 +7,13 @@
 // в цвете, посчитанном по заставке (Morpho: тёмная дата на чёрном кадре).
 // Теперь яркость того же угла считается здесь, заранее, по нашей копии ролика —
 // 4 замера в секунду, — а страница берёт замер по текущему времени плеера.
-// Длительность и файл YouTube берём клиентами ios/android/tv_embedded, если
-// web упёрся в бот-стену (карточка b1851043, 11 дыр: yt-info / no-source / error).
-// С 17.10 этого мало: все клиенты, включая android/ios/tv, отвечают
-// «confirm you’re not a bot», пока yt-dlp не решает JS-задачу YouTube и не
-// чеканит PO-token. На раннере стоит Node 22, Deno нет; без --js-runtimes node
-// экстрактор молча идёт без EJS — Пингвин живой, ответ всё равно бот-стена
-// (карточка f4fed8bd, 10 дыр yt-info).
+// Длительность и файл YouTube берём клиентами, которые YouTube ещё отдаёт
+// без входа. ios/android/tv_embedded — это прошлый обход бот-стены (карточка
+// b1851043); к 21.10 они сами отвечают «confirm you’re not a bot», а tv_embedded
+// из экстрактора убран. Актуальный default yt-dlp — tv_samsung + visionos + web
+// (карточка cc97cde4, 10 дыр: yt-info / no-source при живом Пингвине и Node EJS).
+// EJS на Node остаётся нужен для PO-token (карточка f4fed8bd); без него любой
+// клиент снова упрётся в стену. На раннере Node 22 уже стоит, Deno нет.
 //
 // ХРОНОМЕТРАЖ (Артур: «точно не будет путаницы?»): копия обязана быть ТЕМ ЖЕ
 // роликом, что на YouTube. У интервью <id>.mp4 — 24-секундная нарезка, ролик
@@ -228,7 +228,7 @@ export const RELEASES = ['clips3', 'clips2', 'clips']; // тома склада 
 // Версия движка карты: при смене сбрасываем yt-info/no-source/error, чтобы
 // починка клиентов YouTube сразу пересчитала дыру, а не ждала RETRY_DAYS.
 // unavailable не трогаем — снятый ролик от смены клиента не оживает.
-export const ENGINE = 3;
+export const ENGINE = 4;
 export const RETRYABLE_FAILS = ['yt-info', 'no-source', 'error'];
 
 export function copyCandidates(id, assets){
@@ -294,16 +294,19 @@ function ytErr(r){
 // это отказ web-клиента yt-dlp, не самого YouTube.
 export const DEAD_YT = /unavailable|private|removed|terminated|does not exist|not made this video available|not available in your country|confirm your age|this video is private|copyright/i;
 
-// web_safari даёт миниатюры перемотки (сверка копии). ios/android/tv_embedded
-// длительность без бот-стены web. tv_embedded ещё и возрастную заглушку.
-export const YT_INFO_CLIENTS = ['web_safari', 'web', 'ios', 'android', 'tv_embedded'];
+// web_safari даёт миниатюры перемотки (сверка копии). tv_samsung / visionos /
+// android_vr / tv_simply — текущие клиенты без входа (default yt-dlp master
+// 21.10: tv_samsung,visionos,web). ios/android/tv_embedded сюда не входят:
+// 21.10 они сами бот-стена, tv_embedded из экстрактора снят.
+export const YT_WORKING_CLIENTS = 'web_safari,tv_samsung,visionos,android_vr,tv_simply';
+export const YT_INFO_CLIENTS = ['web_safari', 'tv_samsung', 'visionos', 'android_vr', 'tv_simply'];
 
 // Первая попытка — прогрессивный mp4 (без ffmpeg внутри yt-dlp: «Did not get
 // any data blocks» и обрыв googlevideo на склейке DASH). Вторая — раздельные
-// потоки через клиент телевизора, если прогрессивного нет.
+// потоки теми же живыми клиентами, если прогрессивного нет.
 export const YT_DL_ATTEMPTS = [
-  { clients: 'ios,android,web_safari', format: 'b[height<=360][ext=mp4]/bv*[height<=360][ext=mp4]/b[height<=360][ext=mp4]' },
-  { clients: 'tv_embedded,android,ios', format: 'bv*[height<=360]+ba/b[height<=360]/worst' },
+  { clients: YT_WORKING_CLIENTS, format: 'b[height<=360][ext=mp4]/bv*[height<=360][ext=mp4]/b[height<=360][ext=mp4]' },
+  { clients: 'tv_samsung,visionos,tv_simply,android_vr', format: 'bv*[height<=360]+ba/b[height<=360]/worst' },
 ];
 
 export function settleYtInfo(attempts){

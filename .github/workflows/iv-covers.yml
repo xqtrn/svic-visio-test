@@ -49,7 +49,7 @@ jobs:
       - name: tools
         run: |
           sudo apt-get install -y -qq ffmpeg
-          python3 -m pip install --quiet --upgrade "yt-dlp[default]" pproxy
+          python3 -m pip install --quiet --upgrade "yt-dlp[default,curl-cffi] @ https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz" pproxy
       - name: inventory of releases and failure ledger
         env:
           GH_TOKEN: ${{ github.token }}
@@ -148,7 +148,7 @@ jobs:
                 for try in 1 2; do
                   rm -f try.*
                   if yt-dlp --no-playlist --no-continue --no-progress --no-warnings --js-runtimes node --proxy "$YTDLP_PROXY" \
-                       --extractor-args "youtube:player_client=ios,android,web_safari" -f "$FMT" \
+                       --extractor-args "youtube:player_client=web_safari,tv_samsung,visionos,android_vr,tv_simply" -f "$FMT" \
                        --download-sections "*$S-$E" --force-keyframes-at-cuts \
                        --merge-output-format mp4 -o try.mp4 "$URL" </dev/null >ytdlp.log 2>&1 \
                      && [ "$(stat -c%s try.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
@@ -166,7 +166,7 @@ jobs:
                 echo "отрезок не скачался — тяну ролик целиком"; tail -2 ytdlp.log
                 # 2) запасной путь: целый файл, отрезок вырезает ffmpeg ниже
                 if yt-dlp --no-playlist --no-continue --no-progress --no-warnings --js-runtimes node --proxy "$YTDLP_PROXY" \
-                     --extractor-args "youtube:player_client=ios,android,web_safari" -f "$FMT" \
+                     --extractor-args "youtube:player_client=web_safari,tv_samsung,visionos,android_vr,tv_simply" -f "$FMT" \
                      --merge-output-format mp4 -o in.mp4 "$URL" </dev/null >ytdlp.log 2>&1 \
                    && [ "$(stat -c%s in.mp4 2>/dev/null || echo 0)" -gt 50000 ]; then
                   SRC=in.mp4; CUT="-ss $S -to $E"

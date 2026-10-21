@@ -75,7 +75,10 @@ jobs:
           # [default] тянет yt-dlp-ejs (PO-token). Node 22 уже в PATH — date-lum.mjs
           # передаёт --js-runtimes node; без EJS/рантайма YouTube отвечает бот-стеной
           # даже через живой мост Пингвина (карточка f4fed8bd).
-          python3 -m pip install --quiet --upgrade "yt-dlp[default]" pproxy
+          # PyPI 2026.08.19 не знает tv_samsung и держит мёртвые ios/android/
+          # tv_embedded (карточка cc97cde4). Master + curl-cffi — текущий экстрактор
+          # и TLS как у браузера.
+          python3 -m pip install --quiet --upgrade "yt-dlp[default,curl-cffi] @ https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz" pproxy
           yt-dlp --js-runtimes node --version
       - uses: actions/download-artifact@v4
         with: { name: date-lum-plan, path: plan }

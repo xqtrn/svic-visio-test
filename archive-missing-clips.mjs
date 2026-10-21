@@ -57,7 +57,7 @@ for (const w of wanted.slice(0, LIMIT)) {
   try {
     fs.rmSync('in.mp4', { force: true }); fs.rmSync('out.mp4', { force: true });
     execSync(`yt-dlp --no-playlist --no-progress --no-warnings --js-runtimes node ${PROXY ? `--proxy "${PROXY}"` : ''} `
-      + `--extractor-args "youtube:player_client=ios,android,web_safari" `
+      + `--extractor-args "youtube:player_client=web_safari,tv_samsung,visionos,android_vr,tv_simply" `
       + `-f 'b[height<=720][ext=mp4]/bv*[height<=720]+ba/b[height<=720]/b' --merge-output-format mp4 `
       + `-o in.mp4 "https://www.youtube.com/watch?v=${w.id}"`, { stdio: 'inherit', shell: '/bin/bash' });
     // faststart: без него iOS ждёт весь файл перед первым кадром

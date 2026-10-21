@@ -13,7 +13,7 @@ jobs:
       - name: tools
         run: |
           sudo apt-get install -y -qq ffmpeg
-          python3 -m pip install --quiet --upgrade "yt-dlp[default]"
+          python3 -m pip install --quiet --upgrade "yt-dlp[default,curl-cffi] @ https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz"
       - name: download + faststart + upload
         env:
           GH_TOKEN: ${{ github.token }}
@@ -37,7 +37,7 @@ jobs:
             else
               yt-dlp --no-playlist --no-progress --no-warnings --js-runtimes node \
                 --proxy "$PENGUIN_SOCKS" \
-                --extractor-args "youtube:player_client=ios,android,web_safari" \
+                --extractor-args "youtube:player_client=web_safari,tv_samsung,visionos,android_vr,tv_simply" \
                 -f 'b[height<=720][ext=mp4]/bv*[height<=720]+ba/b[height<=720]/b' \
                 --merge-output-format mp4 -o in.mp4 "$SRC" || { echo "yt-dlp fail"; FAIL=$((FAIL+1)); continue; }
             fi
