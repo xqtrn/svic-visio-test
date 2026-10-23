@@ -151,6 +151,93 @@ export async function assertCmsSchema(pool) {
   }
 }
 
+// Скопированный SVIC_PLATFORM_DATABASE_URL расходится с паролем живого пула
+// (2026-10-23: секрет от 01:43Z был зелёным в 01:48Z и с 02:41Z давал
+// password authentication failed, сайт при этом отвечал db:true). Схему
+// считает процесс CMS и отдаёт её внутренним ключом.
+export async function readLiveCmsSchema(fetchImpl, origin, internalKey) {
+  if (!internalKey) return { reachable: false, reason: 'нет внутреннего ключа' };
+  const url = String(origin || '').replace(/\/+$/, '') + '/api/internal/cms-schema-probe';
+  let response;
+  try {
+    response = await fetchImpl(url, {
+      headers: { 'x-internal-key': internalKey, accept: 'application/json' },
+    });
+  } catch (error) {
+    return { reachable: false, reason: error.message };
+  }
+  const read = await readJsonResponse(response);
+  if (read.status === 404 || read.kind === 'html') {
+    return { reachable: false, reason: 'маршрут схемы CMS недоступен' };
+  }
+  const payload = read.payload && typeof read.payload === 'object' ? read.payload : {};
+  if (read.status === 200 && payload.ok && payload.has_posts && payload.has_media) {
+    return { reachable: true, ok: true, payload };
+  }
+  if (read.kind !== 'json') return { reachable: false, reason: 'ответ схемы CMS не JSON' };
+  return {
+    reachable: true,
+    ok: false,
+    reason: payload.reason || `схема CMS не подтверждена живым процессом (HTTP ${read.status})`,
+  };
+}
+
+async function articlePageProblem(fetchImpl, newest) {
+  if (!newest || !newest.slug || !newest.published_at) return null;
+  const published = new Date(newest.published_at);
+  if (Number.isNaN(published.getTime())) return 'живая проба статьи упала: нет даты публикации';
+  const url = `https://siliconvalleyinvestclub.com/${published.getUTCFullYear()}/${String(published.getUTCMonth() + 1).padStart(2, '0')}/${String(published.getUTCDate()).padStart(2, '0')}/${newest.slug}/`;
+  const response = await fetchImpl(url, { redirect: 'follow' });
+  if (response.status !== 200) return `страница свежей статьи не открывается: ${url} (HTTP ${response.status})`;
+  return null;
+}
+
+async function cmsProblemsFromPool(pool, fetchImpl, origin) {
+  const schemaProblem = await assertCmsSchema(pool);
+  if (schemaProblem) return [schemaProblem];
+  const problems = [];
+  try {
+    const { rows } = await pool.query(
+      `SELECT coalesce(cdn_url, source_url) u FROM media WHERE mime LIKE 'image/%' ORDER BY id DESC LIMIT 3`);
+    const mediaProblem = await checkRecentMedia(fetchImpl, origin, rows.map((row) => row.u));
+    if (mediaProblem) problems.push(mediaProblem);
+  } catch (error) { problems.push('проверка хранилища картинок упала: ' + error.message); }
+  try {
+    const { rows } = await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish' AND (content_html IS NULL OR content_html='')`);
+    if (rows[0].c > 0) problems.push(`${rows[0].c} опубликованных статей без текста страницы`);
+  } catch (error) { problems.push('проверка текстов статей упала: ' + error.message); }
+  try {
+    const { rows } = await pool.query(
+      `SELECT slug, published_at FROM posts WHERE status='publish' AND published_at IS NOT NULL ORDER BY published_at DESC LIMIT 1`);
+    const article = await articlePageProblem(fetchImpl, rows[0]);
+    if (article) problems.push(article);
+  } catch (error) { problems.push('живая проба статьи упала: ' + error.message); }
+  return problems;
+}
+
+export async function collectCmsProbeProblems({ live, pool, fetchImpl, origin }) {
+  if (live && live.reachable && live.ok) {
+    const problems = [];
+    const payload = live.payload || {};
+    const mediaProblem = await checkRecentMedia(fetchImpl, origin, payload.images || []);
+    if (mediaProblem) problems.push(mediaProblem);
+    if (Number(payload.empty_published) > 0) {
+      problems.push(`${Number(payload.empty_published)} опубликованных статей без текста страницы`);
+    }
+    try {
+      const article = await articlePageProblem(fetchImpl, payload.newest);
+      if (article) problems.push(article);
+    } catch (error) {
+      problems.push('живая проба статьи упала: ' + error.message);
+    }
+    return problems;
+  }
+  if (live && live.reachable && !live.ok) {
+    return [live.reason || 'схема CMS не подтверждена живым процессом'];
+  }
+  return cmsProblemsFromPool(pool, fetchImpl, origin);
+}
+
 export async function checkOriginStatus(fetchImpl, base, { retries = 2, retryDelayMs = 5000 } = {}) {
   const { last, good } = await confirmJson(fetchImpl, base + '/api/status', {
     retries,
@@ -239,6 +326,7 @@ async function main() {
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
   });
+  pool.on('error', () => {});
   const problems = [];
   try {
     const statusProblem = await checkOriginStatus(fetch, ORIGIN);
@@ -257,45 +345,15 @@ async function main() {
     }
   } catch (e) { problems.push('health-пробы упали: ' + e.message); }
 
-  // ХРАНИЛИЩЕ МЕДИАТЕКИ ОТВЕЧАЕТ (2026-08-15). 15 августа AWS закрыл аккаунт по
-  // исчерпанию кредитов — картинки и видео пропали со всего сайта, и заметил это
-  // Артур по скриншоту, а не мы. Проба берёт ЖИВЫЕ картинки из медиатеки и
-  // требует настоящие байты: молчащее хранилище (умерший ключ, закрытый аккаунт,
-  // пустой бакет) становится задачей в тот же час. Одиночный 5xx края (522)
-  // подтверждаем повторами — тот же класс, что у /api/status 05.09 / 16.09.
-  const schemaProblem = await assertCmsSchema(pool);
-  if (schemaProblem) {
-    problems.push(schemaProblem);
-  } else {
-    try {
-      const { rows } = await pool.query(
-        `SELECT coalesce(cdn_url, source_url) u FROM media WHERE mime LIKE 'image/%' ORDER BY id DESC LIMIT 3`);
-      const mediaProblem = await checkRecentMedia(fetch, ORIGIN, rows.map((row) => row.u));
-      if (mediaProblem) problems.push(mediaProblem);
-    } catch (e) { problems.push('проверка хранилища картинок упала: ' + e.message); }
-
-    // контент на месте: у опубликованной статьи обязан быть чистый текст
-    // (content_html). С 21.08 страницу собирает родной шаблон из него —
-    // колонка снимка full_html намеренно пуста (выход из WordPress,
-    // svic-platform миграции 0037/0038). До 22.08 проба мерила снимок и
-    // краснела на всех 1269 статьях при живом сайте.
-    try {
-      const { rows } = await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish' AND (content_html IS NULL OR content_html='')`);
-      if (rows[0].c > 0) problems.push(`${rows[0].c} опубликованных статей без текста страницы`);
-    } catch (e) { problems.push('проверка текстов статей упала: ' + e.message); }
-
-    try {
-      const { rows } = await pool.query(
-        `SELECT slug, published_at FROM posts WHERE status='publish' AND published_at IS NOT NULL ORDER BY published_at DESC LIMIT 1`);
-      const newest = rows[0];
-      if (newest) {
-        const d = new Date(newest.published_at);
-        const url = `https://siliconvalleyinvestclub.com/${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}/${newest.slug}/`;
-        const r = await fetch(url, { redirect: 'follow' });
-        if (r.status !== 200) problems.push(`страница свежей статьи не открывается: ${url} (HTTP ${r.status})`);
-      }
-    } catch (e) { problems.push('живая проба статьи упала: ' + e.message); }
-  }
+  // Картинки и текст статей считаются по ответу живого процесса CMS.
+  // Скопированный пароль postgres остаётся только запасным путём, если маршрут
+  // схемы ещё не выкачен: ошибка этого пароля не карточка, когда процесс схему
+  // уже подтвердил.
+  const live = await readLiveCmsSchema(fetch, ORIGIN, process.env.SVIC_INTERNAL_KEY);
+  const cmsProblems = await collectCmsProbeProblems({
+    live, pool, fetchImpl: fetch, origin: ORIGIN,
+  });
+  problems.push(...cmsProblems);
 
   if (problems.length) {
     await openTask({

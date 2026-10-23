@@ -12,6 +12,8 @@ import {
   readJsonResponse,
   isCmsAuthRejection,
   assertCmsSchema,
+  readLiveCmsSchema,
+  collectCmsProbeProblems,
 } from './platform-health.mjs';
 
 test('сторож ходит на публичный сайт, не на закрытый Railway-origin', () => {
@@ -206,7 +208,8 @@ test('первая живая картинка из трёх достаточн�
 test('проба медиатеки ходит через checkMediaFile с повторами, не одним fetch', () => {
   const src = readFileSync(new URL('./platform-health.mjs', import.meta.url), 'utf8');
   assert.match(src, /checkMediaFile/);
-  assert.match(src, /checkRecentMedia\(fetch, ORIGIN/);
+  assert.match(src, /checkRecentMedia\(fetchImpl, origin/);
+  assert.match(src, /origin: ORIGIN/);
   assert.match(src, /MEDIA_EDGE_STATUSES/);
   assert.doesNotMatch(src, /problems\.push\(`хранилище картинок не отдаёт файл: \$\{u\} \(HTTP \$\{r\.status\}/);
 });
@@ -275,4 +278,79 @@ test('проба сначала проверяет схему CMS, не бьёт
   assert.match(src, /isCmsAuthRejection/);
   assert.match(src, /to_regclass\('public\.posts'\)/);
   assert.match(src, /to_regclass\('public\.media'\)/);
+  assert.match(src, /readLiveCmsSchema/);
+  assert.match(src, /\/api\/internal\/cms-schema-probe/);
+});
+
+test('живой ответ схемы принимается', async () => {
+  const body = JSON.stringify({
+    ok: true, has_posts: true, has_media: true, images: [], empty_published: 0, newest: null,
+  });
+  const live = await readLiveCmsSchema(async () => ({
+    status: 200,
+    headers: { get: () => 'application/json' },
+    text: async () => body,
+  }), 'https://siliconvalleyinvestclub.com', 'key');
+  assert.equal(live.reachable, true);
+  assert.equal(live.ok, true);
+});
+
+test('протухший пароль скопированного DSN не карточка, если живой CMS подтвердил схему', async () => {
+  let queried = false;
+  const pool = {
+    query: async () => {
+      queried = true;
+      throw new Error('password authentication failed for user "postgres"');
+    },
+  };
+  const problems = await collectCmsProbeProblems({
+    live: {
+      reachable: true,
+      ok: true,
+      payload: {
+        ok: true,
+        has_posts: true,
+        has_media: true,
+        images: [],
+        empty_published: 0,
+        newest: null,
+      },
+    },
+    pool,
+    fetchImpl: async () => ({ status: 200 }),
+    origin: 'https://siliconvalleyinvestclub.com',
+  });
+  assert.deepEqual(problems, []);
+  assert.equal(queried, false);
+});
+
+test('живая неполная схема не подменяется ошибкой пароля', async () => {
+  const pool = {
+    query: async () => { throw new Error('password authentication failed for user "postgres"'); },
+  };
+  const problems = await collectCmsProbeProblems({
+    live: {
+      reachable: true,
+      ok: false,
+      reason: 'схема CMS неполная (database=railway, posts=false, media=false)',
+    },
+    pool,
+    fetchImpl: async () => ({ status: 200 }),
+    origin: 'https://siliconvalleyinvestclub.com',
+  });
+  assert.match(problems[0], /неполная/);
+  assert.doesNotMatch(problems.join('\n'), /password authentication/);
+});
+
+test('без живого маршрута пароль секрета по-прежнему виден', async () => {
+  const pool = {
+    query: async () => { throw new Error('password authentication failed for user "postgres"'); },
+  };
+  const problems = await collectCmsProbeProblems({
+    live: { reachable: false, reason: 'маршрут схемы CMS недоступен' },
+    pool,
+    fetchImpl: async () => ({ status: 200 }),
+    origin: 'https://siliconvalleyinvestclub.com',
+  });
+  assert.match(problems[0], /не удалось проверить схему CMS: password authentication failed/);
 });
