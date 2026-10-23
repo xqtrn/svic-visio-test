@@ -10,6 +10,8 @@ import {
   checkMediaFile,
   checkRecentMedia,
   readJsonResponse,
+  isCmsAuthRejection,
+  assertCmsSchema,
 } from './platform-health.mjs';
 
 test('сторож ходит на публичный сайт, не на закрытый Railway-origin', () => {
@@ -207,4 +209,70 @@ test('проба медиатеки ходит через checkMediaFile с по
   assert.match(src, /checkRecentMedia\(fetch, ORIGIN/);
   assert.match(src, /MEDIA_EDGE_STATUSES/);
   assert.doesNotMatch(src, /problems\.push\(`хранилище картинок не отдаёт файл: \$\{u\} \(HTTP \$\{r\.status\}/);
+});
+
+test('401 JSON auth_required — отказ датчика, не падение CMS', async () => {
+  const fake = async () => ({
+    status: 401,
+    headers: { get: () => 'application/json' },
+    text: async () => JSON.stringify({ error: 'auth_required' }),
+  });
+  const msg = await checkAdminPosts(fake, 'https://siliconvalleyinvestclub.com', 'tok', { retries: 0 });
+  assert.equal(msg, null);
+  assert.equal(isCmsAuthRejection({
+    status: 401,
+    kind: 'json',
+    payload: { error: 'auth_required' },
+  }), true);
+});
+
+test('403 JSON admin_only тоже отказ датчика', async () => {
+  const fake = async () => ({
+    status: 403,
+    headers: { get: () => 'application/json' },
+    text: async () => JSON.stringify({ error: 'admin_only' }),
+  });
+  const msg = await checkAdminPosts(fake, 'https://siliconvalleyinvestclub.com', 'tok', { retries: 0 });
+  assert.equal(msg, null);
+});
+
+test('401 HTML на админке остаётся поломкой края', async () => {
+  const fake = async () => ({
+    status: 401,
+    headers: { get: () => 'text/html' },
+    text: async () => '<!DOCTYPE html><title>Unauthorized</title>',
+  });
+  const msg = await checkAdminPosts(fake, 'https://siliconvalleyinvestclub.com', 'tok', { retries: 0 });
+  assert.match(msg, /\/api\/admin\/posts: HTTP 401/);
+  assert.equal(isCmsAuthRejection({
+    status: 401,
+    kind: 'html',
+    payload: null,
+    snippet: '<!DOCTYPE html>',
+  }), false);
+});
+
+test('чужая БД не маскируется под relation does not exist', async () => {
+  const pool = {
+    query: async () => ({ rows: [{ db: 'railway', has_posts: false, has_media: false }] }),
+  };
+  const msg = await assertCmsSchema(pool);
+  assert.match(msg, /не на базу CMS/);
+  assert.match(msg, /database=railway/);
+  assert.doesNotMatch(msg, /does not exist/);
+});
+
+test('схема CMS с posts и media проходит', async () => {
+  const pool = {
+    query: async () => ({ rows: [{ db: 'svic_platform', has_posts: true, has_media: true }] }),
+  };
+  assert.equal(await assertCmsSchema(pool), null);
+});
+
+test('проба сначала проверяет схему CMS, не бьёт в posts/media вслепую', () => {
+  const src = readFileSync(new URL('./platform-health.mjs', import.meta.url), 'utf8');
+  assert.match(src, /assertCmsSchema/);
+  assert.match(src, /isCmsAuthRejection/);
+  assert.match(src, /to_regclass\('public\.posts'\)/);
+  assert.match(src, /to_regclass\('public\.media'\)/);
 });

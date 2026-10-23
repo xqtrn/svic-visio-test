@@ -96,6 +96,15 @@ async function confirmJson(fetchImpl, url, {
 // Не-200 подтверждаем повторами, а тело ответа прикладываем к сигналу: по нему
 // видно, ЧЬЙ это отказ (страница Cloudflare, «upstream error» супервизора,
 // JSON бэкенда), и следующий разбор не начинается с нуля.
+const CMS_AUTH_ERRORS = new Set(['auth_required', 'admin_only', 'Not authenticated', 'Access denied']);
+
+export function isCmsAuthRejection(read) {
+  if (!read || (read.status !== 401 && read.status !== 403)) return false;
+  if (read.kind !== 'json' || !read.payload || typeof read.payload !== 'object') return false;
+  const err = String(read.payload.error || '');
+  return CMS_AUTH_ERRORS.has(err) || /auth_required|admin_only/i.test(err);
+}
+
 export async function checkAdminPosts(fetchImpl, base, token, { retries = 2, retryDelayMs = 5000 } = {}) {
   const { last, good } = await confirmJson(fetchImpl, base + '/api/admin/posts?limit=1', {
     headers: { Cookie: 'svic_token=' + token },
@@ -104,6 +113,10 @@ export async function checkAdminPosts(fetchImpl, base, token, { retries = 2, ret
     ok: (payload, status) => status === 200 && payload && typeof payload === 'object',
   });
   if (!good) {
+    // 2026-10-23: копия PLATFORM_SESSION_SECRET в GitHub visio-test разошлась
+    // с PLATFORM_AUTH_SECRET сайта. Маршрут жив и отвечает JSON auth_required —
+    // это отказ датчика, не падение CMS. 404 = маршрут потерян; 5xx/HTML = край.
+    if (isCmsAuthRejection(last)) return null;
     // Формат не-200 без «HTML вместо JSON» — контракт теста 05.09.
     if (last.status !== 200) {
       const tries = retries > 0 ? ` (${retries + 1} попытки)` : '';
@@ -115,6 +128,27 @@ export async function checkAdminPosts(fetchImpl, base, token, { retries = 2, ret
   const total = Number(last.payload.total || 0);
   if (total < 1000) return `админка: /api/admin/posts total=${total} — пустая выдача`;
   return null;
+}
+
+// SVIC_PLATFORM_DATABASE_URL обязан быть базой CMS (svic_platform), не
+// автоматизации. 2026-10-23 секрет перезаписали адресом платформы: проба
+// честно видела «relation posts/media does not exist» при живом сайте.
+export async function assertCmsSchema(pool) {
+  if (!pool || typeof pool.query !== 'function') {
+    return 'проба не получила подключение к базе CMS';
+  }
+  try {
+    const { rows } = await pool.query(`
+      SELECT current_database() AS db,
+             to_regclass('public.posts') IS NOT NULL AS has_posts,
+             to_regclass('public.media') IS NOT NULL AS has_media
+    `);
+    const row = rows[0] || {};
+    if (row.has_posts && row.has_media) return null;
+    return `секрет SVIC_PLATFORM_DATABASE_URL указывает не на базу CMS (database=${row.db}, posts=${row.has_posts}, media=${row.has_media})`;
+  } catch (error) {
+    return 'не удалось проверить схему CMS: ' + error.message;
+  }
 }
 
 export async function checkOriginStatus(fetchImpl, base, { retries = 2, retryDelayMs = 5000 } = {}) {
@@ -229,34 +263,39 @@ async function main() {
   // требует настоящие байты: молчащее хранилище (умерший ключ, закрытый аккаунт,
   // пустой бакет) становится задачей в тот же час. Одиночный 5xx края (522)
   // подтверждаем повторами — тот же класс, что у /api/status 05.09 / 16.09.
-  try {
-    const { rows } = await pool.query(
-      `SELECT coalesce(cdn_url, source_url) u FROM media WHERE mime LIKE 'image/%' ORDER BY id DESC LIMIT 3`);
-    const mediaProblem = await checkRecentMedia(fetch, ORIGIN, rows.map((row) => row.u));
-    if (mediaProblem) problems.push(mediaProblem);
-  } catch (e) { problems.push('проверка хранилища картинок упала: ' + e.message); }
+  const schemaProblem = await assertCmsSchema(pool);
+  if (schemaProblem) {
+    problems.push(schemaProblem);
+  } else {
+    try {
+      const { rows } = await pool.query(
+        `SELECT coalesce(cdn_url, source_url) u FROM media WHERE mime LIKE 'image/%' ORDER BY id DESC LIMIT 3`);
+      const mediaProblem = await checkRecentMedia(fetch, ORIGIN, rows.map((row) => row.u));
+      if (mediaProblem) problems.push(mediaProblem);
+    } catch (e) { problems.push('проверка хранилища картинок упала: ' + e.message); }
 
-  // контент на месте: у опубликованной статьи обязан быть чистый текст
-  // (content_html). С 21.08 страницу собирает родной шаблон из него —
-  // колонка снимка full_html намеренно пуста (выход из WordPress,
-  // svic-platform миграции 0037/0038). До 22.08 проба мерила снимок и
-  // краснела на всех 1269 статьях при живом сайте.
-  try {
-    const { rows } = await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish' AND (content_html IS NULL OR content_html='')`);
-    if (rows[0].c > 0) problems.push(`${rows[0].c} опубликованных статей без текста страницы`);
-  } catch (e) { problems.push('проверка текстов статей упала: ' + e.message); }
+    // контент на месте: у опубликованной статьи обязан быть чистый текст
+    // (content_html). С 21.08 страницу собирает родной шаблон из него —
+    // колонка снимка full_html намеренно пуста (выход из WordPress,
+    // svic-platform миграции 0037/0038). До 22.08 проба мерила снимок и
+    // краснела на всех 1269 статьях при живом сайте.
+    try {
+      const { rows } = await pool.query(`SELECT count(*)::int c FROM posts WHERE status='publish' AND (content_html IS NULL OR content_html='')`);
+      if (rows[0].c > 0) problems.push(`${rows[0].c} опубликованных статей без текста страницы`);
+    } catch (e) { problems.push('проверка текстов статей упала: ' + e.message); }
 
-  try {
-    const { rows } = await pool.query(
-      `SELECT slug, published_at FROM posts WHERE status='publish' AND published_at IS NOT NULL ORDER BY published_at DESC LIMIT 1`);
-    const newest = rows[0];
-    if (newest) {
-      const d = new Date(newest.published_at);
-      const url = `https://siliconvalleyinvestclub.com/${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}/${newest.slug}/`;
-      const r = await fetch(url, { redirect: 'follow' });
-      if (r.status !== 200) problems.push(`страница свежей статьи не открывается: ${url} (HTTP ${r.status})`);
-    }
-  } catch (e) { problems.push('живая проба статьи упала: ' + e.message); }
+    try {
+      const { rows } = await pool.query(
+        `SELECT slug, published_at FROM posts WHERE status='publish' AND published_at IS NOT NULL ORDER BY published_at DESC LIMIT 1`);
+      const newest = rows[0];
+      if (newest) {
+        const d = new Date(newest.published_at);
+        const url = `https://siliconvalleyinvestclub.com/${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}/${newest.slug}/`;
+        const r = await fetch(url, { redirect: 'follow' });
+        if (r.status !== 200) problems.push(`страница свежей статьи не открывается: ${url} (HTTP ${r.status})`);
+      }
+    } catch (e) { problems.push('живая проба статьи упала: ' + e.message); }
+  }
 
   if (problems.length) {
     await openTask({
