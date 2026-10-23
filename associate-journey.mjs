@@ -34,11 +34,11 @@ const engine = ENGINE === 'webkit' ? webkit : chromium;
 const browser = await engine.launch();
 const ctx = await browser.newContext(profile);
 const page = await ctx.newPage();
-page.on('pageerror', (e) => report.errors.push({ step: 'pageerror', url: safeUrl(page.url()), error: String(e).slice(0, 300) }));
+page.on('pageerror', (e) => report.errors.push({ step: 'pageerror', url: safeUrl(page.url()), error: safeUrl(String(e)).slice(0, 300) }));
 page.on('dialog', (d) => { report.errors.push({ step: 'native-dialog', error: d.message() }); d.dismiss().catch(() => {}); });
 page.on('response', (r) => { if (r.status() >= 500 && /siliconvalleyinvestclub\.com/.test(r.url())) report.errors.push({ step: 'http5xx', url: safeUrl(r.url()), status: r.status() }); });
 
-function safeUrl(u) { return String(u || '').replace(/\/welcome\/[^/?#]+/, '/welcome/<token>').replace(/\/sign\/[^?#]+/, '/sign/<token>'); }
+function safeUrl(u) { return String(u || '').replace(/\/welcome\/[^/?#"\s]+/g, '/welcome/<token>').replace(/\/sign\/[^?#"\s]+/g, '/sign/<token>').replace(/[A-Za-z0-9_-]{40,}/g, '<token>'); }
 const visible = (sel) => page.locator(sel).first().isVisible().catch(() => false);
 const api = (path) => page.evaluate(async (p) => { const r = await fetch(p, { credentials: 'include' }); return { status: r.status, body: await r.json().catch(() => null) }; }, path);
 
@@ -73,8 +73,8 @@ async function shot(name, { targets = [], extra = {}, settle = 700 } = {}) {
 }
 async function step(name, fn, { soft = false } = {}) {
   try { await fn(); } catch (e) {
-    report.errors.push({ step: name, error: String(e).slice(0, 400) });
-    console.log('[error]', name, String(e).slice(0, 400));
+    report.errors.push({ step: name, error: safeUrl(String(e)).slice(0, 400) });
+    console.log('[error]', name, safeUrl(String(e)).slice(0, 400));
     await shot(`${name}-error`).catch(() => {});
     if (!soft) throw e;
   }
@@ -215,7 +215,7 @@ try {
   }, { soft: true });
   report.path = (await api('/api/my-path').catch(() => ({}))).body || null;
 } catch (e) {
-  report.fatal = String(e).slice(0, 400);
+  report.fatal = safeUrl(String(e)).slice(0, 400);
 } finally {
   fs.writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 1));
   await browser.close();
