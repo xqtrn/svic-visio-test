@@ -11,8 +11,71 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import pg from 'pg';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+// Строку video_assets читает живой процесс CMS. Скопированный
+// SVIC_PLATFORM_DATABASE_URL расходится с паролем пула: 2026-10-23 прогон
+// 39944118394 (пост 3384, ролик umvkvamyk-horizontal) умер на pg.Pool
+// «password authentication failed» ещё до копии .720.mp4, и Publish вечно
+// отвечал 409 video_card_copy_not_ready. Тот же приём, что у сторожа схемы.
+
+export const PUBLIC_CMS_ORIGIN = 'https://siliconvalleyinvestclub.com';
+
+export function cmsOrigin(env = process.env) {
+  const raw = String(env.CMS_ORIGIN || PUBLIC_CMS_ORIGIN).replace(/\/+$/, '');
+  let host = '';
+  try { host = new URL(raw).hostname.toLowerCase(); }
+  catch { throw new Error('CMS_ORIGIN не адрес'); }
+  if (host.endsWith('.up.railway.app')) {
+    throw new Error('конвейер ходит на закрытый Railway-адрес, а не на публичный сайт');
+  }
+  return raw;
+}
+
+export async function cmsCall(fetchImpl, { origin, key, method, path: apiPath, body } = {}) {
+  if (!key) throw new Error('pipeline credentials missing');
+  const response = await fetchImpl(origin + apiPath, {
+    method,
+    headers: {
+      'x-internal-key': key,
+      accept: 'application/json',
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await response.text();
+  let payload = {};
+  if (text) {
+    try { payload = JSON.parse(text); }
+    catch { payload = { error: String(text).slice(0, 180) }; }
+  }
+  if (!response.ok) {
+    const error = new Error(payload.error || `CMS HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+export async function loadAssets(call, requestedId) {
+  const apiPath = requestedId
+    ? `/api/internal/video-pipeline/assets?id=${encodeURIComponent(requestedId)}`
+    : '/api/internal/video-pipeline/assets';
+  const payload = await call('GET', apiPath);
+  return Array.isArray(payload.assets) ? payload.assets : [];
+}
+
+export async function beginAsset(call, id) {
+  return call('POST', `/api/internal/video-pipeline/assets/${encodeURIComponent(id)}/begin`);
+}
+
+export async function finishAsset(call, id, body) {
+  return call('POST', `/api/internal/video-pipeline/assets/${encodeURIComponent(id)}/finish`, body);
+}
+
+export async function auditAsset(call, action, id, after) {
+  return call('POST', '/api/internal/video-pipeline/audit', { action, id, after });
+}
 
 const AK = process.env.S3_ACCESS_KEY_ID || '';
 const SK = process.env.S3_SECRET_ACCESS_KEY || '';
@@ -26,10 +89,6 @@ const HOST = ENDPOINT ? new URL(ENDPOINT).host : `${BUCKET}.s3.${REGION}.amazona
 const KEY_PREFIX = ENDPOINT ? '/' + encodeURIComponent(BUCKET) : '';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const requestedId = String(process.env.VIDEO_ID || '').replace(/[^A-Za-z0-9_-]/g, '');
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
 
 function presign(method, key, expires = 900) {
   const amz = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
@@ -144,21 +203,15 @@ function duration(file) {
   ], { encoding: 'utf8' }).trim()) || 0;
 }
 
-async function audit(action, id, after) {
-  await pool.query(
-    `INSERT INTO audit_log (actor, action, entity_type, after)
-     VALUES ('daemon:video-captions',$1,$2,$3)`,
-    [action, `video:${id}`, JSON.stringify(after)]);
+async function audit(call, action, id, after) {
+  await auditAsset(call, action, id, after);
 }
 
-async function processAsset(asset) {
+async function processAsset(call, asset, { requireCard = false } = {}) {
   const id = asset.id;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `svic-caption-${id}-`));
   try {
-    await pool.query(
-      `UPDATE video_assets SET captions_status='processing', attempts=attempts+1,
-       error=NULL, updated_at=now() WHERE id=$1`,
-      [id]);
+    await beginAsset(call, id);
 
     const input = path.join(tmp, 'input.mp4');
     const output = path.join(tmp, 'faststart.mp4');
@@ -209,12 +262,16 @@ async function processAsset(asset) {
       if (!body && masterSize <= CARD_MAX_BYTES) { body = fs.readFileSync(output); cardSize = masterSize; }
       if (body) {
         await s3Put(cardKey, body, 'video/mp4');
-        await audit('video.card-copy-ready', id, { key: cardKey, bytes: cardSize, master: masterSize });
+        await audit(call, 'video.card-copy-ready', id, { key: cardKey, bytes: cardSize, master: masterSize });
       } else {
         throw new Error(`копия ${cardSize} байт не легче мастера ${masterSize} и тяжелее потолка`);
       }
     } catch (e) {
-      console.warn(`[card-copy] ${id}: ${e.message}`); // копия — не повод валить субтитры
+      console.warn(`[card-copy] ${id}: ${e.message}`);
+      // Ночной пакет не останавливаем: субтитры остальных роликов важнее одной
+      // копии. Именованный запуск (Publish ждёт именно .720.mp4) без копии —
+      // красный: иначе робот зеленеет, а редактор час видит 409.
+      if (requireCard) throw e;
     }
 
     const audioDir = path.join(tmp, 'audio');
@@ -241,90 +298,86 @@ async function processAsset(asset) {
     }
 
     if (!cues.length) {
-      await pool.query(
-        `UPDATE video_assets SET captions_status='ready_no_speech',
-         captions_key=NULL, captions_language=NULL, provider='faster-whisper', model=$2,
-         error=NULL, ready_at=now(), updated_at=now() WHERE id=$1`,
-        [id, MODEL]);
-      await audit('video.captions-ready-no-speech', id, { status: 'ready_no_speech' });
+      await finishAsset(call, id, { outcome: 'ready_no_speech', model: MODEL });
+      await audit(call, 'video.captions-ready-no-speech', id, { status: 'ready_no_speech' });
       return;
     }
 
-    const body = 'WEBVTT\n\n' + cues.map((c, i) =>
+    const vtt = 'WEBVTT\n\n' + cues.map((c, i) =>
       `${i + 1}\n${cueTime(c.start)} --> ${cueTime(c.end)}\n${c.text}\n`).join('\n');
     const captionKey = `captions/${id}.vtt`;
-    await s3Put(captionKey, Buffer.from(body, 'utf8'), 'text/vtt; charset=utf-8');
-    await pool.query(
-      `UPDATE video_assets SET captions_status='ready', captions_key=$2,
-       captions_language=$3, provider='faster-whisper', model=$4, error=NULL,
-       ready_at=now(), updated_at=now() WHERE id=$1`,
-      [id, captionKey, language, MODEL]);
-    await audit('video.captions-ready', id, { status: 'ready', cues: cues.length, language, key: captionKey });
+    await s3Put(captionKey, Buffer.from(vtt, 'utf8'), 'text/vtt; charset=utf-8');
+    await finishAsset(call, id, {
+      outcome: 'ready', captions_key: captionKey, captions_language: language, model: MODEL,
+    });
+    await audit(call, 'video.captions-ready', id, { status: 'ready', cues: cues.length, language, key: captionKey });
   } catch (e) {
     const message = String(e.message || e).replace(/\s+/g, ' ').slice(0, 500);
     // Файла в складе НЕТ (ролик живёт только на YouTube — канон 31.08): это не
     // сбой, повторять нечего. Попытки исчерпываются сразу, ночной прогон его
     // больше не выбирает и не краснеет каждую ночь на одних и тех же id.
     if (/^S3 GET 404$/.test(message)) {
-      await pool.query(
-        `UPDATE video_assets SET captions_status='error', error='no source file (YouTube-only)', attempts=GREATEST(attempts,5), updated_at=now() WHERE id=$1`,
-        [id]).catch(() => {});
-      await audit('video.no-source-file', id, { key: asset.object_key }).catch(() => {});
+      await finishAsset(call, id, { outcome: 'no_source' }).catch(() => {});
+      await audit(call, 'video.no-source-file', id, { key: asset.object_key }).catch(() => {});
       const err = new Error('no source file'); err.noSource = true; throw err;
     }
-    await pool.query(
-      `UPDATE video_assets SET captions_status='error', error=$2, updated_at=now() WHERE id=$1`,
-      [id, message]).catch(() => {});
-    await audit('video.captions-failed', id, { status: 'error', error: message }).catch(() => {});
+    await finishAsset(call, id, { outcome: 'error', error: message }).catch(() => {});
+    await audit(call, 'video.captions-failed', id, { status: 'error', error: message }).catch(() => {});
     throw e;
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 }
 
-if (!AK || !SK || !process.env.DATABASE_URL) throw new Error('pipeline credentials missing');
+async function main() {
+  const key = process.env.SVIC_INTERNAL_KEY || '';
+  if (!AK || !SK || !key) throw new Error('pipeline credentials missing');
+  const origin = cmsOrigin();
+  const call = (method, apiPath, body) => cmsCall(fetch, { origin, key, method, path: apiPath, body });
 
-// Явный запуск по id (dispatch / ручной) обрабатывает ролик БЕЗУСЛОВНО:
-// «ready» — не причина пропустить, диспатчат ради пересборки (карточная
-// копия, обновлённые субтитры). 2026-07-30: media730 «ready» → selected=0,
-// карточная копия так и не собралась.
-const assets = requestedId
-  ? (await pool.query(
-    `SELECT id, object_key FROM video_assets WHERE id=$1`,
-    [requestedId])).rows
-  : (await pool.query(
-    `SELECT id, object_key FROM video_assets
-     WHERE captions_status IN ('processing','error') AND attempts < 5
-     ORDER BY updated_at ASC LIMIT 20`)).rows;
+  // Явный запуск по id (dispatch / ручной) обрабатывает ролик БЕЗУСЛОВНО:
+  // «ready» — не причина пропустить, диспатчат ради пересборки (карточная
+  // копия, обновлённые субтитры). 2026-07-30: media730 «ready» → selected=0,
+  // карточная копия так и не собралась.
+  const assets = await loadAssets(call, requestedId);
 
-// Явно названный ролик, которого робот не нашёл, — это СБОЙ, а не «успех с нулём».
-// 10.09–25.09 робот читал старую копию базы сайта (переезд 09.09), на каждую
-// загрузку отвечал selected=0 и зеленел — 15 роликов остались без лёгкой копии,
-// герой главной тянул мастер 4K. Красный запуск видно, зелёный ноль — нет.
-if (requestedId && !assets.length) {
-  await audit('daemon.video-captions-miss', requestedId, { requested_id: requestedId }).catch(() => {});
-  await pool.end();
-  console.error(`[miss] ${requestedId}: нет строки в video_assets — не та база? (DATABASE_URL)`);
-  process.exit(1);
-}
-
-let succeeded = 0;
-let failed = 0;
-for (const asset of assets) {
-  try {
-    await processAsset(asset);
-    succeeded++;
-    console.log(`[caption] ${asset.id}: ready`);
-  } catch (e) {
-    if (e.noSource && !requestedId) { console.log(`[caption] ${asset.id}: файла нет (только YouTube) — снят с повторов`); continue; }
-    failed++;
-    console.warn(`[caption] ${asset.id}: ${String(e.message || e).slice(0, 180)}`);
+  // Явно названный ролик, которого робот не нашёл, — это СБОЙ, а не «успех с нулём».
+  // 10.09–25.09 робот читал старую копию базы сайта (переезд 09.09), на каждую
+  // загрузку отвечал selected=0 и зеленел — 15 роликов остались без лёгкой копии,
+  // герой главной тянул мастер 4K. Красный запуск видно, зелёный ноль — нет.
+  // 23.10 тот же ноль приходил раньше: пароль postgres не пускал даже к SELECT.
+  if (requestedId && !assets.length) {
+    await audit(call, 'daemon.video-captions-miss', requestedId, { requested_id: requestedId }).catch(() => {});
+    console.error(`[miss] ${requestedId}: нет строки в video_assets у живого CMS`);
+    process.exit(1);
   }
+
+  let succeeded = 0;
+  let failed = 0;
+  for (const asset of assets) {
+    try {
+      await processAsset(call, asset, { requireCard: Boolean(requestedId) });
+      succeeded++;
+      console.log(`[caption] ${asset.id}: ready`);
+    } catch (e) {
+      if (e.noSource && !requestedId) { console.log(`[caption] ${asset.id}: файла нет (только YouTube) — снят с повторов`); continue; }
+      failed++;
+      console.warn(`[caption] ${asset.id}: ${String(e.message || e).slice(0, 180)}`);
+    }
+  }
+
+  await audit(call, 'daemon.video-captions-run', requestedId || 'batch', {
+    requested_id: requestedId || null, selected: assets.length, succeeded, failed,
+  }).catch(() => {});
+  console.log(`[done] selected=${assets.length} succeeded=${succeeded} failed=${failed}`);
+  if (failed) process.exitCode = 1;
 }
 
-await audit('daemon.video-captions-run', requestedId || 'batch', {
-  requested_id: requestedId || null, selected: assets.length, succeeded, failed,
-}).catch(() => {});
-await pool.end();
-console.log(`[done] selected=${assets.length} succeeded=${succeeded} failed=${failed}`);
-if (failed) process.exitCode = 1;
+const isMain = Boolean(process.argv[1])
+  && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+if (isMain) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
