@@ -26,9 +26,9 @@ if (!WELCOME && PHASE === 'all') throw new Error('AJ_WELCOME is empty');
 const report = { engine: ENGINE, phase: PHASE, steps: [], errors: [] };
 let n = 0;
 const profile = ENGINE === 'webkit'
-  ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+  ? { viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
       userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1' }
-  : { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1.5 };
+  : { viewport: { width: 1440, height: 810 }, deviceScaleFactor: 1.25 };
 
 const engine = ENGINE === 'webkit' ? webkit : chromium;
 const browser = await engine.launch();
@@ -49,7 +49,7 @@ async function boxes(sels) {
       const el = document.querySelector(s);
       if (!el) continue;
       const r = el.getBoundingClientRect();
-      if (r.width && r.height) out[s] = { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
+      if (r.width && r.height) out[s] = { x: Math.round(r.x + window.scrollX), y: Math.round(r.y + window.scrollY), w: Math.round(r.width), h: Math.round(r.height) };
     }
     return out;
   }, sels).catch(() => ({}));
