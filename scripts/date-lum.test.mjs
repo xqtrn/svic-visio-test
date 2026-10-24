@@ -2,12 +2,13 @@
 // node --test scripts/date-lum.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verify, switches, darkAt, planList, copyCandidates, mergeResults, coverageGap, RATE,
   settleYtInfo, refreshMap, ENGINE, DEAD_YT, YT_INFO_CLIENTS, YT_DL_ATTEMPTS,
-  YT_JS_RUNTIME, ytDlpArgs, YT_WORKING_CLIENTS } from './date-lum.mjs';
+  YT_JS_RUNTIME, ytDlpArgs, YT_WORKING_CLIENTS, mp4FileTruncated } from './date-lum.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -134,7 +135,7 @@ test('Замок бага: карточка #b1851043-bcf5-4954-bcdc-01723ae4013
 });
 
 test('Замок бага: карточка #b1851043-bcf5-4954-bcdc-01723ae40132 — скачивание идёт прогрессивным mp4, потом tv; обрезанный файл не стоп', () => {
-  assert.ok(YT_DL_ATTEMPTS[0].format.includes('b[height<=360][ext=mp4]'));
+  assert.match(YT_DL_ATTEMPTS[0].format, /\[ext=mp4\]\[protocol=https\]/);
   assert.ok(YT_DL_ATTEMPTS.some((a) => /tv_samsung|visionos|tv_simply/.test(a.clients)));
   const src = readFileSync(join(ROOT, 'scripts/date-lum.mjs'), 'utf8');
   assert.match(src, /function readTrack/);
@@ -175,7 +176,7 @@ test('Замок бага: карточка #b1851043-bcf5-4954-bcdc-01723ae4013
 test('Замок бага: карточка #f4fed8bd-3bb9-4e0f-89da-e49b8e492632 — бот-стена лечится EJS на Node, не новым клиентом', () => {
   assert.deepEqual(YT_JS_RUNTIME, ['--js-runtimes', 'node']);
   assert.deepEqual(ytDlpArgs().slice(0, 2), ['--js-runtimes', 'node']);
-  assert.equal(ENGINE, 4);
+  assert.equal(ENGINE, 5);
   const src = readFileSync(join(ROOT, 'scripts/date-lum.mjs'), 'utf8');
   assert.match(src, /function ytInfo/);
   assert.equal((src.match(/sh\('yt-dlp'/g) || []).length, 2);
@@ -221,7 +222,7 @@ test('Замок бага: карточка #f4fed8bd-3bb9-4e0f-89da-e49b8e49263
 // yt-dlp 2026.08.19, а ios/android/tv_embedded отвечают бот-стеной.
 // tv_embedded из экстрактора снят; default — tv_samsung,visionos,web.
 test('Замок бага: карточка #cc97cde4-f479-45fc-a6b8-d9bf9c83218b — живые клиенты tv_samsung/visionos, мёртвые ios/android/tv_embedded не зовутся', () => {
-  assert.equal(ENGINE, 4);
+  assert.equal(ENGINE, 5);
   for (const c of ['web_safari', 'tv_samsung', 'visionos', 'android_vr', 'tv_simply']) {
     assert.ok(YT_INFO_CLIENTS.includes(c), c);
   }
@@ -276,4 +277,67 @@ test('Замок бага: карточка #cc97cde4-f479-45fc-a6b8-d9bf9c83218
   assert.deepEqual(list.map((x) => x.id).sort(), ids.slice().sort());
   const again = refreshMap(map);
   assert.deepEqual(again.reset, []);
+});
+
+// Замок бага: карточка #8e87966e-460f-46ff-8333-1270d09c3b01
+// Две карточки no-source: копии — 24-секундные нарезки, а сборный itag 18
+// yt-dlp помечает скачанным, хотя на диске только moov (mdat объявлен на
+// десятки мегабайт и обрывается). ffprobe читает длительность, ffmpeg —
+// «partial file». Отдельное видео по https у этих роликов целое.
+test('Замок бага: карточка #8e87966e-460f-46ff-8333-1270d09c3b01 — пустой mdat не источник, сначала видео без звука', () => {
+  assert.equal(ENGINE, 5);
+  assert.match(YT_DL_ATTEMPTS[0].format, /^wv\[height<=360\]\[ext=mp4\]\[protocol=https\]/);
+  for (const a of YT_DL_ATTEMPTS) {
+    assert.match(a.format, /protocol=https/);
+    assert.doesNotMatch(a.format, /\+ba|worstvideo|m3u8/);
+  }
+  const src = readFileSync(join(ROOT, 'scripts/date-lum.mjs'), 'utf8');
+  assert.match(src, /function mp4FileTruncated/);
+  assert.match(src, /truncated-mdat/);
+  const dir = mkdtempSync(join(tmpdir(), 'date-lum-mdat-'));
+  try {
+    const stub = join(dir, 'stub.mp4');
+    const whole = join(dir, 'whole.mp4');
+    const webm = join(dir, 'clip.webm');
+    const toEof = join(dir, 'eof.mp4');
+    const stubBuf = Buffer.alloc(40);
+    stubBuf.writeUInt32BE(24, 0); stubBuf.write('ftyp', 4);
+    stubBuf.writeUInt32BE(21_000_000, 24); stubBuf.write('mdat', 28);
+    writeFileSync(stub, stubBuf);
+    const wholeBuf = Buffer.alloc(48);
+    wholeBuf.writeUInt32BE(24, 0); wholeBuf.write('ftyp', 4);
+    wholeBuf.writeUInt32BE(24, 24); wholeBuf.write('mdat', 28);
+    writeFileSync(whole, wholeBuf);
+    writeFileSync(webm, Buffer.from('1A45DFA3-not-an-mp4-container!!!!'));
+    const eofBuf = Buffer.alloc(40);
+    eofBuf.writeUInt32BE(24, 0); eofBuf.write('ftyp', 4);
+    eofBuf.writeUInt32BE(0, 24); eofBuf.write('mdat', 28);
+    writeFileSync(toEof, eofBuf);
+    assert.equal(mp4FileTruncated(stub), true);
+    assert.equal(mp4FileTruncated(whole), false);
+    assert.equal(mp4FileTruncated(webm), false);
+    assert.equal(mp4FileTruncated(toEof), false);
+    assert.equal(mp4FileTruncated(join(dir, 'missing.mp4')), false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+
+  const now = Date.parse('2026-10-24T12:00:00Z');
+  const fails = {
+    JlChTvX4U4E: { reason: 'no-source', n: 2, at: '2026-10-24T03:41:38.553Z', tried: [{ c: 'youtube', reason: 'error' }] },
+    WaX6PX0gRvY: { reason: 'no-source', n: 2, at: '2026-10-24T03:41:38.553Z', tried: [{ c: 'youtube', reason: 'download' }] },
+    deadvideo11: { reason: 'unavailable', n: 3, at: '2026-10-24T03:41:38.553Z' },
+  };
+  const { map, reset } = refreshMap({ engine: 4, tracks: { keepvideo01: { d0: 0, s: [] } }, fails });
+  assert.equal(map.engine, ENGINE);
+  assert.deepEqual(reset.sort(), ['JlChTvX4U4E', 'WaX6PX0gRvY']);
+  assert.equal(map.fails.deadvideo11.reason, 'unavailable');
+  assert.ok(map.tracks.keepvideo01);
+  const covers = [
+    { v: 'JlChTvX4U4E', d: '2022-02-11' },
+    { v: 'WaX6PX0gRvY', d: '2021-08-23' },
+    { v: 'deadvideo11', d: '2022-01-01' },
+    { v: 'keepvideo01', d: '2022-01-02' },
+  ];
+  const list = planList(covers, map, new Set(['clips3/JlChTvX4U4E.mp4']), now);
+  assert.deepEqual(list.map((x) => x.id).sort(), ['JlChTvX4U4E', 'WaX6PX0gRvY']);
+  assert.deepEqual(list.find((x) => x.id === 'JlChTvX4U4E').copies, ['clips3/JlChTvX4U4E.mp4']);
 });

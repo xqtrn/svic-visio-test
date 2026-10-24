@@ -14,6 +14,11 @@
 // (карточка cc97cde4, 10 дыр: yt-info / no-source при живом Пингвине и Node EJS).
 // EJS на Node остаётся нужен для PO-token (карточка f4fed8bd); без него любой
 // клиент снова упрётся в стену. На раннере Node 22 уже стоит, Deno нет.
+// Сборный itag 18 (лучшее видео+звук до 360p) YouTube иногда закрывает после
+// moov: yt-dlp пишет «Download completed», ffprobe читает верную длительность,
+// а mdat пустой и ffmpeg отвечает «partial file». Звук шкале не нужен — качаем
+// отдельное видео по https и такой обрубок не считаем файлом (карточка
+// 8e87966e: JlChTvX4U4E, WaX6PX0gRvY).
 //
 // ХРОНОМЕТРАЖ (Артур: «точно не будет путаницы?»): копия обязана быть ТЕМ ЖЕ
 // роликом, что на YouTube. У интервью <id>.mp4 — 24-секундная нарезка, ролик
@@ -42,7 +47,7 @@
 //   track <video.mp4> <yt-info.json>                                  → разовая проверка одного файла
 // Чистые функции экспортируются для юнит-тестов (scripts/date-lum.test.mjs).
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const RATE = 4;                 // замеров в секунду
@@ -228,7 +233,7 @@ export const RELEASES = ['clips3', 'clips2', 'clips']; // тома склада 
 // Версия движка карты: при смене сбрасываем yt-info/no-source/error, чтобы
 // починка клиентов YouTube сразу пересчитала дыру, а не ждала RETRY_DAYS.
 // unavailable не трогаем — снятый ролик от смены клиента не оживает.
-export const ENGINE = 4;
+export const ENGINE = 5;
 export const RETRYABLE_FAILS = ['yt-info', 'no-source', 'error'];
 
 export function copyCandidates(id, assets){
@@ -301,13 +306,48 @@ export const DEAD_YT = /unavailable|private|removed|terminated|does not exist|no
 export const YT_WORKING_CLIENTS = 'web_safari,tv_samsung,visionos,android_vr,tv_simply';
 export const YT_INFO_CLIENTS = ['web_safari', 'tv_samsung', 'visionos', 'android_vr', 'tv_simply'];
 
-// Первая попытка — прогрессивный mp4 (без ffmpeg внутри yt-dlp: «Did not get
-// any data blocks» и обрыв googlevideo на склейке DASH). Вторая — раздельные
-// потоки теми же живыми клиентами, если прогрессивного нет.
+// Первая попытка — самое лёгкое отдельное видео mp4 по обычному https
+// (без звука: углу даты он не нужен, и без HLS/DASH: «Did not get any data
+// blocks»). Сборный itag 18 сюда попадает только если отдельного видео нет.
+// Вторая — лучшее отдельное видео, затем сборный файл, если лёгкое оборвалось.
 export const YT_DL_ATTEMPTS = [
-  { clients: YT_WORKING_CLIENTS, format: 'b[height<=360][ext=mp4]/bv*[height<=360][ext=mp4]/b[height<=360][ext=mp4]' },
-  { clients: 'tv_samsung,visionos,tv_simply,android_vr', format: 'bv*[height<=360]+ba/b[height<=360]/worst' },
+  { clients: YT_WORKING_CLIENTS, format: 'wv[height<=360][ext=mp4][protocol=https]/bv[height<=360][ext=mp4][protocol=https]/b[height<=360][ext=mp4][protocol=https]' },
+  { clients: 'tv_samsung,visionos,tv_simply,android_vr', format: 'bv[height<=360][ext=mp4][protocol=https]/b[height<=360][ext=mp4][protocol=https]' },
 ];
+
+// YouTube закрыл ответ после moov: размер mdat (или любого атома) больше
+// файла. У не-mp4 (нет ftyp) ответа нет — решает уже ffmpeg. size 0 значит
+// «атом до конца файла», это целый файл, не обрубок.
+export function mp4FileTruncated(file){
+  let st;
+  try { st = statSync(file); } catch { return false; }
+  if (!st || st.size < 8) return false;
+  const fd = openSync(file, 'r');
+  try {
+    const hdr = Buffer.alloc(16);
+    let pos = 0;
+    while (pos + 8 <= st.size){
+      const n = readSync(fd, hdr, 0, 16, pos);
+      if (n < 8) return true;
+      const typ = hdr.toString('latin1', 4, 8);
+      if (pos === 0 && typ !== 'ftyp') return false;
+      let size = hdr.readUInt32BE(0);
+      let header = 8;
+      if (size === 1){
+        if (n < 16) return true;
+        const big = hdr.readBigUInt64BE(8);
+        if (big > BigInt(Number.MAX_SAFE_INTEGER)) return true;
+        size = Number(big);
+        header = 16;
+      }
+      if (size === 0) return false;
+      if (size < header) return true;
+      if (pos + size > st.size) return true;
+      pos += size;
+    }
+    return pos !== st.size;
+  } finally { closeSync(fd); }
+}
 
 export function settleYtInfo(attempts){
   let fallback = null, last = '';
@@ -381,10 +421,13 @@ export function downloadYoutube(id, dest){
       '-f', a.format, '--merge-output-format', 'mp4', '-o', dest,
       'https://www.youtube.com/watch?v=' + id], { timeout: 8 * 60000 });
     if (r.status === 0 && existsSync(dest) && statSync(dest).size > 10000){
+      if (mp4FileTruncated(dest)){ last = 'truncated-mdat'; continue; }
       const dur = probeDuration(dest);
       if (dur > 1) return { ok: true, dur, attempt: a };
+      last = 'no-duration';
+      continue;
     }
-    last = ytErr(r) || 'download-failed';
+    last = ytErr(r) || last || 'download-failed';
   }
   return { ok: false, error: last };
 }
