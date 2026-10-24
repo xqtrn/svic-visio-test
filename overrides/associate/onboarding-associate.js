@@ -45,6 +45,7 @@
   // Тестовый кандидат (репетиция): плашка «это тест» и тестовый вход вместо LinkedIn.
   function renderTest() {
     var t = a().test;
+    if (!$('aTest')) return;
     $('aTest').hidden = !t;
     if (t && t.expiresAt) $('aTestText').textContent = 'This is a test setup, not a real person: nothing here reaches a candidate. It is removed after ' + new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(t.expiresAt)) + '.';
   }

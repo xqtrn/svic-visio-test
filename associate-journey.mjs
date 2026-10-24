@@ -120,6 +120,9 @@ try {
       await page.waitForSelector('#btnTestSignIn', { timeout: 30000 });
       await shot('welcome-test-link', { targets: ['#btnTestSignIn', '.wl-test'] });
       await Promise.all([page.waitForURL(/\/onboarding/, { timeout: 60000 }), page.click('#btnTestSignIn')]);
+      // A redirect after the sign-in POST is not intercepted: load the page again so the
+      // branch front end (OVERRIDE) is the one on screen.
+      if (process.env.OVERRIDE === '1') await page.goto(BASE + '/onboarding', { waitUntil: 'domcontentloaded' });
     });
     await step('account', async () => {
       await page.waitForSelector('.ob-panel.on[data-astep="1"], .ob-panel.on[data-astep="2"]', { timeout: 30000 });
