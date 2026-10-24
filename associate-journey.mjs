@@ -32,7 +32,30 @@ const profile = ENGINE === 'webkit'
 
 const engine = ENGINE === 'webkit' ? webkit : chromium;
 const browser = await engine.launch();
-const ctx = await browser.newContext(profile);
+const ctx = await browser.newContext({ ...profile, timezoneId: 'America/New_York', locale: 'en-US' });
+// OVERRIDE=1: the platform's pages that this deploy changes are served from
+// overrides/associate (the branch's public/ files), everything else is live —
+// a real-browser check of the new front end on live data before it ships.
+if (process.env.OVERRIDE === '1') {
+  const dir = 'overrides/associate';
+  const file = (f, type) => ({ status: 200, contentType: type, body: fs.readFileSync(`${dir}/${f}`) });
+  await ctx.route(/^https:\/\/platform\.siliconvalleyinvestclub\.com\/(loader\.js|onboarding-associate\.js|onboarding\.css)(\?.*)?$/, (route, req) => {
+    const f = new URL(req.url()).pathname.slice(1);
+    route.fulfill(file(f, f.endsWith('.css') ? 'text/css' : 'application/javascript'));
+  });
+  await ctx.route(/^https:\/\/siliconvalleyinvestclub\.com\/__scheduler\/schedule\.js(\?.*)?$/, (route) => route.fulfill(file('schedule.js', 'application/javascript')));
+  await ctx.route((url) => url.hostname === 'platform.siliconvalleyinvestclub.com', async (route, req) => {
+    if (req.resourceType() !== 'document') return route.fallback();
+    const p = new URL(req.url()).pathname;
+    const map = [[/^\/onboarding\/?$/, 'onboarding.html'], [/^\/desk\//, 'trade-desk.html'], [/^\/mailbox(\/|$)/, 'mailbox.html'], [/^\/signature-setup\/?$/, 'signature-setup.html']];
+    const hit = map.find(([re]) => re.test(p));
+    if (!hit || req.method() !== 'GET') return route.fallback();
+    const live = await route.fetch();
+    if (live.status() !== 200) return route.fulfill({ response: live });
+    return route.fulfill({ response: live, body: fs.readFileSync(`${dir}/${hit[1]}`, 'utf8'), headers: { ...live.headers(), 'content-type': 'text/html; charset=utf-8' } });
+  });
+  report.override = true;
+}
 const page = await ctx.newPage();
 page.on('pageerror', (e) => report.errors.push({ step: 'pageerror', url: safeUrl(page.url()), error: safeUrl(String(e)).slice(0, 300) }));
 page.on('dialog', (d) => { report.errors.push({ step: 'native-dialog', error: d.message() }); d.dismiss().catch(() => {}); });
@@ -65,7 +88,7 @@ async function shot(name, { targets = [], extra = {}, settle = 700 } = {}) {
   })).catch(() => ({}));
   probe.url = safeUrl(probe.url);
   await page.screenshot({ path: `${OUT}/${base}.png` }).catch(() => {});
-  await page.screenshot({ path: `${OUT}/${base}-full.png`, fullPage: true }).catch(() => {});
+  await Promise.race([page.screenshot({ path: `${OUT}/${base}-full.png`, fullPage: true }), new Promise((r) => setTimeout(r, 20000))]).catch(() => {});
   const step = { n, name, file: `${base}.png`, ...probe, overflow: probe.scrollWidth > probe.innerWidth + 1, boxes: await boxes(targets), ...extra };
   report.steps.push(step);
   console.log('[shot]', JSON.stringify(step));

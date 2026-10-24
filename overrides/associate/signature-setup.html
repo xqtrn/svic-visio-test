@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email signature — Silicon Valley Investclub</title>
+  <link rel="icon" href="/favicon.ico?v=rev3">
+  <link rel="stylesheet" href="/fonts.css">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/loader.js"></script>
+  <script src="/ui.js" defer></script>
+</head>
+<body>
+<script src="/auth-guard.js"></script>
+<script src="/offcanvas-menu.js"></script>
+
+<style>
+  .sig-wrap { max-width:768px; margin:0 auto; padding:28px 26px 64px; }
+  .sig-hero h1 { font-family:var(--serif); font-weight:600; font-size:34px; margin:0 0 10px; color:var(--ink); }
+  .sig-hero p { margin:0 0 6px; color:var(--muted); font-size:14px; line-height:1.6; max-width:580px; }
+  .sig-hero { padding-bottom:26px; border-bottom:1px solid var(--line); margin-bottom:34px; }
+  .sig-panel { border:1px solid var(--line); border-radius:6px; padding:22px 24px; margin-bottom:22px; background:var(--panel); }
+  .sig-panel .eyebrow { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted-2); margin:0 0 12px; }
+  .sig-field { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .sig-field input { flex:1 1 260px; font:inherit; font-size:14px; padding:9px 11px; border:1px solid var(--line); border-radius:4px; color:var(--ink); }
+  .sig-note { font-size:12px; color:var(--muted); margin:10px 0 0; }
+  .sig-steps { counter-reset:step; }
+  .sig-step { display:grid; grid-template-columns:34px 1fr; gap:16px; padding:22px 0; border-bottom:1px solid var(--line); }
+  .sig-step:last-child { border-bottom:0; }
+  .sig-step .n { font-family:var(--serif); font-size:20px; font-weight:600; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .sig-step h3 { font-family:var(--serif); font-weight:600; font-size:17px; margin:0 0 6px; color:var(--ink); }
+  .sig-step p { margin:0 0 10px; font-size:13.5px; line-height:1.6; color:var(--ink); }
+  .sig-step .muted { color:var(--muted); font-size:12.5px; }
+  .sig-shot { border:1px solid var(--line); border-radius:5px; overflow:hidden; margin-top:12px; background:var(--bg); }
+  .sig-shot svg, .sig-shot img { display:block; width:100%; max-width:100%; height:auto; }
+  .sig-cap { font-size:11.5px; color:var(--muted); padding:8px 10px; border-top:1px solid var(--line); background:var(--panel); }
+  .sig-preview { border:1px solid var(--line); border-radius:5px; padding:18px; background:#fff; overflow-x:auto; }
+  .sig-warn { border:1px solid var(--warn); color:var(--warn); border-radius:4px; padding:10px 12px; font-size:12.5px; margin-top:12px; }
+  .sig-phase { display:flex; align-items:baseline; gap:10px; padding:26px 0 4px; border-top:1px solid var(--line); margin-top:8px; }
+  .sig-phase:first-of-type { border-top:0; padding-top:6px; }
+  .sig-phase .k { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted-2); }
+  .sig-phase h4 { font-family:var(--serif); font-weight:600; font-size:16px; margin:0; color:var(--ink); }
+  .sig-step ul { margin:0 0 10px; padding-left:18px; font-size:13.5px; line-height:1.6; color:var(--ink); }
+  .sig-step code, .sig-panel code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; background:var(--bg); border:1px solid var(--line); border-radius:3px; padding:1px 5px; }
+  .sig-faq { border-top:1px solid var(--line); padding:16px 0 0; margin-top:16px; }
+  .sig-faq:first-of-type { border-top:0; padding-top:0; margin-top:0; }
+  .sig-faq h4 { font-family:var(--serif); font-weight:600; font-size:14.5px; margin:0 0 6px; color:var(--ink); }
+  .sig-faq p { margin:0; font-size:13px; line-height:1.6; color:var(--muted); }
+  @media (max-width:640px) { .sig-wrap { padding:26px 14px 48px; } .sig-hero h1 { font-size:26px; } .sig-step { grid-template-columns:24px 1fr; gap:12px; } }
+</style>
+
+<!-- The same header every other screen carries: without it this page had no way back and
+     no menu, so anyone who opened it from a link was stranded (Arthur 2026-07-26). -->
+<header class="topbar"><div class="topbar-in">
+  <button class="tb-burger" onclick="openOffcanvas()" aria-label="Menu"></button>
+  <div class="tb-brand" onclick="location.href='/'"><img class="tb-logo" src="/brandbook-logo.svg" alt="Silicon Valley Investclub"></div>
+  <div class="tb-div"></div><div class="tb-ctx">Email signature</div>
+  <div class="tb-spacer"></div>
+</div></header>
+
+<div class="sig-wrap">
+  <div class="sig-hero">
+    <h1>Your email signature</h1>
+    <p>Every message you send on behalf of Silicon Valley Investclub carries the same signature: your name, your
+       title, the logo and the confidentiality notice. Generate yours below, then follow the
+       nineteen steps to install it in Mail on your Mac.</p>
+    <p>Mail on macOS will not draw a picture that lives on a website — after a restart it still
+       shows a question mark even when the file is otherwise correct. The <strong>Mail file</strong>
+       we give you contains the logo, so the picture is still there after a reboot. The file has
+       to be written into your Library and locked, or Mail overwrites it. Allow about ten minutes, once.</p>
+  </div>
+
+  <div class="sig-panel">
+    <p class="eyebrow">1 · Generate your signature</p>
+    <div class="sig-field">
+      <input id="sigName" type="text" placeholder="Name" autocomplete="name">
+      <input id="sigTitle" type="text" placeholder="Title" style="flex:1 1 200px">
+      <button class="btn btn-primary btn-sm" id="sigMake">Generate</button>
+      <button class="btn btn-ghost btn-sm" id="sigDownloadMail" disabled>Download Mail file</button>
+      <button class="btn btn-ghost btn-sm" id="sigDownload" disabled>Download HTML file</button>
+      <button class="btn btn-ghost btn-sm" id="sigCode" disabled>Copy HTML code</button>
+      <button class="btn btn-ghost btn-sm" id="sigCopy" disabled>Copy signature</button>
+    </div>
+    <p class="sig-note"><strong>Download Mail file</strong> is the one you need for step 14 — it is a
+       <code>.mailsignature</code> that already contains the company logo, so Mail still shows it after a
+       restart. <strong>Copy HTML code</strong> and <strong>Download HTML file</strong> are the HTTPS
+       markup for Outlook and Gmail on the web. <strong>Copy signature</strong> copies it as formatted
+       text, for clients that accept a paste.</p>
+    <div id="sigPreviewWrap" style="display:none;margin-top:16px">
+      <p class="eyebrow">Preview</p>
+      <div class="sig-preview" id="sigPreview"></div>
+    </div>
+  </div>
+
+  <div class="sig-panel sig-steps">
+    <p class="eyebrow">2 · Put it into Mail on your Mac</p>
+    <p style="font-size:13px;line-height:1.6;color:var(--muted);margin:0 0 4px">Before you start: have your
+       signature generated above, quit Mail completely rather than minimising it, and know your Mac password —
+       the Library is a system folder. TextEdit is already installed on every Mac.</p>
+
+    <div class="sig-phase"><span class="k">Phase 1</span><h4>Create a placeholder signature</h4></div>
+
+    <div class="sig-step">
+      <div class="n">1</div>
+      <div>
+        <h3>Open the Apple Mail settings</h3>
+        <p>Launch Mail, click the <strong>Mail</strong> menu in the bar at the top of the screen and choose <strong>Settings…</strong> — on older versions of macOS it is called <strong>Preferences…</strong>.</p>
+        <p><span class="muted">Keyboard: <strong>⌘ ,</strong> opens it from anywhere in Mail.</span></p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-01.webp" width="430" height="600" loading="lazy" decoding="async" alt="The Mail menu. Settings sits below About Mail.">
+          <div class="sig-cap">The Mail menu. Settings sits below About Mail.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">2</div>
+      <div>
+        <h3>Navigate to the Signatures tab</h3>
+        <p>Open the <strong>Signatures</strong> tab, then click the <strong>+</strong> button to create a new signature.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-02.webp" width="791" height="591" loading="lazy" decoding="async" alt="The Signatures tab. The + button is under the middle column.">
+          <div class="sig-cap">The Signatures tab. The + button is under the middle column.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">3</div>
+      <div>
+        <h3>Configure a placeholder signature</h3>
+        <ul><li>Name your signature — for example <em>SVIC</em>.</li><li>Type temporary placeholder text into the box on the right — for example <code>PLACEHOLDER</code>.</li></ul>
+        <p>The real signature does not go in here. This step only makes Mail create the file you are going to replace.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-03.webp" width="791" height="591" loading="lazy" decoding="async" alt="A named signature with placeholder text in the editing box.">
+          <div class="sig-cap">A named signature with placeholder text in the editing box.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">4</div>
+      <div>
+        <h3>Apply your signature</h3>
+        <p>Drag your signature onto the email account you want it on in the left column, and set it as the default under the <strong>Choose Signature</strong> dropdown at the bottom.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-04.webp" width="789" height="608" loading="lazy" decoding="async" alt="The signature dragged onto the account, and selected under Choose Signature.">
+          <div class="sig-cap">The signature dragged onto the account, and selected under Choose Signature.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">5</div>
+      <div>
+        <h3>Save and exit Apple Mail</h3>
+        <p>Close the Settings window and quit Mail completely with <strong>⌘ Q</strong>. This action saves your signature file to the system library.</p>
+        <p><span class="muted">Quitting matters — closing the window is not enough. Mail writes the file on quit, and it will overwrite your work later if it is still running.</span></p>
+      </div>
+    </div>
+
+    <div class="sig-phase"><span class="k">Phase 2</span><h4>Locate the signature file</h4></div>
+
+    <div class="sig-step">
+      <div class="n">6</div>
+      <div>
+        <h3>Access the Mail library</h3>
+        <p>Open <strong>Finder</strong>, then click <strong>Go</strong> in the menu bar and choose <strong>Go to Folder</strong>.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-06.webp" width="448" height="479" loading="lazy" decoding="async" alt="Finder → Go → Go to Folder.">
+          <div class="sig-cap">Finder → Go → Go to Folder.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">7</div>
+      <div>
+        <h3>Navigate to the signatures folder</h3>
+        <p>Type <code>~/Library/Mail</code> and click the <strong>Go</strong> button.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-07.webp" width="472" height="66" loading="lazy" decoding="async" alt="The Go to Folder box with ~/Library/Mail typed in.">
+          <div class="sig-cap">The Go to Folder box with ~/Library/Mail typed in.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">8</div>
+      <div>
+        <h3>Locate the latest version folder</h3>
+        <p>Open the folder starting with <strong>V</strong> followed by the highest number — for example <code>V10</code>, <code>V11</code>.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-08.webp" width="515" height="369" loading="lazy" decoding="async" alt="Several V folders; open the one with the highest number.">
+          <div class="sig-cap">Several V folders; open the one with the highest number.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">9</div>
+      <div>
+        <h3>Enter the MailData folder</h3>
+        <p>Inside it, open <strong>MailData</strong>.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-09.webp" width="800" height="692" loading="lazy" decoding="async" alt="The MailData folder.">
+          <div class="sig-cap">The MailData folder.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">10</div>
+      <div>
+        <h3>Open the Signatures folder</h3>
+        <p>Inside MailData, open <strong>Signatures</strong>.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-10.webp" width="800" height="692" loading="lazy" decoding="async" alt="The Signatures folder inside MailData.">
+          <div class="sig-cap">The Signatures folder inside MailData.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">11</div>
+      <div>
+        <h3>Identify your signature file</h3>
+        <p>Sort by <strong>Date Modified</strong> to bring the newest files to the top, and look for the file ending in <code>.mailsignature</code>.</p>
+        <p><span class="muted">If you have made signatures before, there will be several. The one you want is the one you just created — the newest.</span></p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-11.webp" width="800" height="692" loading="lazy" decoding="async" alt="Files sorted by Date Modified; the newest .mailsignature is yours.">
+          <div class="sig-cap">Files sorted by Date Modified; the newest .mailsignature is yours.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-phase"><span class="k">Phase 3</span><h4>Replace it with your HTML</h4></div>
+
+    <div class="sig-step">
+      <div class="n">12</div>
+      <div>
+        <h3>Edit the signature file</h3>
+        <p>Right-click the <code>.mailsignature</code> file and choose <strong>Open With</strong> → <strong>TextEdit</strong>.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-12.webp" width="900" height="660" loading="lazy" decoding="async" alt="Open With → TextEdit on the .mailsignature file.">
+          <div class="sig-cap">Open With → TextEdit on the .mailsignature file.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">13</div>
+      <div>
+        <h3>Open the Mail file you downloaded</h3>
+        <p>Press <strong>Download Mail file</strong> in step 1, then open that <code>.mailsignature</code> in TextEdit beside the placeholder file from step 12.</p>
+        <p><span class="muted">Do not use Copy HTML code here — that markup is a website link, and Mail draws a question mark for it after a restart.</span></p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-13.webp" width="712" height="891" loading="lazy" decoding="async" alt="Your signature code open beside the .mailsignature file.">
+          <div class="sig-cap">The downloaded Mail file open beside the placeholder .mailsignature.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">14</div>
+      <div>
+        <h3>Keep the Message-Id, replace the rest</h3>
+        <p>In the placeholder file, copy the <code>Message-Id:</code> line. Select everything in that file, paste the downloaded Mail file, then put the copied <code>Message-Id:</code> line back — directly under the <code>Content-Type</code> block, before <code>Mime-Version</code>.</p>
+        <div class="sig-warn">Critical: the Message-Id line is how Mail identifies the file — lose it and the signature disappears. The downloaded file already contains the logo; do not paste the HTML-only copy in its place.</div>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-14.webp" width="712" height="1034" loading="lazy" decoding="async" alt="Everything from <body> to </body> selected, ready to be replaced.">
+          <div class="sig-cap">Placeholder open, ready to keep Message-Id and replace the rest with the Mail file.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">15</div>
+      <div>
+        <h3>Confirm changes</h3>
+        <p>The file should start with <code>Content-Type: multipart/related</code>, still carry your <code>Message-Id</code>, and include a block named <code>logo.png</code> after the HTML.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-15.webp" width="529" height="324" loading="lazy" decoding="async" alt="The .mailsignature file with the header intact and your HTML in the body.">
+          <div class="sig-cap">The .mailsignature file with Message-Id kept and the Mail file in place.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">16</div>
+      <div>
+        <h3>Save the file</h3>
+        <p>Use <strong>⌘ S</strong> to save.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-16.webp" width="900" height="408" loading="lazy" decoding="async" alt="Saving the file in TextEdit.">
+          <div class="sig-cap">Saving the file in TextEdit.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">17</div>
+      <div>
+        <h3>Lock the file</h3>
+        <p>Right-click your signature file and choose <strong>Get Info</strong>.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-17.webp" width="797" height="685" loading="lazy" decoding="async" alt="Get Info on the .mailsignature file.">
+          <div class="sig-cap">Get Info on the .mailsignature file.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">18</div>
+      <div>
+        <h3>Check the Locked checkbox</h3>
+        <p>Tick <strong>Locked</strong>. This prevents Mail from overwriting your HTML.</p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-18.webp" width="797" height="685" loading="lazy" decoding="async" alt="The Locked checkbox in the Get Info window.">
+          <div class="sig-cap">The Locked checkbox in the Get Info window.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sig-step">
+      <div class="n">19</div>
+      <div>
+        <h3>Verify results</h3>
+        <p>Open Mail and go back to <strong>Settings → Signatures</strong> to check that the signature looks the way you want.</p>
+        <p><span class="muted">Then send one message to yourself and look at it as the recipient does — that is the real test.</span></p>
+        <div class="sig-shot">
+          <img src="/img/mac-mail-signature/step-19.webp" width="789" height="608" loading="lazy" decoding="async" alt="The finished signature shown in the Signatures pane.">
+          <div class="sig-cap">The finished signature shown in the Signatures pane.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sig-panel">
+    <p class="eyebrow">3 · If something looks wrong</p>
+
+    <div class="sig-faq">
+      <h4>The signature reverted to “PLACEHOLDER” after I reopened Mail</h4>
+      <p>The file was not locked, so Mail rewrote it from its own copy. Repeat steps 12 to 18 and do not skip
+         <strong>Locked</strong> in Get Info. Mail has to be quit while you edit the file.</p>
+    </div>
+
+    <div class="sig-faq">
+      <h4>The logo is missing or everything came out grey</h4>
+      <p>In <strong>Settings → Signatures</strong>, under the editing box, there is a checkbox reading
+         <em>Always match my default message font</em>. If it is ticked, Mail strips the formatting and the image.
+         Untick it, then repeat the file replacement.</p>
+    </div>
+
+    <div class="sig-faq">
+      <h4>A question mark sits where the company logo should be</h4>
+      <p>Mail will not draw a picture that lives on a website — a restart does not fetch it either.
+         Install the <strong>Mail file</strong> from this page (it contains the logo). After that,
+         new messages show the picture without loading remote content. On iPhone:
+         <strong>Copy signature</strong>, then Settings → Mail → Signature, and paste.</p>
+    </div>
+
+    <div class="sig-faq">
+      <h4>The signature does not appear on new messages</h4>
+      <p>It was created under <em>All Signatures</em> rather than on your account. Drag it onto your address in
+         the left column and select it under <strong>Choose Signature</strong> — that is step 4.</p>
+    </div>
+
+    <div class="sig-faq">
+      <h4>I have several .mailsignature files and cannot tell which is mine</h4>
+      <p>Sort the folder by <strong>Date Modified</strong>. The one you created last is at the top. If you are still
+         unsure, open them in TextEdit — the placeholder text you typed in step 3 is inside the right one.</p>
+    </div>
+
+    <div class="sig-faq">
+      <h4>Can I use my own font?</h4>
+      <p>Mail renders only web-safe fonts in signatures — Arial, Helvetica, Times New Roman, Georgia, Verdana.
+         Anything else falls back to a system font on the recipient's machine. Our block already uses web-safe
+         fonts, so leave them as generated.</p>
+    </div>
+
+    <div class="sig-faq">
+      <h4>The logo arrives as an attachment instead of appearing in the message</h4>
+      <p>That happens when an image is pasted as a file rather than taken from this page. Use
+         <strong>Download Mail file</strong> for Mac, or the HTML copy for Outlook and Gmail.
+         Do not drag a PNG into the Signatures box.</p>
+    </div>
+
+    <div class="sig-faq">
+      <h4>It looks different for some recipients</h4>
+      <p>Every client renders HTML its own way. The block is built with table layout, inline styles and absolute
+         image links, which is as consistent as email gets. Send yourself a test to a Gmail address and to an
+         Outlook address before you decide something is broken.</p>
+    </div>
+
+    <div class="sig-faq">
+      <h4>I need a signature on a second account</h4>
+      <p>Repeat the whole procedure for that account: a placeholder of its own in step 3, dragged onto that address
+         in step 4, and its own <code>.mailsignature</code> file replaced. Each account holds its own.</p>
+    </div>
+
+    <div class="sig-faq">
+      <h4>It appears twice</h4>
+      <p>You also typed one into the message body, or a draft already carried one. Keep only the one Mail adds.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let current = { html: '', name: '', file: '', mailFile: '', mailSignature: '' };
+
+  async function generate() {
+    const name = $('sigName').value.trim();
+    const title = $('sigTitle').value.trim();
+    if (!name) { if (window.showToast) showToast('Enter your name first'); $('sigName').focus(); return; }
+    try {
+      const res = await fetch('/api/signature/render', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName: name, title: title || undefined }),
+      }).then(r => r.json());
+      if (!res.ok) throw new Error(res.detail || res.error || 'could not generate');
+      current = {
+        html: res.html, name, file: res.fileName,
+        mailFile: res.mailFileName, mailSignature: res.mailSignature,
+      };
+      $('sigPreview').innerHTML = String(res.html || '').replace(
+        /https:\/\/(?:www\.|platform\.)?siliconvalleyinvestclub\.com\/(?:email\/logo|brandbook-logo-email)\.png/gi,
+        '/email/logo.png',
+      );
+      $('sigPreviewWrap').style.display = '';
+      $('sigDownload').disabled = false;
+      $('sigDownloadMail').disabled = false;
+      $('sigCode').disabled = false;
+      $('sigCopy').disabled = false;
+    } catch (e) {
+      if (window.showToast) showToast('Failed: ' + e.message);
+    }
+  }
+
+  function saveBlob(contents, type, filename) {
+    const blob = new Blob([contents], { type });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  function download() {
+    if (!current.html) return;
+    saveBlob('<!doctype html>\n<html><head><meta charset="utf-8"></head><body>\n' + current.html + '\n</body></html>', 'text/html', current.file || 'signature.html');
+  }
+
+  function downloadMail() {
+    if (!current.mailSignature) return;
+    saveBlob(current.mailSignature, 'text/plain', current.mailFile || 'signature.mailsignature');
+  }
+
+  async function copy() {
+    if (!current.html) return;
+    try {
+      // Copy as RICH text so it pastes into Mail with the logo and links intact —
+      // a plain-text copy is exactly how a signature loses its formatting.
+      const item = new ClipboardItem({
+        'text/html': new Blob([current.html], { type: 'text/html' }),
+        'text/plain': new Blob([$('sigPreview').innerText], { type: 'text/plain' }),
+      });
+      await navigator.clipboard.write([item]);
+      if (window.showToast) showToast('Signature copied — paste it into Mail');
+    } catch (e) {
+      const r = document.createRange(); r.selectNodeContents($('sigPreview'));
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      document.execCommand('copy');
+      if (window.showToast) showToast('Signature copied');
+    }
+  }
+
+  // Step 14 wants the MARKUP, not the rendered block — a rich-text copy pasted into
+  // TextEdit would land as formatted text and the .mailsignature file would be broken.
+  async function copyCode() {
+    if (!current.html) return;
+    try {
+      await navigator.clipboard.writeText(current.html);
+      if (window.showToast) showToast('HTML code copied — paste it between <body> and </body>');
+    } catch (e) {
+      const t = document.createElement('textarea');
+      t.value = current.html; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+      if (window.showToast) showToast('HTML code copied');
+    }
+  }
+
+  $('sigMake').addEventListener('click', generate);
+  $('sigDownload').addEventListener('click', download);
+  $('sigDownloadMail').addEventListener('click', downloadMail);
+  $('sigCode').addEventListener('click', copyCode);
+  $('sigCopy').addEventListener('click', copy);
+  $('sigName').addEventListener('keydown', (e) => { if (e.key === 'Enter') generate(); });
+  // The page opens with the person's own signature already made: name (and, for
+  // a new associate, the title he joined as) from the account, then Generate.
+  fetch('/api/signature/mine', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).then((me) => {
+    if (!me || !me.fullName || $('sigName').value.trim()) return;
+    $('sigName').value = me.fullName;
+    if (me.title && !$('sigTitle').value.trim()) $('sigTitle').value = me.title;
+    generate();
+  }).catch(() => {});
+
+  // Deliberately NOT pre-filled from the signed-in account: whoever opens this page is
+  // usually making somebody else's signature, and a name already sitting in the box reads
+  // as the answer rather than as an example (Arthur 2026-07-26).
+</script>
+</body>
+</html>

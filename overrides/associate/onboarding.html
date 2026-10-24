@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Welcome — Silicon Valley Investclub</title>
+  <link rel="icon" href="/favicon.ico?v=rev3">
+  <link rel="stylesheet" href="/fonts.css">
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/onboarding.css">
+  <script src="/loader.js"></script>
+  <script src="/ui.js" defer></script>
+  <script src="/passkey-enroll.js" defer></script>
+  <script src="/onboarding-associate.js" defer></script>
+  <script src="/onboarding.js" defer></script>
+</head>
+<body class="fluid" data-no-totop>
+<script src="/auth-guard.js"></script>
+<div class="ob-gate">
+  <aside class="ob-aside cover">
+    <div class="ob-brand"><img src="/brandbook-logo.svg" alt="Silicon Valley Investclub"></div>
+    <div class="ob-mid">
+      <div class="ob-eyebrow" id="aEyebrow">Welcome</div>
+      <div class="ob-head" id="aHead">Welcome to the desk.</div>
+      <div class="ob-sub" id="aSub">Six short steps and you are ready to work.</div>
+    </div>
+    <div class="ob-foot">Private &amp; confidential. These systems are for the authorized staff of Silicon Valley Investclub.</div>
+  </aside>
+  <main class="ob-main">
+    <div class="ob-card">
+      <nav class="steps ob-steps" id="obSteps" aria-label="Setup steps"></nav>
+      <div class="banner warn ob-test" id="aTest" role="note" hidden><span data-icon="info"></span><div><span class="bt">Test candidate.</span> <span id="aTestText">This is a test setup, not a real person. Nothing here reaches a candidate.</span></div></div>
+
+      <!-- 1. Вход -->
+      <section class="ob-panel" data-step="1">
+        <h2>Your sign-in</h2>
+        <p class="ob-lead" id="liLead">You sign in with LinkedIn. You can also add Face ID so this device signs you in with a single touch. This is optional.</p>
+        <div class="ob-rows">
+          <div class="ob-row"><div class="ob-ico" data-icon="li"></div><div class="grow"><div class="t">LinkedIn</div><div class="s" id="liState">Checking…</div></div><span class="tag ready" id="liTag" hidden><span class="dot"></span>Connected</span></div>
+          <div class="ob-row"><div class="ob-ico" data-icon="face"></div><div class="grow"><div class="t">Sign in with Face ID <span class="tag neutral ob-opt">Optional</span></div><div class="s" id="pkState">One touch on this device next time. You can add it later from Sign-in methods.</div></div>
+            <button class="btn btn-ghost btn-sm" type="button" id="btnFace">Add Face ID</button><span class="tag ready" id="pkTag" hidden><span class="dot"></span>Added</span></div>
+        </div>
+        <div class="ob-actions"><button class="btn btn-primary" type="button" id="btnNext1" data-next="2" hidden>Continue</button><button class="btn btn-ghost" type="button" id="btnSkip1" data-next="2">Skip for now</button></div>
+      </section>
+
+      <!-- 2. Данные -->
+      <section class="ob-panel" data-step="2">
+        <h2>Your details</h2>
+        <p class="ob-lead">So the desk can reach you, and candidates know who they are meeting. Every field is required.</p>
+        <div class="field"><label for="ctry">Country</label><select id="ctry" autocomplete="country"><option value="US">United States</option><option value="CA">Canada</option></select></div>
+        <div class="field"><label for="ph">Mobile phone</label>
+          <div class="ob-phone"><select id="phc" aria-label="Country code"><option value="US">US +1</option><option value="CA">CA +1</option></select><input id="ph" type="text" inputmode="tel" autocomplete="tel-national" placeholder="(555) 555-0100"></div><div class="hint">Any country. For the desk only. Never shown to candidates.</div></div>
+        <div class="ob-2col">
+          <div class="field"><label for="st" id="stLabel">State</label><select id="st" autocomplete="address-level1"><option value="">Select…</option></select><input id="stText" type="text" autocomplete="address-level1" hidden></div>
+          <div class="field"><label for="city">City</label><input id="city" type="text" autocomplete="address-level2"></div>
+        </div>
+        <div class="ob-row ob-photo-row">
+          <div class="ob-photo" id="photo"><span id="photoInit"></span><img id="photoImg" alt="" hidden></div>
+          <div class="grow"><div class="t">Photo</div><div class="s">Shown to candidates on your booking page.</div></div>
+          <button class="btn btn-ghost btn-sm" type="button" id="btnPhoto">Upload photo</button><span class="tag ready" id="photoTag" hidden><span class="dot"></span>Added</span>
+          <input type="file" id="photoFile" accept="image/jpeg,image/png,image/webp" hidden>
+        </div>
+        <p class="ob-err" id="detErr" hidden></p>
+        <div class="ob-actions"><button class="btn btn-ghost" type="button" data-back="1">Back</button><button class="btn btn-primary" type="button" id="btnDetails" disabled>Continue</button><span class="t-small" id="detHint">Add your phone, state, city and photo to continue.</span></div>
+      </section>
+
+      <!-- 3. Соглашение: короткое Confidentiality Agreement, подпись на нашей странице e-signature (как DocuSign); её подписи достаточно -->
+      <section class="ob-panel" data-step="3">
+        <h2>Confidentiality agreement</h2>
+        <p class="ob-lead">You sign it through our e-signature service. Your identity is verified by your platform sign-in, so there is no code to enter. Your own signature is all you need to continue.</p>
+        <div class="panel-card ob-nda">
+          <div class="ob-nda-hd">
+            <div class="ob-ico" data-icon="doc"></div>
+            <div class="grow"><div class="ob-nda-t" id="agTitle">Confidentiality Agreement</div><div class="t-small" id="agSub">Introductory calls with candidates</div></div>
+            <span class="tag" id="agTag"><span class="dot"></span>To sign</span>
+          </div>
+          <dl class="kv"><dt>Parties</dt><dd id="agParties">SVIC LTD</dd><dt>Contents</dt><dd>10 short clauses, about 3 minutes to read</dd></dl>
+          <div class="ob-nda-ft" id="agFt"><span class="t-small">Plain language.</span><button class="btn btn-primary" type="button" id="btnSign"><span data-icon="pen"></span>Review and sign</button></div>
+          <div class="ob-nda-log" id="agLog" hidden>
+            <div class="ln" id="agLnYou"></div>
+            <div class="ln wait" id="agLnFirm"></div>
+            <div class="ln mail" id="agLnMail" hidden></div>
+          </div>
+        </div>
+        <p class="ob-err" id="agErr" hidden></p>
+        <div class="ob-actions"><button class="btn btn-ghost" type="button" data-back="2">Back</button><button class="btn btn-primary" type="button" id="btnAgNext" disabled>Continue</button><a class="btn btn-link btn-sm" id="agDoc" href="/api/onboarding/agreement/document" target="_blank" rel="noopener" hidden>View document</a></div>
+      </section>
+
+      <!-- 4. Обучение: до часов и Zoom, в нём объяснено, зачем Zoom -->
+      <section class="ob-panel" data-step="4">
+        <h2>How your calls work</h2>
+        <p class="ob-lead">Before you set your hours and activate Zoom, watch this video. It shows how your calls work: the call card, the presentation and your report. Then answer a few quick questions.</p>
+        <!-- Две строки: урок и короткая проверка; проверка открывается своим окном (Артур 2026-10-09) -->
+        <div class="ob-list ob-train">
+          <div class="ob-item" id="trItem"><span class="num" id="trNum">1</span><div class="grow"><div class="t">How your calls work</div><div class="s" id="trLen">Voice and subtitles · opens in a new tab</div></div>
+            <div class="side"><span class="tag ready" id="trTag" hidden><span class="dot"></span>Watched</span><a class="btn btn-primary btn-sm" id="btnTrain" href="/interviews/training" target="_blank" rel="noopener"><span data-icon="play"></span>Watch the video</a></div></div>
+          <div class="ob-item" id="qzItem"><span class="num" id="qzNum">2</span><div class="grow"><div class="t">Quick check · <span id="qzCount"></span>about 2 minutes</div><div class="s" id="qzSub">Opens once the video has started.</div></div>
+            <div class="side"><button class="btn btn-primary btn-sm" type="button" id="btnQuiz" disabled><span data-icon="quiz"></span>Start the quick check</button></div></div>
+        </div>
+        <p class="ob-err" id="qzErr" hidden></p>
+        <div class="ob-actions"><button class="btn btn-ghost" type="button" data-back="3">Back</button><button class="btn btn-primary" type="button" id="btnTrainNext" disabled>Continue</button><span class="t-small" id="trHint" hidden></span></div>
+      </section>
+
+      <!-- 5. Часы -->
+      <section class="ob-panel" data-step="5">
+        <h2>When are you available?</h2>
+        <p class="ob-lead">Candidates book 15-minute calls back to back inside these hours.</p>
+        <div id="hoursBox"></div>
+        <p class="ob-err" id="hrsErr" hidden></p>
+        <div class="ob-actions"><button class="btn btn-ghost" type="button" data-back="4">Back</button><button class="btn btn-primary" type="button" id="btnHours">Save and continue</button></div>
+      </section>
+
+      <!-- 6. Zoom: письмо-приглашение в её ящике; шаг отмечается сам, когда её пользователь Zoom активен -->
+      <section class="ob-panel" data-step="6">
+        <h2>Activate your Zoom account</h2>
+        <p class="ob-lead" id="zLead">Zoom has sent an invitation to your work email; open it and activate your account.</p>
+        <div class="ob-list">
+          <div class="ob-item" id="zItem"><span class="num" id="zNum">1</span><div class="grow"><div class="t" id="zTitle">Zoom account invitation</div><div class="s" id="zWhere">It arrives in your work email.</div></div>
+            <div class="side"><a class="btn btn-primary btn-sm" id="btnMail" href="/mailbox" target="_blank" rel="noopener"><span data-icon="mail"></span>Open the invitation</a><span class="tag ready" id="zTag" hidden><span class="dot"></span>Active</span></div></div>
+        </div>
+        <div class="banner warn" id="zExpired" hidden><span data-icon="clock"></span><div><span class="bt">Invitation expired — we have asked for a new one.</span> <span>The new invitation arrives in your work email; this step completes on its own once you activate it.</span></div></div>
+        <div class="banner warn" id="zMissing" hidden><span data-icon="clock"></span><div><span class="bt">No Zoom invitation found — the desk is checking delivery.</span> <span>Use your current work email for Zoom. The desk will confirm that the invitation arrives there.</span></div></div>
+        <div class="banner" id="zWait"><span data-icon="clock"></span><div><span class="bt">Waiting for Zoom.</span> <span id="zWaitText">The desk sends it and marks this step once you have joined. You can close this page; your setup keeps your place.</span></div></div>
+        <div class="banner ob-banner2"><span data-icon="info"></span><div><span class="bt">Your notes assistant</span> joins each call and takes the notes for you. Candidates agree to recording when they book.</div></div>
+        <div class="ob-actions"><button class="btn btn-ghost" type="button" data-back="5">Back</button><button class="btn btn-primary" type="button" id="btnZoom" hidden>Continue</button><button class="btn btn-ghost" type="button" id="btnZoomCheck">Check again</button></div>
+      </section>
+
+      <!-- 7. Готово -->
+      <section class="ob-panel" data-step="7">
+        <h2>Setup complete</h2>
+        <p class="ob-lead">Candidates can book time with you from today.</p>
+        <div class="ob-list ob-live" id="doneList"></div>
+        <div class="ob-link" id="doneBook" hidden><span data-icon="cal"></span><span class="u" id="doneBookUrl"></span><a class="btn btn-ghost btn-sm" id="doneBookBtn" href="#" target="_blank" rel="noopener">View as a candidate</a></div>
+        <div class="ob-link"><span data-icon="video"></span><span class="u">Training · How your calls work · any time from Interviews</span><a class="btn btn-ghost btn-sm" href="/interviews/training" target="_blank" rel="noopener">Watch again</a></div>
+        <div class="ob-actions"><a class="btn btn-primary" href="/interviews" id="btnGo">Go to Interviews</a></div>
+      </section>
+
+      <!-- ── Настройка associate (2026-10-20, демо candidate-onboarding-demo): четыре шага, свой контроллер onboarding-associate.js ── -->
+      <section class="ob-panel" data-astep="1">
+        <h2>Your sign-in</h2>
+        <p class="ob-lead">You sign in with LinkedIn. You can also add Face ID so this device signs you in with a single touch. This is optional.</p>
+        <div class="ob-rows">
+          <div class="ob-row"><div class="ob-ico" data-icon="li"></div><div class="grow"><div class="t">LinkedIn</div><div class="s" id="aLiState">Checking…</div></div><span class="tag ready" id="aLiTag" hidden><span class="dot"></span>Connected</span></div>
+          <div class="ob-row"><div class="ob-ico" data-icon="face"></div><div class="grow"><div class="t">Sign in with Face ID <span class="tag neutral ob-opt">Optional</span></div><div class="s" id="aPkState">One touch on this device next time.</div></div>
+            <button class="btn btn-ghost btn-sm" type="button" id="aBtnFace">Add Face ID</button><span class="tag ready" id="aPkTag" hidden><span class="dot"></span>Added</span></div>
+        </div>
+        <div class="ob-actions"><button class="btn btn-primary" type="button" id="aBtnNext1">Continue</button></div>
+      </section>
+
+      <section class="ob-panel" data-astep="2">
+        <h2>Your details</h2>
+        <p class="ob-lead">So the desk can reach you. Every field is required.</p>
+        <div class="field"><label for="aCtry">Country</label><select id="aCtry" autocomplete="country"><option value="US">United States</option></select></div>
+        <div class="field"><label for="aPh">Mobile phone</label>
+          <div class="ob-phone"><select id="aPhc" aria-label="Country code"><option value="US">US +1</option></select><input id="aPh" type="text" inputmode="tel" autocomplete="tel-national" placeholder="(555) 555-0100"></div><div class="hint">Any country. For the desk only.</div></div>
+        <div class="ob-2col">
+          <div class="field"><label for="aSt" id="aStLabel">State</label><select id="aSt" autocomplete="address-level1"><option value="">Select…</option></select><input id="aStText" type="text" autocomplete="address-level1" hidden></div>
+          <div class="field"><label for="aCity">City</label><input id="aCity" type="text" autocomplete="address-level2"></div>
+        </div>
+        <p class="ob-err" id="aDetErr" hidden></p>
+        <div class="ob-actions"><button class="btn btn-ghost" type="button" data-aback="1">Back</button><button class="btn btn-primary" type="button" id="aBtnDetails" disabled>Continue</button><span class="t-small" id="aDetHint">Add your phone, state and city to continue.</span></div>
+      </section>
+
+      <section class="ob-panel" data-astep="3">
+        <h2>Your documents</h2>
+        <p class="ob-lead">Two documents in one signing. Your identity is verified by your platform sign-in, so there is no code to enter. You gave your call recording consent before the first interview.</p>
+        <div class="ob-list" id="aDocs"></div>
+        <div class="ob-sign"><button class="btn btn-primary" type="button" id="aBtnSign"><span data-icon="pen"></span>Review and sign both</button><a class="btn btn-link btn-sm" id="aDocLink" href="/api/onboarding/associate/document" target="_blank" rel="noopener" hidden>View documents</a></div>
+        <p class="t-small ob-sign-note" id="aSignNote" hidden></p>
+        <p class="ob-err" id="aDocErr" hidden></p>
+        <div class="ob-actions"><button class="btn btn-ghost" type="button" data-aback="2">Back</button><button class="btn btn-primary" type="button" id="aBtnDocsNext" disabled>Continue</button></div>
+      </section>
+
+      <section class="ob-panel" data-astep="4">
+        <h2>Your work email</h2>
+        <p class="ob-lead">Created for you now, in the standard format for everyone at the firm.</p>
+        <div class="ob-addr" id="aAddr"><div class="ob-ico" data-icon="mail"></div><div class="grow"><div class="a" id="aAddrText"></div><div class="s">first name . last name @ siliconvalleyinvestclub.com</div></div><span class="tag" id="aAddrTag"><span class="dot"></span>Creating</span></div>
+        <p class="t-small" id="aAddrNote">It works on the platform, on your phone and in any mail app. Your email signature is ready, and your signed documents arrive here.</p>
+        <p class="ob-err" id="aMailErr" hidden></p>
+        <div class="ob-actions"><button class="btn btn-ghost" type="button" data-aback="3">Back</button><button class="btn btn-primary" type="button" id="aBtnMailNext" disabled>Continue</button></div>
+      </section>
+
+      <!-- Первая загрузка и сбой — в колонке шага, не на обложке -->
+      <section class="ob-panel on" data-step="0" id="obLoading">
+        <div class="ob-sk" aria-busy="true"><span class="skeleton" style="width:55%;height:22px"></span><span class="skeleton" style="width:85%"></span><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:100%;height:40px"></span><span class="skeleton" style="width:100%;height:40px"></span></div>
+      </section>
+      <section class="ob-panel" data-step="-1" id="obError">
+        <div class="banner bad"><span data-icon="info"></span><div><span class="bt">Could not load your setup.</span> <span id="obErrText">The page did not respond.</span></div></div>
+        <div class="ob-actions"><button class="btn btn-ghost" type="button" id="btnRetry">Retry</button></div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>
