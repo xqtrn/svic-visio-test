@@ -23,6 +23,8 @@ const OUT = 'out';
 fs.mkdirSync(OUT, { recursive: true });
 if (!WELCOME && PHASE === 'all') throw new Error('AJ_WELCOME is empty');
 
+// scripts/ds-spacing-probe.browser.js of the platform (the passport's spacing-probe), run on every screen
+const PROBE = fs.readFileSync('overrides/ds-spacing-probe.browser.js', 'utf8');
 const report = { engine: ENGINE, phase: PHASE, steps: [], errors: [] };
 let n = 0;
 const profile = ENGINE === 'webkit'
@@ -93,7 +95,8 @@ async function shot(name, { targets = [], extra = {}, settle = 700 } = {}) {
   probe.url = safeUrl(probe.url);
   await page.screenshot({ path: `${OUT}/${base}.png` }).catch(() => {});
   await Promise.race([page.screenshot({ path: `${OUT}/${base}-full.png`, fullPage: true }), new Promise((r) => setTimeout(r, 20000))]).catch(() => {});
-  const step = { n, name, file: `${base}.png`, ...probe, overflow: probe.scrollWidth > probe.innerWidth + 1, boxes: await boxes(targets), ...extra };
+  const spacing = await page.evaluate(PROBE).catch((e) => ({ error: String(e).slice(0, 120) }));
+  const step = { n, name, file: `${base}.png`, ...probe, overflow: probe.scrollWidth > probe.innerWidth + 1, boxes: await boxes(targets), spacing, ...extra };
   report.steps.push(step);
   console.log('[shot]', JSON.stringify(step));
   return step;
