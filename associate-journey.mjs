@@ -161,7 +161,7 @@ try {
         if (await visible('.modal-hd')) {
           await page.click('#t-type');
           await page.fill('#typedName', SIGN_NAME);
-          if (!adopted) await shot('sign-adopt', { targets: ['#typedName', 'text=Adopt and sign'] });
+          if (!adopted) await shot('sign-adopt', { targets: ['#typedName', '.modal-ft .btn-primary'] });
           adopted = true;
           await page.click('text=Adopt and sign');
           await page.waitForTimeout(600);
