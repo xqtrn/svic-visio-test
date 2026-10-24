@@ -52,13 +52,17 @@ if (process.env.OVERRIDE === '1') {
     if (!hit || req.method() !== 'GET') return route.fallback();
     const live = await route.fetch();
     if (live.status() !== 200) return route.fulfill({ response: live });
-    return route.fulfill({ response: live, body: fs.readFileSync(`${dir}/${hit[1]}`, 'utf8'), headers: { ...live.headers(), 'content-type': 'text/html; charset=utf-8' } });
+    const headers = { ...live.headers(), 'content-type': 'text/html; charset=utf-8' };
+    delete headers['content-length']; delete headers['content-encoding']; delete headers['transfer-encoding'];
+    return route.fulfill({ status: 200, body: fs.readFileSync(`${dir}/${hit[1]}`, 'utf8'), headers });
   });
   report.override = true;
 }
 const page = await ctx.newPage();
 page.on('pageerror', (e) => report.errors.push({ step: 'pageerror', url: safeUrl(page.url()), error: safeUrl(String(e)).slice(0, 300) }));
 page.on('dialog', (d) => { report.errors.push({ step: 'native-dialog', error: d.message() }); d.dismiss().catch(() => {}); });
+page.on('console', (m) => { if (m.type() === 'error') report.errors.push({ step: 'console', url: safeUrl(page.url()), error: safeUrl(m.text()).slice(0, 300) }); });
+page.on('response', (r) => { if (r.status() >= 400 && /platform\.siliconvalleyinvestclub\.com\/api\//.test(r.url())) report.errors.push({ step: 'http' + r.status(), url: safeUrl(r.url()) }); });
 page.on('response', (r) => { if (r.status() >= 500 && /siliconvalleyinvestclub\.com/.test(r.url())) report.errors.push({ step: 'http5xx', url: safeUrl(r.url()), status: r.status() }); });
 
 function safeUrl(u) { return String(u || '').replace(/\/welcome\/[^/?#"\s]+/g, '/welcome/<token>').replace(/\/sign\/[^?#"\s]+/g, '/sign/<token>').replace(/[A-Za-z0-9_-]{40,}/g, '<token>'); }
