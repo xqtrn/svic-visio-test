@@ -1710,7 +1710,7 @@
       }
       syncThreadFlags();
       updateBulk();
-      document.getElementById('meta').textContent = total ? total.toLocaleString() + ' messages' : 'Nothing found';
+      document.getElementById('meta').textContent = total ? total.toLocaleString() + (total === 1 ? ' message' : ' messages') : 'Nothing found';
     }
     const pendingMessageActions = new Set();
     async function act(ids, action, details) {
