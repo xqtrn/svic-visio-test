@@ -1290,7 +1290,8 @@
   // form for what that side said (Arthur 2026-10-25). Saved to the order through
   // the desk's normal checks; the desk sees it as a broker call and verifies it.
   var RP_STRUCTURES=['Direct trade','SPV','Double-layer SPV','Triple-layer SPV','Direct/SPV','Forward'];
-  var RP_CLASSES=['Common','Preferred','Common/Preferred','Any','Options'];
+  // The classes the book keeps as typed, per side (src/services/trade-desk/price-report.js).
+  var RP_CLASSES={ sell:['Common','Preferred','Common/Preferred','Options'], buy:['Common','Preferred','Common/Preferred','Any'] };
   function taskSides(m){
     var miss=m&&m.priceGap&&m.priceGap.missing;
     return miss==='both'?['sell','buy']:(miss==='sell'||miss==='buy')?[miss]:[];
@@ -1300,28 +1301,30 @@
     if(!sides.length || deskDemo) return '';
     var side=sides.indexOf(taskSide[m.id])!==-1?taskSide[m.id]:sides[0];
     var who=side==='sell'?'seller':'buyer';
-    var other=side==='sell'?m.buy:m.sell;
-    var known=other&&other.price?((side==='sell'?'The buyer bids ':'The seller asks ')+other.price+(other.volume?' for '+other.volume:'')+'. '):'';
     var opt=function(list){ return '<option value="">Not stated</option>'+list.map(function(v){ return '<option>'+esc(v)+'</option>'; }).join(''); };
     var seg=sides.length>1?'<div class="seg" role="tablist" aria-label="Which side you called">'+sides.map(function(sd){
       var on=sd===side;
       return '<button type="button" role="tab" data-task-side="'+sd+'" class="'+(on?'on':'')+'" aria-selected="'+(on?'true':'false')+'">'+(sd==='sell'?'Seller':'Buyer')+'</button>';
     }).join('')+'</div>':'';
     return '<div class="td-task" id="tdTask" data-side="'+side+'">'
-      +'<div class="td-task-h"><span class="tag pending"><span class="dot"></span>Your task</span><span class="t-h3">Call the '+who+' and ask for the price</span></div>'
+      +'<div class="td-task-h"><span class="tag pending"><span class="dot"></span>Your task</span><span class="t-h3" id="tdTaskTitle">Call the '+who+' and ask for the price</span></div>'
       +seg
-      +'<p class="t-small td-task-copy" data-open>'+esc(known)+'Write down what they tell you. Only what they said — leave the rest empty.</p>'
+      +'<p class="t-small td-task-copy" id="tdTaskCopy" data-open>'+esc(taskKnown(m, side))+'Write down what they tell you. Only what they said — leave the rest empty.</p>'
       +'<form class="td-form" id="tdReport" novalidate>'
       +'<div class="field"><label for="rpPrice">Price per share</label><input type="text" id="rpPrice" inputmode="decimal" autocomplete="off" placeholder="e.g. 185.50" data-write></div>'
       +'<div class="field"><label for="rpSize">Size</label><input type="text" id="rpSize" autocomplete="off" placeholder="e.g. 5M" data-write></div>'
       +'<div class="field"><label for="rpValuation">Valuation, if stated</label><input type="text" id="rpValuation" autocomplete="off" placeholder="e.g. 350B" data-write></div>'
       +'<div class="field"><label for="rpStructure">Structure</label><select id="rpStructure" data-write>'+opt(RP_STRUCTURES)+'</select></div>'
-      +'<div class="field"><label for="rpClass">Share class</label><select id="rpClass" data-write>'+opt(RP_CLASSES)+'</select></div>'
+      +'<div class="field"><label for="rpClass">Share class</label><select id="rpClass" data-write>'+opt(RP_CLASSES[side])+'</select></div>'
       +'<div class="field wide"><label for="rpNote">What they said</label><textarea id="rpNote" rows="3" placeholder="Their words, as close as you can" data-write></textarea></div>'
       +'<p class="t-small td-form-err" id="rpErr" role="alert"></p>'
-      +'<div class="td-form-ft"><p class="t-small hint" data-open>Saved to the '+who+'\u2019s order. The desk sees it as your broker call and verifies it.</p>'
+      +'<div class="td-form-ft"><p class="t-small hint" id="tdTaskHint" data-open>Saved to the '+who+'\u2019s order. The desk sees it as your broker call and verifies it.</p>'
       +'<button class="btn btn-primary" type="submit" id="rpSave" data-write>Save to the deal</button></div>'
       +'</form></div>';
+  }
+  function taskKnown(m, side){
+    var other=side==='sell'?m.buy:m.sell;
+    return other&&other.price?((side==='sell'?'The buyer bids ':'The seller asks ')+other.price+(other.volume?' for '+other.volume:'')+'. '):'';
   }
   function reportsList(m){
     var reps=(m.priceGap&&m.priceGap.reports)||{};
@@ -1340,11 +1343,18 @@
     return Array.prototype.some.call(f.querySelectorAll('input,select,textarea'), function(el){ return String(el.value||'').trim()!==''; });
   }
   function bindReport(m){
+    // Switching the side keeps what was typed: only the words and the class list change.
     document.querySelectorAll('[data-task-side]').forEach(function(btn){
       btn.addEventListener('click', function(){
-        taskSide[m.id]=btn.getAttribute('data-task-side');
-        renderMatch(document.getElementById('convo'), m);
-        var t=document.getElementById('tdTask'); if(t&&t.scrollIntoView) t.scrollIntoView({ block:'nearest' });
+        var side=btn.getAttribute('data-task-side'), who=side==='sell'?'seller':'buyer';
+        taskSide[m.id]=side;
+        var task=document.getElementById('tdTask'); if(task) task.setAttribute('data-side', side);
+        document.querySelectorAll('[data-task-side]').forEach(function(b){ var on=b===btn; b.classList.toggle('on', on); b.setAttribute('aria-selected', on?'true':'false'); });
+        var t=document.getElementById('tdTaskTitle'); if(t) t.textContent='Call the '+who+' and ask for the price';
+        var c=document.getElementById('tdTaskCopy'); if(c) c.textContent=taskKnown(m, side)+'Write down what they tell you. Only what they said \u2014 leave the rest empty.';
+        var h=document.getElementById('tdTaskHint'); if(h) h.textContent='Saved to the '+who+'\u2019s order. The desk sees it as your broker call and verifies it.';
+        var cls=document.getElementById('rpClass');
+        if(cls){ var keep=cls.value; cls.innerHTML='<option value="">Not stated</option>'+RP_CLASSES[side].map(function(v){ return '<option>'+esc(v)+'</option>'; }).join(''); cls.value=RP_CLASSES[side].indexOf(keep)!==-1?keep:''; }
       });
     });
     var form=document.getElementById('tdReport');
@@ -1367,7 +1377,8 @@
         if(!r.ok) throw new Error(b.error||'Could not save. Try again.');
         delete taskSide[m.id];
         form.reset();
-        if(window.showToast) showToast('Saved to the deal — the desk will verify it');
+        var adj=(b.adjusted||[]).map(function(a){ return a.label+(a.stored?(' kept as '+a.stored):' not accepted'); });
+        if(window.showToast) showToast(adj.length?('Saved. The desk\u2019s checks: '+adj.join('; ')):'Saved to the deal \u2014 the desk will verify it', !!adj.length);
       }catch(e){
         if(err) err.textContent=e.message||'Could not save. Try again.';
         save.disabled=false; save.textContent='Save to the deal';
@@ -1424,7 +1435,9 @@
           +BOARD_STAGES.map(function(st){ return '<option value="'+st[0]+'"'+(st[0]===(m.boardStage||'')?' selected':'')+'>'+st[1]+'</option>'; }).join('')
           +'</select><a class="btn btn-ghost btn-sm" href="/desk/pipeline">Open Pipeline</a></div>';
       }
-    }else if(mine){
+    }else if(mine && m.source!=='price_gap'){
+      // The board's stage and verdict belong to board cards; a pair missing a
+      // price is the broker's own until a call makes it a match.
       var opts=((matchesData&&matchesData.columns)||[]).filter(function(col){ return col.id!=='no_match'; }).map(function(col){
         return '<option value="'+esc(col.id)+'"'+(col.id===m.status?' selected':'')+'>'+esc(col.label)+'</option>';
       }).join('');
