@@ -1227,6 +1227,8 @@
       return;
     }
     setCtx(m.company||'Match');
+    // A free pair missing a price lives in the «Missing price» list: show that list beside it.
+    if(matchLens!=='gaps' && (matchesData.gaps||[]).some(function(x){ return String(x.id)===String(m.id); })){ matchLens='gaps'; paintList(); }
     renderMatch(convo, m);
   }
   function reportWho(r){
@@ -1347,6 +1349,7 @@
     });
     var form=document.getElementById('tdReport');
     if(!form) return;
+    form.addEventListener('input', function(){ var e=document.getElementById('rpErr'); if(e) e.textContent=''; });
     form.addEventListener('submit', async function(ev){
       ev.preventDefault();
       var val=function(id){ return String((document.getElementById(id)||{}).value||'').trim(); };
