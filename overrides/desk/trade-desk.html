@@ -139,34 +139,34 @@
   .td-edge.up{ color:var(--ok); background:var(--ok-soft); }
   /* A pair missing a price (Arthur 2026-10-25): the side to call, in amber. */
   .td-edge.need{ color:var(--warn); background:var(--warn-soft); }
-  .td-lens{ padding:10px 10px 2px; }
+  .td-lens{ padding:12px 8px 2px; }
   .td-lens .seg{ display:flex; width:100%; }
   .td-lens .seg button{ flex:1 1 0; padding-left:8px; padding-right:8px; }
-  .td-home-lens{ margin:0 0 6px; }
+  .td-home-lens{ margin:0 0 4px; }
   .td-home-lens .seg button{ min-width:150px; }
   /* The call to make on a held pair, and the form for what the side said. */
-  .td-task{ border-top:1px solid var(--line); padding:20px 22px 6px; }
-  .td-task-h{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .td-task{ border-top:1px solid var(--line); padding:20px 24px 4px; }
+  .td-task-h{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .td-task-h .t-h3{ flex:1; min-width:200px; }
-  .td-task-copy{ color:var(--muted); margin:10px 0 0; max-width:640px; }
-  .td-task .seg{ margin-top:14px; }
-  .td-form{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 14px; margin-top:18px; }
+  .td-task-copy{ color:var(--muted); margin:12px 0 0; max-width:640px; }
+  .td-task .seg{ margin-top:16px; }
+  .td-form{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 16px; margin-top:20px; }
   .td-form .field{ min-width:0; }
   .td-form .field.wide{ grid-column:1/-1; }
   .td-form textarea{ resize:vertical; min-height:76px; }
-  .td-form-ft{ grid-column:1/-1; display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
+  .td-form-ft{ grid-column:1/-1; display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
   .td-form-ft .hint{ flex:1; min-width:220px; color:var(--muted); margin:0; }
-  .td-form-err{ grid-column:1/-1; color:var(--bad); margin:-6px 0 12px; }
+  .td-form-err{ grid-column:1/-1; color:var(--bad); margin:0 0 12px; }
   .td-form-err:empty{ display:none; }
   .td-reports{ border-top:1px solid var(--line); }
-  .td-reports .td-qrow{ border-top:0; padding:12px 22px; }
+  .td-reports .td-qrow{ border-top:0; padding:12px 24px; }
   .td-reports .td-qrow + .td-qrow{ border-top:1px solid var(--line); }
   @media(max-width:900px){ .td-form{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
   @media(max-width:640px){
     .td-form{ grid-template-columns:1fr; }
-    .td-task{ padding:18px 16px 4px; }
+    .td-task{ padding:20px 16px 4px; }
     .td-reports .td-qrow{ padding:12px 16px; }
-    .td-form-ft .btn{ width:100%; justify-content:center; }
+    .td-form-ft #rpSave{ width:100%; justify-content:center; }
     .td-home-lens .seg{ display:flex; width:100%; }
     .td-home-lens .seg button{ min-width:0; flex:1 1 0; }
   }
@@ -1177,7 +1177,7 @@
     }else{
       if(hasGaps) html+='<div class="td-home-lens">'+lensSeg((d.available||[]).length, d.gaps.length)+'</div>';
       if(hasGaps && matchLens==='gaps'){
-        html+='<div class="banner warn" style="margin-top:18px" data-open><span>'+IC.info+'</span><div><span class="bt">These pairs are missing a price.</span> Take one, call the side without a price and write down what they say. The order is updated, the desk verifies it, and the pair is scored like any match. Largest and freshest first.</div></div>';
+        html+='<div class="banner warn" style="margin-top:20px" data-open><span>'+IC.info+'</span><div><span class="bt">These pairs are missing a price.</span> Take one, call the side without a price and write down what they say. The order is updated, the desk verifies it, and the pair is scored like any match. Largest and freshest first.</div></div>';
         html+=qSection('Missing price ('+d.gaps.length+')', d.gaps.length?d.gaps.slice(0,30).map(matchRow).join(''):'<div class="td-qempty t-small">No pairs are missing a price right now.</div>');
       }else{
         html+=qSection('Available ('+(d.available||[]).length+')', (d.available||[]).length?(d.available||[]).slice(0,30).map(matchRow).join(''):'<div class="td-qempty t-small">No free pairs right now.</div>');
