@@ -1,0 +1,1955 @@
+<!DOCTYPE html>
+<html lang="en" data-theme-auto>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trade Desk · Silicon Valley Investclub</title>
+<link rel="icon" type="image/png" href="/favicon.png?v=rev3">
+<link rel="stylesheet" href="/fonts.css">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/note-render.css">
+<link rel="stylesheet" href="/im-review.css">
+<script src="/loader.js"></script>
+<script src="/ui.js" defer></script>
+<script src="/note-render.js"></script>
+<script src="/email-original.js"></script>
+<script src="/mailbox-time.js"></script>
+<script src="/im-review-feed.js"></script>
+<style>
+  /* Trade Desk shell — canonical components do the work; this is layout only.
+     Tokens only: no font-size, no gradients/shadows/emoji, radii from tokens. */
+  html,body{ height:100%; }
+  /* Full-width navy topbar on top; rail + main sit BELOW it in a row. */
+  .td-app{ display:flex; flex-direction:column; height:100vh; overflow:hidden; background:var(--page); }
+  .td-body{ display:flex; flex:1; min-height:0; }
+  /* The associate's path strip (ui.js mountPathStrip) sits in the column's flow
+     here: sticky against a 100vh column it slid over the rail and the search
+     (rehearsal 2026-10-23). */
+  .td-app > .path-strip{ position:static; flex:none; }
+
+  /* Company directory rail (content list, not a second nav) */
+  .td-side{ width:288px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; transition:var(--t-med); }
+  .td-app.collapsed .td-side{ width:0; border-right:0; overflow:hidden; }
+  .td-tabs{ gap:12px; margin:0; padding:8px 14px 0; flex-wrap:wrap; }
+  .td-tabs .tab{ padding:10px 0; }
+  .td-msg-n{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:16px; height:16px; padding:0 5px; margin-left:6px;
+    border-radius:var(--r-control); background:var(--accent-soft); color:var(--accent);
+    font-size:10.5px; font-weight:600; font-variant-numeric:tabular-nums;
+  }
+  .td-msg-n[hidden], .td-tabs[hidden]{ display:none; }
+  .td-review{ margin-top:22px; }
+  .td-review .irv-thread{ max-height:240px; }
+  .td-messages-feed{ min-height:120px; padding-bottom:24px; }
+
+  /* Today — the desk's action queue (stat strip = canonical .stats/.stat) */
+  .td-today .stats{ margin:18px 0 30px; }
+  .td-q{ border:1px solid var(--line); border-radius:var(--r-card); background:var(--panel); overflow:hidden; }
+  .td-q + .td-q-label, .td-q-label{ margin:26px 0 10px; }
+  .td-qrow{ display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--line); color:inherit; }
+  .td-qrow:first-child{ border-top:0; }
+  a.td-qrow:hover{ background:var(--subtle); }
+  .td-qrow .meta{ min-width:0; flex:1; }
+  .td-qrow .nm{ font-family:var(--serif); font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .td-qrow .sb{ color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .td-qrow .age{ color:var(--muted-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .td-qempty{ padding:16px; color:var(--muted); }
+
+  /* Thread composer + booking */
+  .td-composer{ margin-top:20px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--panel); padding:12px 14px; }
+  .td-composer:focus-within{ border-color:var(--accent); }
+  .td-composer textarea{ width:100%; border:0; background:transparent; resize:vertical; outline:none; font-family:var(--sans); color:var(--ink); min-height:56px; line-height:1.5; }
+  .td-composer-row{ display:flex; align-items:center; gap:10px; margin-top:8px; }
+  .td-composer-row .to{ color:var(--muted); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .td-thread-actions{ display:flex; gap:8px; margin:2px 0 14px; }
+  .td-search{ padding:14px; position:relative; border-bottom:1px solid var(--line); }
+  .td-search input{ width:100%; padding-left:34px; }
+  .td-search svg{ position:absolute; left:25px; top:50%; transform:translateY(-50%); color:var(--muted-2); pointer-events:none; }
+  .td-companies{ flex:1; overflow-y:auto; padding:8px; }
+  .co-item{ display:flex; align-items:center; gap:11px; padding:9px 10px; border-radius:var(--r-control); cursor:pointer; border-left:3px solid transparent; }
+  .co-item:hover{ background:var(--subtle); }
+  .co-item.active{ background:var(--accent-soft); border-left-color:var(--accent); }
+  .co-item .avatar.logo{ background:#fff; padding:3px; }
+  .co-item .avatar img{ width:100%; height:100%; object-fit:contain; }
+  .co-meta{ min-width:0; flex:1; }
+  .co-name{ font-family:var(--serif); font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .td-side-foot{ border-top:1px solid var(--line); padding:13px 16px; display:flex; align-items:center; gap:11px; }
+  .td-side-foot .who{ min-width:0; flex:1; }
+  .who-name{ font-family:var(--serif); font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* Main column */
+  .td-main{ flex:1; display:flex; flex-direction:column; min-width:0; }
+  .td-scroll{ flex:1; overflow-y:auto; }
+  .td-welcome{ max-width:768px; margin:0 auto; padding:56px 26px; }
+  .wl-badge{ width:52px; height:52px; border:1px solid var(--line); border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--accent); background:var(--accent-soft); margin-bottom:20px; }
+  .wl-sub{ color:var(--muted); max-width:560px; margin-top:10px; }
+  .td-cards{ display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; margin-top:34px; }
+  .ac{ background:var(--panel); padding:22px; }
+  .ac-h{ display:flex; align-items:center; gap:9px; color:var(--accent); margin-bottom:8px; }
+  .ac-d{ color:var(--muted); }
+
+  .td-convo{ max-width:768px; margin:0 auto; padding:28px 26px 10px; }
+  .td-asked{ display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .td-asked .q{ font-family:var(--serif); font-weight:600; color:var(--ink); }
+  .convo-block{ margin-bottom:26px; }
+  .convo-block .sec-label{ margin:0 0 12px; }
+
+  .td-input{ border-top:1px solid var(--line); background:var(--panel); padding:14px 26px; }
+  .td-input-wrap{ max-width:768px; margin:0 auto; display:flex; align-items:flex-end; gap:10px; border:1px solid var(--line); border-radius:var(--r-card); padding:8px 8px 8px 14px; background:var(--page); }
+  .td-input-wrap:focus-within{ border-color:var(--accent); }
+  .td-input textarea{ flex:1; border:0; background:transparent; resize:none; outline:none; font-family:var(--sans); color:var(--ink); max-height:120px; line-height:1.5; padding:6px 0; }
+  .td-disc{ max-width:768px; margin:8px auto 0; color:var(--muted-2); text-align:center; }
+  .td-app.person-desk .td-input{ display:none; }
+  .td-feed{ margin-top:22px; }
+
+  /* Matches — a pair a broker takes on a one-hour clock */
+  .td-rail-h{ padding:14px 10px 6px; }
+  .co-item .clock{ color:var(--warn); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .co-item .held{ color:var(--muted-2); white-space:nowrap; }
+  .td-claim{ border:1px solid var(--line); border-radius:var(--r-card); background:var(--panel); margin:6px 0 26px; }
+  .td-claim-hd{ display:flex; align-items:center; gap:16px; padding:18px 22px; flex-wrap:wrap; }
+  .td-claim-hd .copy{ flex:1; min-width:220px; color:var(--muted); }
+  .td-claim-hd .copy b{ color:var(--ink); font-weight:600; }
+  .td-count{ font-family:var(--serif); font-weight:500; font-size:30px; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .td-count.late{ color:var(--bad); }
+  .td-side-row{ display:flex; align-items:center; gap:12px; padding:13px 22px; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .td-side-row .who{ min-width:0; flex:1; }
+  .td-side-row .nm{ font-family:var(--serif); font-weight:600; color:var(--ink); }
+  .td-side-row .acts{ display:flex; gap:8px; flex-wrap:wrap; }
+  .td-pair{ display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
+  .td-pair .col{ background:var(--panel); padding:20px 22px; }
+  .td-pair .col .kv{ margin-top:12px; }
+  .td-hist{ border:1px solid var(--line); border-radius:var(--r-card); background:var(--panel); }
+  .td-hist .td-qrow{ color:var(--muted); }
+  .td-match-tools{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 18px; }
+  .td-match-tools select{ min-width:220px; }
+  @media(max-width:640px){ .td-pair{ grid-template-columns:1fr; } }
+  /* A pair in two lines (Evelyn UX pass 2026-09-29): company + deal size;
+     «Offer → Bid» + how the bid stands against the ask. Figures never truncate:
+     the edge tag drops under the prices when the line is short of room. */
+  @media(min-width:641px){ .td-app.on-matches:not(.collapsed) .td-side{ width:384px; } }
+  @media(max-width:640px){ .td-app.on-matches.mobile-open .td-side{ width:min(384px,100vw); } }
+  .td-pl{ display:flex; align-items:baseline; justify-content:space-between; gap:3px 10px; flex-wrap:wrap; }
+  .td-pl + .td-pl{ margin-top:3px; }
+  .td-pl .co-name,.td-pl .nm{ flex:1 1 0; min-width:0; }
+  .td-size{ color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; font-size:12.5px; }
+  .td-ob{ color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .td-edge{ color:var(--muted); background:var(--subtle); border-radius:var(--r-control); padding:0 6px; font-weight:500; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .td-edge.up{ color:var(--ok); background:var(--ok-soft); }
+  /* A pair missing a price (Arthur 2026-10-25): the side to call, in amber. */
+  .td-edge.need{ color:var(--warn); background:var(--warn-soft); }
+  .td-lens{ padding:10px 10px 2px; }
+  .td-lens .seg{ display:flex; width:100%; }
+  .td-lens .seg button{ flex:1 1 0; padding-left:8px; padding-right:8px; }
+  .td-home-lens{ margin:0 0 6px; }
+  .td-home-lens .seg button{ min-width:150px; }
+  /* The call to make on a held pair, and the form for what the side said. */
+  .td-task{ border-top:1px solid var(--line); padding:20px 22px 6px; }
+  .td-task-h{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .td-task-h .t-h3{ flex:1; min-width:200px; }
+  .td-task-copy{ color:var(--muted); margin:10px 0 0; max-width:640px; }
+  .td-task .seg{ margin-top:14px; }
+  .td-form{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 14px; margin-top:18px; }
+  .td-form .field{ min-width:0; }
+  .td-form .field.wide{ grid-column:1/-1; }
+  .td-form textarea{ resize:vertical; min-height:76px; }
+  .td-form-ft{ grid-column:1/-1; display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
+  .td-form-ft .hint{ flex:1; min-width:220px; color:var(--muted); margin:0; }
+  .td-form-err{ grid-column:1/-1; color:var(--bad); margin:-6px 0 12px; }
+  .td-form-err:empty{ display:none; }
+  .td-reports{ border-top:1px solid var(--line); }
+  .td-reports .td-qrow{ border-top:0; padding:12px 22px; }
+  .td-reports .td-qrow + .td-qrow{ border-top:1px solid var(--line); }
+  @media(max-width:900px){ .td-form{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media(max-width:640px){
+    .td-form{ grid-template-columns:1fr; }
+    .td-task{ padding:18px 16px 4px; }
+    .td-reports .td-qrow{ padding:12px 16px; }
+    .td-form-ft .btn{ width:100%; justify-content:center; }
+    .td-home-lens .seg{ display:flex; width:100%; }
+    .td-home-lens .seg button{ min-width:0; flex:1 1 0; }
+  }
+  .td-pair-item{ align-items:flex-start; }
+  .td-pair-item .td-pl.t-small{ font-size:12px; column-gap:8px; }
+  .td-pair-item .td-edge{ padding:0 5px; }
+  .td-pair-row{ align-items:flex-start; }
+  .td-pair-row [data-open-match]{ align-self:center; }
+  /* The pair card: four figures in a hairline grid. */
+  .td-figs{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; margin:16px 0 8px; }
+  .td-figs .stat{ background:var(--panel); border-right:0; padding:18px 20px; min-width:0; }
+  .td-figs .stat .v{ font-size:26px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .td-figs .stat .v.up{ color:var(--ok); }
+  .td-figs-note{ margin:0 0 20px; }
+  /* Channels to reach a side: one button group. */
+  .td-chan{ display:inline-flex; max-width:100%; border:1px solid var(--line); border-radius:var(--r-control); overflow:hidden; background:var(--panel); }
+  .td-chan > a,.td-chan > button{ font-family:var(--sans); font-size:12.5px; font-weight:500; height:30px; padding:0 12px; display:inline-flex; align-items:center; justify-content:center; border:0; border-left:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; white-space:nowrap; text-decoration:none; }
+  .td-chan > :first-child{ border-left:0; }
+  .td-chan > a:hover,.td-chan > button:hover{ background:var(--subtle); }
+  .td-chan > a:focus-visible,.td-chan > button:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+  .td-chan > button:disabled{ color:var(--muted); cursor:default; }
+  .td-chan .td-other{ color:var(--muted); }
+  @media(max-width:960px){ .td-figs{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media(max-width:640px){
+    .td-side-row .acts{ width:100%; }
+    .td-chan{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; background:var(--line); width:100%; }
+    .td-chan > a,.td-chan > button{ border-left:0; height:36px; }
+    .td-chan > :last-child:nth-child(odd){ grid-column:1/-1; }
+  }
+
+  /* Burger opens the platform menu (same as every page); the company rail is the
+     page's own content, toggled on mobile by #railToggle. */
+  #railToggle{ display:inline-flex; }
+  .td-head{ display:none; position:static; }
+  @media(max-width:900px){ .td-cards{ grid-template-columns:1fr; } }
+  @media(max-width:640px){
+    .td-head{ display:block; }
+    .td-side{ position:fixed; z-index:50; top:calc(58px + var(--present-h, 0px) + var(--path-h, 0px)); height:calc(100vh - 58px - var(--present-h, 0px) - var(--path-h, 0px)); }  /* --present-h: the presentation strip (loader.js) */
+    .td-app:not(.mobile-open) .td-side{ width:0; border-right:0; overflow:hidden; }
+    .td-welcome,.td-convo,.td-input{ padding-left:16px; padding-right:16px; }
+  }
+</style>
+</head>
+<body>
+<div class="td-app" id="app">
+  <header class="topbar" style="position:static">
+    <div class="topbar-in" style="height:56px">
+      <button class="tb-burger" id="burger" aria-label="Open menu" aria-haspopup="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <div class="tb-brand" id="brandHome" role="button" tabindex="0" style="cursor:pointer" title="Trade Desk home"><img class="tb-logo" src="/brandbook-logo.svg" alt="Silicon Valley Investclub"></div>
+      <div class="tb-div"></div>
+      <div class="tb-ctx" id="ctx">Trade Desk</div>
+    </div>
+  </header>
+  <!-- Переключатель каталога — под шапкой (IRON: шапка = пять вещей); виден
+       только на телефоне, как и был. -->
+  <div class="page-head td-head" id="deskHead"><div class="controls">
+    <button class="btn btn-ghost btn-sm" id="railToggle" aria-label="Toggle company directory">Companies</button>
+  </div></div>
+  <div class="td-body">
+  <!-- Company directory -->
+  <aside class="td-side">
+    <div class="tabs td-tabs" id="deskTabs" hidden role="tablist">
+      <button class="tab" type="button" role="tab" data-tab="today" aria-selected="false" id="tabToday">Today<span class="td-msg-n" id="todayBadge" hidden>0</span></button>
+      <button class="tab" type="button" role="tab" data-tab="matches" aria-selected="false">Matches<span class="td-msg-n" id="matchBadge" hidden>0</span></button>
+      <button class="tab" type="button" role="tab" data-tab="pipeline" aria-selected="false">Pipeline</button>
+      <button class="tab active" type="button" role="tab" data-tab="companies" aria-selected="true">Order Book</button>
+      <button class="tab" type="button" role="tab" data-tab="partners" aria-selected="false">Clients</button>
+      <button class="tab" type="button" role="tab" data-tab="messages" aria-selected="false" id="tabMessages" hidden>Messages<span class="td-msg-n" id="msgBadge" hidden>0</span></button>
+    </div>
+    <div class="td-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="coSearch" placeholder="Search companies…" autocomplete="off" aria-label="Search companies">
+    </div>
+    <div class="td-companies" id="coList"><div class="t-small" style="color:var(--muted);padding:24px 14px">Loading…</div></div>
+    <div class="td-side-foot" data-readable>
+      <span class="avatar" id="whoMono">—</span>
+      <div class="who"><div class="who-name" id="whoName">—</div><div class="eyebrow" id="whoRole" style="margin-top:3px"></div></div>
+      <button class="iconbtn" id="signOut" aria-label="Sign out" title="Sign out"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="td-main">
+    <div class="td-scroll" id="scroll">
+      <!-- Welcome -->
+      <div class="td-welcome" id="welcome">
+        <div class="wl-badge">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 13l3-3 3 3 4-5"/></svg>
+        </div>
+        <div class="eyebrow">Silicon Valley Investclub</div>
+        <h1 class="t-h1">Trade Desk</h1>
+        <p class="wl-sub">Live private-market liquidity, direct counterparties and your own book — in one place.</p>
+        <div class="td-cards">
+          <div class="ac">
+            <div class="ac-h"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M19 9l-5 5-4-4-3 3"/></svg><span class="t-h3" style="color:var(--accent)">Live offers &amp; bids</span></div>
+            <div class="ac-d">Pick a company to see every live offer and bid — size, valuation, price and structure.</div>
+          </div>
+          <div class="ac">
+            <div class="ac-h"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg><span class="t-h3" style="color:var(--accent)">Direct counterparty</span></div>
+            <div class="ac-d">Open a contact to reach the counterparty directly and drive the deal to close.</div>
+          </div>
+          <div class="ac td-split">
+            <div class="ac-h"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span class="t-h3" style="color:var(--accent)">You keep 88.5%</span></div>
+            <div class="ac-d">Deals you source yourself are 88.5% you / 11.5% SVIC. Use our network on a deal and it is 50/50.</div>
+          </div>
+          <div class="ac">
+            <div class="ac-h"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 10h8M8 14h5"/></svg><span class="t-h3" style="color:var(--accent)">Your book, tracked</span></div>
+            <div class="ac-d">Every opened or self-sourced deal lands in your book with its size and stage.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conversation -->
+      <div class="td-convo" id="convo" style="display:none"></div>
+    </div>
+
+    <div class="td-input">
+      <div class="td-input-wrap">
+        <textarea id="chat" rows="1" placeholder="Ask about a company — e.g. “Stripe”, “Anthropic”…" aria-label="Ask about a company"></textarea>
+        <button class="btn btn-primary btn-sm" id="send" disabled aria-label="Send">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="td-disc t-small td-split">Counterparty identity is revealed only when you open a contact, which sets that deal to 50/50 with SVIC on close.</div>
+    </div>
+  </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  var DESK_PEOPLE = { arthur:1, serge:1, emma:1, daria:1, mariam:1, anna:1, victoria:1 };
+  var me=null, companies=[], partners=[], opportunities=[];
+  var activeCompany=null, activePartner=null, activeOpp=null, activeMatch=null;
+  var matchesData=null, matchesPrint='', minePrint='', lastQueue=null, matchesError='';
+  // Which pairs the Matches list shows: priced ones, or the ones missing a price.
+  var matchLens=(function(){ try{ return (window.svicUrlState&&window.svicUrlState.read().lens)==='gaps'?'gaps':'priced'; }catch(_){ return 'priced'; } })();
+  var taskSide={};
+  var tab='companies', deskPerson=null;
+  // Section mode (2026-09-28): «Trade Desk» is the broker workspace; each of its
+  // sections is its own page at /desk/<section>, reading the reader's own desk.
+  var deskMode=location.pathname.split('/').filter(Boolean)[0]==='desk';
+  // The commission split belongs to the owner's classic broker screen only: the
+  // /desk sections (and the presentation shown to candidates) never name it.
+  if(deskMode) document.querySelectorAll('.td-split').forEach(function(e){ e.remove(); });
+  // The classic welcome is the owner's /trade-desk start screen. A /desk section
+  // opens its first company or client (or its own start screen) as soon as the
+  // data arrives, so it never flashes the old welcome in between (Arthur
+  // 2026-09-29: «на секунду появляется это окно»).
+  if(deskMode){
+    var wl=document.getElementById('welcome'); if(wl) wl.style.display='none';
+    var cv0=document.getElementById('convo');
+    if(cv0){ cv0.className='td-convo'; cv0.style.display='block'; cv0.innerHTML='<div class="td-asked"><span class="skeleton" style="display:block;width:180px;height:14px"></span><span class="skeleton" style="display:block;width:320px;height:26px;margin-top:10px"></span></div>'; }
+  }
+  var SECTION_TAB={ matches:'matches', pipeline:'pipeline', 'order-book':'companies', clients:'partners' };
+  var TAB_SECTION={ matches:'matches', pipeline:'pipeline', opportunities:'pipeline', companies:'order-book', partners:'clients' };
+  var SECTION_TITLE={ matches:'Matches', pipeline:'Pipeline', companies:'Order Book', partners:'Clients', opportunities:'Pipeline' };
+  function api(path){ return deskMode ? ('/api/desk'+path) : ('/api/trade-desk/'+deskPerson+path); }
+  // Demo desk (the interviewer's screen share): same screens, invented
+  // counterparties; every action stays on the demo desk and nothing is sent.
+  var deskDemo=false;
+  function readQS(){ return (window.svicUrlState && window.svicUrlState.read()) || {}; }
+  function writeQS(patch, opts){ if (window.svicUrlState) window.svicUrlState.write(patch, opts || {}); }
+  var reviewLive=false, messageRows=[], badgeHandle=null, feedHandle=null, contextHandle=null;
+  var app=document.getElementById('app');
+  var IC={
+    info:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12" y2="8"/></svg>',
+    warn:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 16H3z"/><line x1="12" y1="10" x2="12" y2="14"/><line x1="12" y1="17" x2="12" y2="17"/></svg>',
+    check:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6L9 17l-5-5"/></svg>'
+  };
+  function loginUrl(){ return '/login?next='+encodeURIComponent(location.pathname+location.search); }
+  function on401(r){ if(r&&r.status===401){ location.href=loginUrl(); throw new Error('unauth'); } if(r&&r.status===403){ throw new Error('forbidden'); } return r; }
+  function esc(s){ return window.svicEsc?svicEsc(s):String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function f(v){ return (v==null||v==='')?'—':esc(v); }
+  var BOARD_STAGES=[['pre_intro','Pre-intro'],['introduction','Introduction'],['signed','Signed'],['paid','Paid'],['completed','Completed'],['failed','Failed']];
+  function mono(n){ return (n||'?').trim().charAt(0).toUpperCase(); }
+  // One logo per company, from the same picker Marketplace uses (the companies
+  // feed carries it); a letter only while a company has none yet.
+  var coLogos={};
+  function coAvatar(name){
+    var m=esc(mono(name)), src=coLogos[String(name||'').toUpperCase().trim()];
+    return src
+      ? '<span class="avatar logo"><img src="'+esc(src)+'" alt="" loading="lazy" onerror="var s=this.parentNode;s.classList.remove(\'logo\');s.textContent=\''+m+'\'"></span>'
+      : '<span class="avatar">'+m+'</span>';
+  }
+  async function loadLogoMap(){
+    try{
+      var r=await fetch(deskMode?'/api/desk/companies':'/api/broker/companies');
+      if(!r.ok) return;
+      var d=await r.json(), next={}, n=0;
+      (d.rows||[]).forEach(function(c){ if(c&&c.company&&c.logo){ next[String(c.company).toUpperCase().trim()]=c.logo; n++; } });
+      if(!n) return;
+      coLogos=next;
+      if(tab==='matches'||tab==='pipeline') paintList();
+    }catch(_){}
+  }
+  function slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+  function ago(iso){
+    if(!iso) return '';
+    var s=(Date.now()-new Date(iso))/1000;
+    if(!isFinite(s)||s<0) return '';
+    if(s<90) return 'now';
+    if(s<3600) return Math.round(s/60)+'m';
+    if(s<86400) return Math.round(s/3600)+'h';
+    return Math.round(s/86400)+'d';
+  }
+
+  document.getElementById('burger').addEventListener('click',function(){ if(window.openOffcanvas) window.openOffcanvas(); });
+  document.getElementById('railToggle').addEventListener('click',function(){ app.classList.toggle('mobile-open'); });
+  document.getElementById('brandHome').addEventListener('click',function(){
+    if(deskMode){ location.href='/desk/matches'; return; }
+    if(deskPerson){ setTab('today'); openToday(); }
+    else { setUrl(null,false); showWelcome(); }
+  });
+  document.getElementById('signOut').addEventListener('click',async function(){
+    try{ await fetch('/api/auth/logout',{method:'POST'}); }catch(_){}
+    location.href='/login';
+  });
+
+  var chat=document.getElementById('chat'), send=document.getElementById('send');
+  function adjust(){ chat.style.height='auto'; chat.style.height=Math.min(chat.scrollHeight,120)+'px'; send.disabled=!chat.value.trim(); }
+  chat.addEventListener('input',adjust);
+  chat.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); submitQuery(); } });
+  send.addEventListener('click',submitQuery);
+
+  async function loadMe(){
+    // The admin workspace identifies through the canonical platform session.
+    var r=await fetch('/api/broker/me');
+    if(r.status===401){ location.href=loginUrl(); throw new Error('unauth'); }
+    var u=null;
+    if(r.ok){ u=await r.json(); }
+    else{
+      var r2=await fetch('/api/auth/me');
+      if(r2.status===401){ location.href=loginUrl(); throw new Error('unauth'); }
+      if(r2.ok){
+        var a=await r2.json();
+        u={ name:a.impersonatingName||a.displayName, role:a.role, email:'' };
+      }
+    }
+    me=u||{};
+    document.getElementById('whoName').textContent=me.name||me.email||'Broker';
+    document.getElementById('whoRole').textContent=deskMode?'Trade Desk':((me.role||'broker')+(me.firm?(' · '+me.firm):''));
+    document.getElementById('whoMono').textContent=mono(me.name||me.email);
+  }
+
+  function bindDeskModalUrl(){
+    if (window.__tdModalUrl || !window.closeModal) return;
+    window.__tdModalUrl = true;
+    var orig = window.closeModal;
+    window.closeModal = function(){
+      orig.apply(this, arguments);
+      writeQS({ book:'', contact:'', nomatch:'' });
+    };
+  }
+
+  function parsePath(){
+    var parts=location.pathname.replace(/\/+$/,'').split('/').filter(Boolean);
+    if(parts[0]==='desk'){
+      var sec=(parts[1]||'matches').toLowerCase();
+      if(sec==='pipeline' && parts[2]==='o') return { person:deskPerson, tab:'opportunities', id:parts[3]?decodeURIComponent(parts[3]):null, desk:true };
+      return { person:deskPerson, tab:SECTION_TAB[sec]||'matches', id:parts[2]?decodeURIComponent(parts[2]):null, desk:true };
+    }
+    if(parts[0]!=='trade-desk') return { person:null, tab:'companies', id:null };
+    var a=parts[1]?decodeURIComponent(parts[1]).toLowerCase():null;
+    if(!a) return { person:null, tab:'companies', id:null };
+    if(DESK_PEOPLE[a]){
+      var b=parts[2]?decodeURIComponent(parts[2]).toLowerCase():null;
+      var c=parts[3]?decodeURIComponent(parts[3]):null;
+      if(b==='partners'||b==='opportunities'||b==='messages'||b==='today'||b==='matches'||b==='pipeline') return { person:a, tab:b, id:c };
+      if(b==='companies') return { person:a, tab:'companies', id:c };
+      if(b) return { person:a, tab:'companies', id:b };
+      return { person:a, tab:'today', id:null };
+    }
+    return { person:null, tab:'companies', id:a };
+  }
+
+  function setUrl(name, replace){
+    var u = name ? ('/trade-desk/'+slug(name)) : '/trade-desk';
+    if(location.pathname===u) return;
+    history[replace?'replaceState':'pushState']({co:name||null}, '', u);
+  }
+  function setPersonUrl(nextTab, id, replace){
+    if(!deskPerson) return;
+    if(deskMode){
+      var sec=TAB_SECTION[nextTab];
+      if(!sec) return;
+      var du='/desk/'+sec;
+      if(id) du+=(nextTab==='opportunities'?'/o/':nextTab==='companies'?'/':'/')+(nextTab==='companies'?slug(id):encodeURIComponent(id));
+      if(location.pathname!==du) history[replace?'replaceState':'pushState']({tab:nextTab,id:id||null}, '', du);
+      return;
+    }
+    var u='/trade-desk/'+deskPerson;
+    if(nextTab==='partners'||nextTab==='opportunities'||nextTab==='messages'||nextTab==='today'||nextTab==='matches'||nextTab==='pipeline') u+='/'+nextTab+(id?('/'+encodeURIComponent(id)):'');
+    else if(id) u+='/'+slug(id);
+    if(location.pathname===u) return;
+    history[replace?'replaceState':'pushState']({tab:nextTab,id:id||null}, '', u);
+  }
+
+  function showConvo(){
+    var c=document.getElementById('convo'); c.className='td-convo'; document.getElementById('welcome').style.display='none'; c.style.display='block';
+    writeQS({ chat:'1' });
+  }
+  function setCtx(name){
+    var c=document.getElementById('ctx'); if(!c) return;
+    if(deskMode){ c.textContent='Trade Desk · '+(name||SECTION_TITLE[tab]||'')+(deskDemo?' · Sample data':''); return; }
+    c.textContent=name||(deskPerson?('Trade Desk · '+deskPerson):'Trade Desk');
+  }
+  function showWelcome(){
+    if(deskMode){ return showSectionHome(); }
+    clearReviewViews();
+    document.getElementById('convo').style.display='none';
+    document.getElementById('welcome').style.display='';
+    activeCompany=null; activePartner=null; activeOpp=null; activeMatch=null;
+    setCtx(deskPerson?('Trade Desk · '+deskPerson):null);
+    paintList();
+    writeQS({ chat:'', book:'', contact:'', nomatch:'' });
+  }
+
+  // A section's own start screen (desk mode): no commission copy, just the job.
+  function showSectionHome(){
+    clearReviewViews();
+    activeCompany=null; activePartner=null; activeOpp=null; activeMatch=null;
+    setCtx();
+    document.getElementById('welcome').style.display='none';
+    var c=document.getElementById('convo'); c.className='td-convo'; c.style.display='block';
+    var copy={
+      companies:['Order Book','Pick a company','Every live offer and bid, company by company — size, valuation, price and structure.'],
+      partners:['Clients','Pick a client','The people you work with, and your whole conversation with each of them.']
+    }[tab]||['Trade Desk','Pick a section','Choose a section from the menu.'];
+    c.innerHTML='<div class="td-asked"><span class="eyebrow">'+esc(copy[0])+'</span><span class="q">'+esc(copy[1])+'</span></div>'
+      +'<p class="wl-sub" style="margin-top:0">'+esc(copy[2])+'</p>';
+    // On a phone the list IS the section's start: open it instead of a blank page.
+    if(window.innerWidth<=640){ app.classList.add('mobile-open'); paintList(); return; }
+    paintList();
+    // On a desktop the right half is never empty: the first company / client
+    // opens at once (Evelyn UX pass 2026-09-29).
+    if(tab==='companies' && companies.length) return openCompany(companies[0].company, { replace:true });
+    if(tab==='partners' && partners.length) return openPartner(partners[0].id, { replace:true });
+  }
+  async function loadCompanies(q){
+    // Broker feed carries logos; a desk owner without the broker role falls
+    // back to the desk-gated companies list.
+    var qs=q?('?q='+encodeURIComponent(q)):'';
+    var d=null;
+    if(!deskMode) try{
+      var r=await fetch('/api/broker/companies'+qs);
+      if(r.status===401){ location.href=loginUrl(); throw new Error('unauth'); }
+      if(r.ok) d=await r.json();
+    }catch(e){ if(e.message==='unauth') throw e; }
+    if(!d && deskPerson){
+      try{
+        var r2=await fetch(api('/companies')+qs);
+        if(r2.ok) d=await r2.json();
+      }catch(_){}
+    }
+    companies=(d&&d.rows)||[];
+    if(tab==='companies') paintList();
+  }
+  async function loadPartners(q){
+    var url=api('/partners')+(q?('?q='+encodeURIComponent(q)):'');
+    var d=await (on401(await fetch(url))).json(); partners=d.rows||[];
+    if(tab==='partners') paintList();
+  }
+  async function loadOpps(q){
+    var url=api('/opportunities')+(q?('?q='+encodeURIComponent(q)):'');
+    var d=await (on401(await fetch(url))).json(); opportunities=d.rows||[];
+    if(tab==='opportunities'||tab==='pipeline') paintList();
+  }
+
+  function emptyRow(msg){ return '<div class="t-small" style="color:var(--muted);padding:24px 14px">'+esc(msg)+'</div>'; }
+  function paintList(){
+    var el=document.getElementById('coList');
+    if(tab==='messages'){
+      paintMessageRail(document.getElementById('coSearch').value);
+      return;
+    }
+    if(tab==='matches'){ paintMatchRail(el); return; }
+    if(tab==='pipeline'||tab==='opportunities'){ paintPipelineRail(el); return; }
+    if(tab==='partners'){
+      if(!partners.length){ el.innerHTML=emptyRow('No clients in discussion'); return; }
+      el.innerHTML=partners.map(function(p){
+        var sub=[p.last_company, ago(p.last_message_at), p.last_channel].filter(Boolean).join(' · ');
+        return '<div class="co-item'+(String(activePartner)===String(p.id)?' active':'')+'" data-pid="'+esc(p.id)+'" role="button" tabindex="0">'
+          +'<span class="avatar">'+esc(mono(p.name))+'</span>'
+          +'<div class="co-meta"><div class="co-name">'+esc(p.name||'Partner')+'</div><div class="t-small" style="color:var(--muted)">'+esc(sub)+'</div></div></div>';
+      }).join('');
+      el.querySelectorAll('.co-item').forEach(function(it){ it.addEventListener('click',function(){ openPartner(it.dataset.pid); }); });
+      return;
+    }
+    if(tab==='opportunities'){
+      if(!opportunities.length){ el.innerHTML=emptyRow('No live discussions'); return; }
+      el.innerHTML=opportunities.map(function(o){
+        var sub=[o.type, o.structure, o.contact_name, ago(o.last_message_at)].filter(Boolean).join(' · ');
+        return '<div class="co-item'+(String(activeOpp)===String(o.id)?' active':'')+'" data-oid="'+esc(o.id)+'" role="button" tabindex="0">'
+          +'<span class="avatar">'+esc(mono(o.target_company))+'</span>'
+          +'<div class="co-meta"><div class="co-name">'+esc(o.target_company||'Deal')+'</div><div class="t-small" style="color:var(--muted)">'+esc(sub)+'</div></div></div>';
+      }).join('');
+      el.querySelectorAll('.co-item').forEach(function(it){ it.addEventListener('click',function(){ openOpp(it.dataset.oid); }); });
+      return;
+    }
+    if(!companies.length){ el.innerHTML=emptyRow('No companies'); return; }
+    el.innerHTML=companies.map(function(c){
+      var sub=(c.offers||0)+' offer'+(c.offers===1?'':'s')+' · '+(c.bids||0)+' bid'+(c.bids===1?'':'s');
+      var m=esc(mono(c.company));
+      var av=c.logo
+        ? '<span class="avatar logo"><img src="'+esc(c.logo)+'" alt="" loading="lazy" onerror="var s=this.parentNode;s.classList.remove(\'logo\');s.textContent=\''+m+'\'"></span>'
+        : '<span class="avatar">'+m+'</span>';
+      return '<div class="co-item'+(activeCompany===c.company?' active':'')+'" data-co="'+esc(c.company)+'" role="button" tabindex="0" data-open>'
+        +av
+        +'<div class="co-meta"><div class="co-name">'+esc(c.company)+'</div><div class="t-small" style="color:var(--muted)">'+sub+'</div></div></div>';
+    }).join('');
+    el.querySelectorAll('.co-item').forEach(function(it){ it.addEventListener('click',function(){ openCompany(it.dataset.co); }); });
+  }
+
+  function setTab(next, opts){
+    opts=opts||{};
+    tab=next;
+    var lit=tab==='opportunities'?'pipeline':tab;
+    document.querySelectorAll('#deskTabs .tab').forEach(function(btn){
+      var on=btn.getAttribute('data-tab')===lit;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-selected', on?'true':'false');
+    });
+    app.classList.toggle('on-matches', tab==='matches');
+    var ph={ today:'Search companies…', matches:'Search matches…', pipeline:'Search your deals…', companies:'Search companies…', partners:'Search clients…', opportunities:'Search your deals…', messages:'Search conversations…' };
+    document.getElementById('coSearch').placeholder=ph[tab]||ph.companies;
+    document.getElementById('coSearch').setAttribute('aria-label', ph[tab]||ph.companies);
+    document.getElementById('railToggle').textContent={ partners:'Clients', opportunities:'Pipeline', pipeline:'Pipeline', matches:'Matches', messages:'Messages' }[tab]||'Order Book';
+    if(opts.push!==false && deskPerson && !opts.keepId) setPersonUrl(tab, null, !!opts.replace);
+    paintList();
+  }
+
+  var searchT;
+  document.getElementById('coSearch').addEventListener('input',function(e){
+    clearTimeout(searchT); var q=e.target.value;
+    writeQS({ q: q.trim() });
+    searchT=setTimeout(function(){
+      if(tab==='messages'||tab==='matches') paintList();
+      else if(tab==='pipeline'){ paintList(); loadOpps(q); }
+      else if(tab==='partners') loadPartners(q);
+      else if(tab==='opportunities') loadOpps(q);
+      else loadCompanies(q);
+    },220);
+  });
+  document.getElementById('deskTabs').addEventListener('click',function(e){
+    var btn=e.target.closest('[data-tab]'); if(!btn) return;
+    activeCompany=null; activePartner=null; activeOpp=null; activeMatch=null;
+    var next=btn.getAttribute('data-tab');
+    setTab(next);
+    if(next==='messages') openMessages();
+    else if(next==='today') openToday();
+    else if(next==='matches'||next==='pipeline') openMatchesHome(next);
+    else showWelcome();
+  });
+
+  function companyFromPath(){
+    var st=parsePath();
+    if(st.person || !st.id) return null;
+    var hit=companies.find(function(c){ return slug(c.company)===st.id; });
+    return hit?hit.company:null;
+  }
+
+  function feedHtml(items){
+    if(!window.NoteRender || !NoteRender.renderTimeline) return '<div class="t-small" style="color:var(--muted)">Conversation view unavailable.</div>';
+    if(!items || !items.length) return '<div class="t-small" style="color:var(--muted);padding:12px 0">No messages in this thread yet.</div>';
+    return '<div class="td-feed">'+NoteRender.renderTimeline(items)+'</div>';
+  }
+  function fitMail(root){
+    if(window.EmailOriginal && EmailOriginal.fitAll) EmailOriginal.fitAll(root);
+  }
+
+  async function loadTimeline(scope, id){
+    var r=await fetch(api('/timeline')+'?scope='+encodeURIComponent(scope)+'&id='+encodeURIComponent(id));
+    on401(r);
+    if(!r.ok) throw new Error('timeline');
+    return r.json();
+  }
+
+  function setMsgBadge(n){
+    var badge=document.getElementById('msgBadge');
+    if(!badge) return;
+    badge.textContent=String(n);
+    badge.hidden=!(n>0);
+  }
+  function clearReviewViews(){
+    if(feedHandle && window.ImReviewFeed){ ImReviewFeed.destroy(feedHandle); feedHandle=null; }
+    if(contextHandle && window.ImReviewFeed){ ImReviewFeed.destroy(contextHandle); contextHandle=null; }
+  }
+  function paintMessageRail(q){
+    var el=document.getElementById('coList');
+    q=String(q||'').trim().toLowerCase();
+    var seen={}, rows=[];
+    (messageRows||[]).forEach(function(c){
+      var k=(c.draft && c.draft.thread_key) || (c.conversation && ('c:'+c.conversation.id)) || String(c.draft && c.draft.id);
+      if(seen[k]){ seen[k].n++; return; }
+      var name=(c.conversation && c.conversation.display_name) || 'Chat';
+      var channel=(c.conversation && c.conversation.channel) || '';
+      seen[k]={ key:k, name:name, channel:channel, draftId:c.draft && c.draft.id, n:1 };
+      rows.push(seen[k]);
+    });
+    if(q) rows=rows.filter(function(r){ return r.name.toLowerCase().indexOf(q)!==-1; });
+    if(!rows.length){ el.innerHTML=emptyRow(q?'No matching conversations':'No waiting replies'); return; }
+    el.innerHTML=rows.map(function(r){
+      var sub=r.channel==='whatsapp'?'WhatsApp':r.channel==='telegram'?'Telegram':r.channel;
+      if(r.n>1) sub+=' · '+r.n;
+      return '<div class="co-item" data-draft="'+esc(r.draftId)+'" role="button" tabindex="0">'
+        +'<span class="avatar">'+esc(mono(r.name))+'</span>'
+        +'<div class="co-meta"><div class="co-name">'+esc(r.name)+'</div><div class="t-small" style="color:var(--muted)">'+esc(sub)+'</div></div></div>';
+    }).join('');
+    el.querySelectorAll('.co-item').forEach(function(it){
+      it.addEventListener('click', function(){
+        var card=document.querySelector('[data-draft-id="'+String(it.dataset.draft).replace(/"/g,'')+'"]');
+        if(card) card.scrollIntoView({ block:'center', behavior:'smooth' });
+      });
+    });
+  }
+  function openMessages(opts){
+    opts=opts||{};
+    if(!reviewLive) return showWelcome();
+    activeCompany=null; activePartner=null; activeOpp=null; activeMatch=null;
+    paintList(); setCtx('Messages');
+    if(opts.push!==false) setPersonUrl('messages', null, !!opts.replace);
+    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showConvo();
+    var convo=document.getElementById('convo');
+    convo.innerHTML='<div class="td-asked"><span class="eyebrow">Messages</span><span class="q">Waiting replies</span></div>'
+      +'<div id="deskReviewFeed" class="td-messages-feed irv-feed"><div class="irv-loading">Loading your queue…</div></div>'
+      +'<div class="irv-empty" id="deskReviewEmpty" hidden>'
+      +'<div class="irv-empty-title">All caught up</div>'
+      +'<p>New drafts appear here as messages arrive.</p></div>';
+    clearReviewViews();
+    if(!window.ImReviewFeed) return;
+    feedHandle=ImReviewFeed.mount(document.getElementById('deskReviewFeed'), {
+      person: deskPerson,
+      emptyEl: document.getElementById('deskReviewEmpty'),
+      onCount: setMsgBadge,
+      onCards: function(cards){ messageRows=cards||[]; if(tab==='messages') paintList(); }
+    });
+  }
+  function mountContextReview(items){
+    clearReviewViews();
+    if(!reviewLive || !window.ImReviewFeed) return;
+    var ids=[];
+    (items||[]).forEach(function(it){
+      if(it && it.conversation_id && ids.indexOf(String(it.conversation_id))===-1) ids.push(String(it.conversation_id));
+    });
+    var box=document.createElement('div');
+    box.id='deskReviewContext';
+    box.className='td-review';
+    document.getElementById('convo').appendChild(box);
+    contextHandle=ImReviewFeed.mount(box, {
+      person: deskPerson,
+      conversationIds: ids,
+      onCount: setMsgBadge
+    });
+  }
+  async function probeMessages(){
+    if(!deskPerson) return;
+    try{
+      var r=await fetch('/api/messengers/review/queue?person='+encodeURIComponent(deskPerson));
+      if(r.status===403 || !r.ok) return;
+      var d=await r.json();
+      reviewLive=true;
+      document.getElementById('tabMessages').hidden=false;
+      messageRows=d.cards||[];
+      setMsgBadge(messageRows.length);
+      if(window.ImReviewFeed && !badgeHandle){
+        badgeHandle=ImReviewFeed.mount(null, {
+          person: deskPerson,
+          onCount: setMsgBadge,
+          onCards: function(cards){ messageRows=cards||[]; if(tab==='messages') paintList(); }
+        });
+      }
+    }catch(_){}
+  }
+
+  /* ── Today — the desk action queue ─────────────────────────────────── */
+  function fmtMin(min){
+    if(min==null||!isFinite(min)) return '—';
+    if(min<60) return Math.round(min)+'m';
+    if(min<60*24) return (Math.round(min/6)/10)+'h';
+    return (Math.round(min/144)/10)+'d';
+  }
+  function setTodayBadge(n){
+    var b=document.getElementById('todayBadge');
+    if(!b) return;
+    b.textContent=String(n);
+    b.hidden=!(n>0);
+  }
+  function qRow(inner, href){
+    if(href) return '<a class="td-qrow" href="'+esc(href)+'" target="_blank" rel="noopener" style="text-decoration:none">'+inner+'</a>';
+    return '<div class="td-qrow">'+inner+'</div>';
+  }
+  function qSection(label, bodyHtml){
+    return '<div class="sec-label td-q-label" data-open><span class="eyebrow">'+label+'</span></div><div class="td-q">'+bodyHtml+'</div>';
+  }
+  function chTag(ch){
+    var t=ch==='whatsapp'?'WhatsApp':ch==='telegram'?'Telegram':ch==='email'?'Email':esc(ch||'');
+    return '<span class="tag"><span class="dot"></span>'+t+'</span>';
+  }
+  async function openToday(opts){
+    opts=opts||{};
+    clearReviewViews();
+    activeCompany=null; activePartner=null; activeOpp=null; activeMatch=null;
+    paintList(); setCtx('Today');
+    if(opts.push!==false) setPersonUrl('today', null, !!opts.replace);
+    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showConvo();
+    var convo=document.getElementById('convo');
+    convo.className='td-convo td-today';
+    convo.innerHTML='<div class="td-asked"><span class="eyebrow">Today</span><span class="q">What needs your hand now</span></div>'
+      +'<div class="t-small" style="color:var(--muted)">Pulling your queue…</div>';
+    var queue=null, board=null;
+    try{
+      var r=await fetch(api('/queue'));
+      on401(r);
+      if(r.ok) queue=await r.json();
+    }catch(_){}
+    lastQueue=queue;
+    try{ board=await loadMatches(); }catch(_){}
+    if(tab!=='today') return;
+    renderToday(convo, queue, board);
+  }
+  function renderToday(convo, queue, board){
+    queue=queue||{ sla:[], followups:[], meetings:[], stats:{} };
+    var stats=queue.stats||{};
+    var waiting=(messageRows||[]).length;
+    var html='<div class="td-asked"><span class="eyebrow">Today</span><span class="q">What needs your hand now</span></div>';
+    html+='<div class="stats">'
+      +'<div class="stat"><div class="v">'+(waiting+(queue.sla||[]).length)+'</div><div class="l">Waiting now</div></div>'
+      +'<div class="stat"><div class="v">'+fmtMin(stats.median_reply_min_7d)+'</div><div class="l">Median reply · 7d</div></div>'
+      +'<div class="stat"><div class="v">'+(stats.sent_24h!=null?stats.sent_24h:'—')+'</div><div class="l">Sent · 24h</div></div>'
+      +'<div class="stat"><div class="v">'+(stats.booked_7d!=null?stats.booked_7d:'—')+'</div><div class="l">Deals booked · 7d</div></div>'
+      +'</div>';
+
+    // 1. Waiting replies (AI-drafted queue) — jump into Messages.
+    if(reviewLive){
+      var wr=waiting
+        ? '<span class="avatar">'+waiting+'</span><div class="meta"><div class="nm">'+waiting+' conversation'+(waiting===1?'':'s')+' waiting for a reply</div>'
+          +'<div class="t-small sb">Drafts are ready — review and send from the Messages tab.</div></div>'
+          +'<button class="btn btn-primary btn-sm" id="goMessages" type="button">Open Messages</button>'
+        : '<div class="meta td-qempty">No drafts waiting. New messages land here as they arrive.</div>';
+      html+=qSection('Waiting replies', '<div class="td-qrow">'+wr+'</div>');
+    }
+
+    // 2. Overdue answers — the reply-SLA ledger (email + IM).
+    var sla=queue.sla||[];
+    var slaBody=sla.length?sla.map(function(s){
+      var href=s.kind==='im' ? ('/messengers/'+deskPerson+'/'+(s.channel==='telegram'?'telegram':'whatsapp')) : ('/mailbox/'+deskPerson);
+      var inner='<span class="avatar">'+esc(mono(s.from_name))+'</span>'
+        +'<div class="meta"><div class="nm">'+esc(s.from_name)+'</div>'
+        +'<div class="t-small sb">'+esc(s.subject||('Waiting in '+(s.channel==='email'?'mail':'chat')))+'</div></div>'
+        +chTag(s.channel)
+        +'<span class="t-small age">'+ago(s.waiting_since)+'</span>';
+      return qRow(inner, href);
+    }).join(''):'<div class="td-qempty t-small">Nothing overdue. All conversations answered.</div>';
+    html+=qSection('Overdue answers ('+sla.length+')', slaBody);
+
+    // 3. Deals on your clock, then the pool of pairs nobody holds.
+    var matches=[];
+    if(board){
+      var ticking=(board.mine||[]).filter(function(m){ return m.claim&&m.claim.state==='active'; });
+      matches=ticking;
+      var cBody=ticking.length?ticking.map(function(m){
+        var inner='<span class="avatar">'+esc(mono(m.company))+'</span>'
+          +'<div class="meta"><div class="nm">'+esc(m.company||'Match')+'</div>'
+          +'<div class="t-small sb">'+esc(sideState(m))+'</div></div>'
+          +'<span class="t-small age td-clock" data-deadline="'+esc(m.claim.deadlineAt)+'">'+clockText(m.claim.deadlineAt)+'</span>'
+          +'<button class="btn btn-primary btn-sm td-openmatch" type="button" data-mid="'+esc(m.id)+'">Open</button>';
+        return '<div class="td-qrow">'+inner+'</div>';
+      }).join(''):'<div class="td-qempty t-small">Nothing on your clock. Take a deal from Matches to start one.</div>';
+      html+=qSection('On your clock ('+ticking.length+')', cBody);
+      var avail=(board.available||[]).length, gapN=(board.gaps||[]).length;
+      html+=qSection('Available deals', '<div class="td-qrow"><span class="avatar">'+avail+'</span><div class="meta"><div class="nm">'
+        +avail+' pair'+(avail===1?'':'s')+' nobody holds'+(gapN?' · '+gapN+' missing a price':'')+'</div><div class="t-small sb">Take one and reach both sides within '+(board.windowMin||60)+' minutes.'+(gapN?' For a pair missing a price, call and record it.':'')+'</div></div>'
+        +'<button class="btn btn-ghost btn-sm" type="button" id="goMatches">Open Matches</button></div>');
+    }
+
+    // 4. Follow-ups ready to go.
+    var fu=queue.followups||[];
+    var fuTotal=fu.reduce(function(a,f){ return a+(f.ready||0); },0);
+    if(fu.length){
+      var fuBody=fu.map(function(f){
+        var inner='<span class="avatar">'+esc(mono(f.company_name))+'</span>'
+          +'<div class="meta"><div class="nm">'+esc(f.company_name)+'</div>'
+          +'<div class="t-small sb">'+f.ready+' follow-up draft'+(f.ready===1?'':'s')+' ready to send</div></div>'
+          +'<span class="t-small age">'+ago(f.oldest)+'</span>';
+        return qRow(inner, f.campaign_slug?('/campaigns/'+f.campaign_slug+'/followups'):'/campaigns');
+      }).join('');
+      html+=qSection('Follow-ups ready ('+fuTotal+')', fuBody);
+    }
+
+    // 5. Meetings in the next 36 hours.
+    var mt=queue.meetings||[];
+    if(mt.length){
+      var mtBody=mt.map(function(b){
+        var when=window.MailboxTime&&MailboxTime.full?MailboxTime.full(b.starts_at):new Date(b.starts_at).toUTCString();
+        var inner='<span class="avatar">'+esc(mono(b.invitee_name))+'</span>'
+          +'<div class="meta"><div class="nm">'+esc(b.invitee_name)+'</div>'
+          +'<div class="t-small sb">'+esc(when)+'</div></div>'
+          +(b.meeting_url?'<a class="btn btn-ghost btn-sm" href="'+esc(b.meeting_url)+'" target="_blank" rel="noopener">Join</a>':'');
+        return '<div class="td-qrow">'+inner+'</div>';
+      }).join('');
+      html+=qSection('Meetings · next 36h ('+mt.length+')', mtBody);
+    }
+
+    convo.innerHTML=html;
+    setTodayBadge(waiting+sla.length+matches.length+fuTotal);
+    var go=document.getElementById('goMessages');
+    if(go) go.addEventListener('click',function(){ setTab('messages'); openMessages(); });
+    var gm=document.getElementById('goMatches');
+    if(gm) gm.addEventListener('click',function(){ setTab('matches'); openMatchesHome('matches'); });
+    convo.querySelectorAll('.td-openmatch').forEach(function(btn){
+      btn.addEventListener('click',function(){ setTab('matches',{ push:false }); openMatch(btn.dataset.mid); });
+    });
+  }
+  function noMatchVerdict(id, company, btn){
+    if(!window.showModal) return;
+    writeQS({ nomatch:'1' }, { push:true });
+    bindDeskModalUrl();
+    showModal('<div class="modal-hd"><h2>No match — '+esc(company)+'</h2></div>'
+      +'<div class="modal-bd"><p class="t-small" style="color:var(--muted);margin:0 0 10px">Why is this pair not a match? A written reason is required and lands in the audit trail.</p>'
+      +'<textarea id="nmReason" rows="3" style="width:100%" placeholder="Reason"></textarea></div>'
+      +'<div class="modal-ft"><button class="btn btn-ghost" id="nmCancel" type="button">Cancel</button>'
+      +'<button class="btn btn-primary" id="nmGo" type="button">Move to No match</button></div>');
+    var cancel=document.getElementById('nmCancel');
+    if(cancel) cancel.addEventListener('click',function(){ if(window.closeModal) closeModal(); });
+    var goBtn=document.getElementById('nmGo');
+    if(!goBtn) return;
+    goBtn.addEventListener('click', async function(){
+      var reason=(document.getElementById('nmReason')||{}).value||'';
+      if(!reason.trim()){ if(window.showToast) showToast('A written reason is required', true); return; }
+      goBtn.disabled=true;
+      try{
+        var r=await fetch('/api/pipeline-matches/'+encodeURIComponent(id)+'/move',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ status:'no_match', reason:reason.trim() })
+        });
+        var b=await r.json().catch(function(){ return {}; });
+        if(!r.ok){ if(window.showToast) showToast(b.error||'Could not move', true); goBtn.disabled=false; return; }
+        if(window.closeModal) closeModal();
+        if(window.showToast) showToast('Moved to No match');
+        if(btn){ var row=btn.closest('.td-qrow'); if(row) row.remove(); }
+      }catch(_){ if(window.showToast) showToast('Network error', true); goBtn.disabled=false; }
+    });
+  }
+
+  /* ── Matches — take a pair, reach both sides within the hour ─────────── */
+  function usd(n){
+    n=Number(n)||0;
+    if(n>=1e9) return '$'+(Math.round(n/1e8)/10)+'B';
+    if(n>=1e6) return '$'+(Math.round(n/1e5)/10)+'M';
+    if(n>=1e3) return '$'+Math.round(n/1e3)+'K';
+    return '$'+Math.round(n);
+  }
+  // A pair in words (Evelyn UX pass, 2026-09-29): its size, and how the bid
+  // stands against the ask — «bid 3.2% above» reads as the good news it is,
+  // where «spread -3.2%» read as a minus.
+  function volUsd(v){
+    var mm=/\$?\s*([\d.,]+)\s*([KMB])?/i.exec(String(v||''));
+    if(!mm) return 0;
+    var n=Number(mm[1].replace(/,/g,''));
+    return isFinite(n)?n*({ K:1e3, M:1e6, B:1e9 }[String(mm[2]||'').toUpperCase()]||1):0;
+  }
+  function pairSize(m){
+    if(!m) return 0;
+    if(m.sizeUsd) return m.sizeUsd;
+    var a=volUsd(m.sell&&m.sell.volume), b=volUsd(m.buy&&m.buy.volume);
+    return (a&&b)?Math.min(a,b):(a||b||0);
+  }
+  // spreadPct = (ask − bid) / bid; the bid's edge over the ask is its negative.
+  function bidEdge(m){
+    if(!m||m.spreadPct==null||!isFinite(Number(m.spreadPct))) return null;
+    var e=-Number(m.spreadPct);
+    return { pct:Math.abs(Math.round(e*10)/10), above:e>0, at:e===0 };
+  }
+  function needLabel(m){
+    var miss=m&&m.priceGap&&m.priceGap.missing;
+    if(miss==='sell') return 'Price needed: seller';
+    if(miss==='buy') return 'Price needed: buyer';
+    if(miss==='both') return 'Price needed: both sides';
+    return '';
+  }
+  function edgeTag(m){
+    var need=needLabel(m);
+    if(need) return '<span class="td-edge need">'+esc(need)+'</span>';
+    var e=bidEdge(m);
+    if(!e) return '';
+    if(e.at) return '<span class="td-edge">bid at the ask</span>';
+    return '<span class="td-edge'+(e.above?' up':'')+'">bid '+esc(e.pct)+'% '+(e.above?'above':'below')+'</span>';
+  }
+  function offerBid(m){
+    var a=m&&m.sell&&m.sell.price, b=m&&m.buy&&m.buy.price;
+    if(a&&b) return 'Offer '+a+' \u2192 Bid '+b;
+    if(a) return 'Offer '+a;
+    if(b) return 'Bid '+b;
+    return (m&&m.priceGap)?'No prices yet':'Buy/sell pair';
+  }
+  // Two lines: company + deal size; «Offer → Bid» + the bid's edge.
+  function pairLines(m, nameCls){
+    var size=pairSize(m);
+    return '<div class="td-pl"><span class="'+nameCls+'">'+esc(m.company||'Match')+'</span>'
+      +(size?'<span class="td-size">'+esc(usd(size))+' deal</span>':'')+'</div>'
+      +'<div class="td-pl t-small"><span class="td-ob">'+esc(offerBid(m))+'</span>'+edgeTag(m)+'</div>';
+  }
+  function clockText(deadline){
+    var ms=new Date(deadline).getTime()-Date.now();
+    if(!isFinite(ms)) return '';
+    if(ms<=0) return 'Time is up';
+    var m=Math.floor(ms/60000), s=Math.floor((ms%60000)/1000);
+    return m+':'+(s<10?'0':'')+s+' left';
+  }
+  function sideState(m){
+    var c=m.claim||{}, bits=[];
+    bits.push('Seller '+((c.sell&&c.sell.at)?'reached':'waiting'));
+    bits.push('Buyer '+((c.buy&&c.buy.at)?'reached':'waiting'));
+    return bits.join(' · ');
+  }
+  function stageLabel(id){
+    var cols=(matchesData&&matchesData.columns)||[];
+    var hit=cols.find(function(c){ return c.id===id; });
+    return hit?hit.label:(id||'New matches');
+  }
+  function allMatches(){
+    if(!matchesData) return [];
+    return [].concat(matchesData.mine||[], matchesData.available||[], matchesData.taken||[], matchesData.gaps||[]);
+  }
+  function findMatch(id){
+    return allMatches().find(function(m){ return String(m.id)===String(id); })||null;
+  }
+  function matchPrint(d){
+    return JSON.stringify([d.mine,d.available,d.taken,d.gaps].map(function(list){
+      return (list||[]).map(function(m){ return [m.id,m.status,m.claim&&m.claim.state,m.claim&&m.claim.sell&&m.claim.sell.at,m.claim&&m.claim.buy&&m.claim.buy.at,m.sell&&m.sell.price,m.buy&&m.buy.price]; });
+    }));
+  }
+  // Never an endless spinner: no desk, a failed answer or 10 s of silence all
+  // end in a visible error with Retry.
+  async function loadMatches(){
+    if(!deskPerson){ matchesError='Open your own desk to see matches.'; throw new Error('no_desk'); }
+    var ctl=window.AbortController?new AbortController():null;
+    var timer=ctl?setTimeout(function(){ ctl.abort(); },10000):null;
+    var r, d;
+    try{
+      r=await fetch(api('/matches'), ctl?{ signal:ctl.signal }:undefined);
+      on401(r);
+      if(!r.ok) throw new Error('matches');
+      d=await r.json();
+    }catch(e){
+      if(e.message==='unauth') throw e;
+      matchesError=(e.name==='AbortError')?'Matches took too long to load.':'Matches could not be loaded.';
+      throw e;
+    }finally{ if(timer) clearTimeout(timer); }
+    matchesError='';
+    matchesData=d; matchesPrint=matchPrint(d); minePrint=matchPrint({ mine:d.mine });
+    setMatchBadge();
+    return d;
+  }
+  function setMatchBadge(){
+    var b=document.getElementById('matchBadge');
+    if(!b||!matchesData) return;
+    var n=(matchesData.mine||[]).filter(function(m){ return m.claim&&m.claim.state==='active'; }).length;
+    b.textContent=String(n); b.hidden=!(n>0);
+  }
+  function matchItem(m, sub, extra){
+    return '<div class="co-item'+(String(activeMatch)===String(m.id)?' active':'')+'" data-mid="'+esc(m.id)+'" role="button" tabindex="0" data-open>'
+      +coAvatar(m.company)
+      +'<div class="co-meta"><div class="co-name">'+esc(m.company||'Match')+'</div><div class="t-small" style="color:var(--muted)">'+esc(sub)+'</div></div>'
+      +(extra||'')+'</div>';
+  }
+  function matchPairItem(m){
+    return '<div class="co-item td-pair-item'+(String(activeMatch)===String(m.id)?' active':'')+'" data-mid="'+esc(m.id)+'" role="button" tabindex="0" data-open>'
+      +coAvatar(m.company)
+      +'<div class="co-meta">'+pairLines(m,'co-name')+'</div></div>';
+  }
+  function railHead(label){ return '<div class="td-rail-h eyebrow" data-open>'+esc(label)+'</div>'; }
+  function railFilter(list){
+    var q=String(document.getElementById('coSearch').value||'').trim().toLowerCase();
+    if(!q) return list||[];
+    return (list||[]).filter(function(m){ return String(m.company||'').toLowerCase().indexOf(q)!==-1; });
+  }
+  function bindMatchRail(el){
+    el.querySelectorAll('.co-item[data-mid]').forEach(function(it){ it.addEventListener('click',function(){ openMatch(it.dataset.mid); }); });
+    el.querySelectorAll('.co-item[data-oid]').forEach(function(it){ it.addEventListener('click',function(){ openOpp(it.dataset.oid); }); });
+  }
+  function retryHtml(){
+    return '<div class="banner bad" style="margin:14px"><span>'+IC.warn+'</span><div>'+esc(matchesError)
+      +' <button class="btn btn-ghost btn-sm td-retry" type="button">Retry</button></div></div>';
+  }
+  function bindRetry(root){
+    (root||document).querySelectorAll('.td-retry').forEach(function(b){
+      b.addEventListener('click',function(){ openMatchesHome(tab==='pipeline'||tab==='opportunities'?'pipeline':'matches',{ push:false }); });
+    });
+  }
+  function paintMatchRail(el){
+    if(!matchesData){ el.innerHTML=matchesError?retryHtml():emptyRow('Loading matches…'); bindRetry(el); return; }
+    var mine=railFilter((matchesData.mine||[]).filter(function(m){ return m.claim&&m.claim.state==='active'; }));
+    var avail=railFilter(matchesData.available);
+    var taken=railFilter(matchesData.taken);
+    var hasGaps=Array.isArray(matchesData.gaps);
+    var gaps=railFilter(matchesData.gaps);
+    var html='';
+    if(mine.length) html+=railHead('On your clock ('+mine.length+')')+mine.map(function(m){
+      return matchItem(m, sideState(m), '<span class="t-small clock td-clock" data-deadline="'+esc(m.claim.deadlineAt)+'">'+clockText(m.claim.deadlineAt)+'</span>');
+    }).join('');
+    if(hasGaps) html+='<div class="td-lens">'+lensSeg(avail.length, gaps.length)+'</div>';
+    if(hasGaps && matchLens==='gaps') html+=railHead('Missing price ('+gaps.length+')')+(gaps.length?gaps.map(matchPairItem).join(''):emptyRow('No pairs are missing a price right now'));
+    else html+=railHead('Available ('+avail.length+')')+(avail.length?avail.map(matchPairItem).join(''):emptyRow('No free pairs right now'));
+    if(taken.length) html+=railHead('Held by others ('+taken.length+')')+taken.map(function(m){
+      return matchItem(m, (m.claim?m.claim.deskName:'')+(m.claim&&m.claim.state==='active'?' · on the clock':' · secured'), '');
+    }).join('');
+    el.innerHTML=html;
+    bindMatchRail(el);
+    bindLens(el);
+  }
+  // Priced pairs | pairs missing a price — one switch, the same in the list and on the start screen.
+  function lensSeg(nPriced, nGaps){
+    var b=function(id, label, n){
+      var on=matchLens===id;
+      return '<button type="button" role="tab" data-lens="'+id+'" class="'+(on?'on':'')+'" aria-selected="'+(on?'true':'false')+'">'+esc(label)+' ('+n+')</button>';
+    };
+    return '<div class="seg" role="tablist" aria-label="Which pairs to show">'+b('priced','Priced',nPriced)+b('gaps','Missing price',nGaps)+'</div>';
+  }
+  function bindLens(root){
+    (root||document).querySelectorAll('[data-lens]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var next=btn.getAttribute('data-lens')==='gaps'?'gaps':'priced';
+        if(next===matchLens) return;
+        matchLens=next;
+        writeQS({ lens: next==='gaps'?'gaps':'' });
+        paintList();
+        if(!activeMatch && tab==='matches') renderMatchesHome(document.getElementById('convo'), 'matches');
+      });
+    });
+  }
+  function paintPipelineRail(el){
+    var mine=railFilter(((matchesData&&matchesData.mine)||[]));
+    var html=railHead('Your deals ('+mine.length+')');
+    html+=mine.length?mine.map(function(m){
+      var sub=m.claim&&m.claim.state==='active'?('On the clock · '+sideState(m)):stageLabel(m.status);
+      return matchItem(m, sub);
+    }).join(''):emptyRow('Take a deal from Matches — it lands here.');
+    if(opportunities.length){
+      html+=railHead('In discussion ('+opportunities.length+')')+opportunities.map(function(o){
+        var sub=[o.type, o.structure, o.contact_name, ago(o.last_message_at)].filter(Boolean).join(' · ');
+        return '<div class="co-item'+(String(activeOpp)===String(o.id)?' active':'')+'" data-oid="'+esc(o.id)+'" role="button" tabindex="0">'
+          +'<span class="avatar">'+esc(mono(o.target_company))+'</span>'
+          +'<div class="co-meta"><div class="co-name">'+esc(o.target_company||'Deal')+'</div><div class="t-small" style="color:var(--muted)">'+esc(sub)+'</div></div></div>';
+      }).join('');
+    }
+    el.innerHTML=html;
+    bindMatchRail(el);
+  }
+  async function openMatchesHome(which, opts){
+    opts=opts||{};
+    clearReviewViews();
+    activeMatch=null; activeCompany=null; activePartner=null; activeOpp=null;
+    setCtx(which==='pipeline'?'Pipeline':'Matches');
+    if(opts.push!==false) setPersonUrl(which, null, !!opts.replace);
+    showConvo();
+    var convo=document.getElementById('convo');
+    convo.className='td-convo td-today';
+    convo.innerHTML='<div class="td-asked"><span class="eyebrow">'+(which==='pipeline'?'Pipeline':'Matches')+'</span><span class="q">Loading…</span></div>';
+    paintList();
+    try{ await loadMatches(); }catch(e){
+      if(e.message==='unauth') return;
+      if(tab!==which && !(which==='pipeline'&&tab==='opportunities')) return;
+      paintList();
+      convo.innerHTML='<div class="td-asked"><span class="eyebrow">'+(which==='pipeline'?'Pipeline':'Matches')+'</span><span class="q">Not loaded</span></div>'+retryHtml();
+      bindRetry(convo);
+      return;
+    }
+    if(tab!==which && !(which==='pipeline'&&tab==='opportunities')) return;
+    paintList();
+    renderMatchesHome(convo, which);
+  }
+  function renderMatchesHome(convo, which){
+    var d=matchesData||{ mine:[], available:[], taken:[] };
+    var ticking=(d.mine||[]).filter(function(m){ return m.claim&&m.claim.state==='active'; });
+    var secured=(d.mine||[]).filter(function(m){ return m.claim&&m.claim.state==='secured'; });
+    var html='<div class="td-asked"><span class="eyebrow">'+(which==='pipeline'?'Pipeline':'Matches')+'</span><span class="q">'
+      +(which==='pipeline'?'Your deals':'Take a deal. Reach both sides within the hour.')+'</span></div>';
+    var hasGaps=Array.isArray(d.gaps);
+    html+='<div class="stats" data-open>'
+      +'<div class="stat"><div class="v">'+(d.available||[]).length+'</div><div class="l">Available</div></div>'
+      +(hasGaps&&which!=='pipeline'?'<div class="stat"><div class="v">'+d.gaps.length+'</div><div class="l">Missing price</div></div>':'')
+      +'<div class="stat"><div class="v">'+ticking.length+'</div><div class="l">On your clock</div></div>'
+      +'<div class="stat"><div class="v">'+secured.length+'</div><div class="l">Secured</div></div>'
+      +((d.taken||[]).length?'<div class="stat"><div class="v">'+d.taken.length+'</div><div class="l">Held by others</div></div>':'')
+      +'</div>';
+    if(d.book && which==='pipeline'){
+      html+='<div class="stats">'
+        +'<div class="stat"><div class="v">'+usd(d.book.volumeInProgressUsd)+'</div><div class="l">Deals in progress</div></div>'
+        +'<div class="stat"><div class="v">'+usd(d.book.commissionsInProgressUsd)+'</div><div class="l">Commissions in progress</div></div>'
+        +'<div class="stat"><div class="v">'+usd(d.book.closedVolumeUsd)+'</div><div class="l">Closed deal volume</div></div>'
+        +'<div class="stat"><div class="v">'+usd(d.book.closedCommissionsUsd)+'</div><div class="l">Commissions closed</div></div>'
+        +'</div>';
+    }
+    if(which==='pipeline'){
+      var groups={};
+      (d.mine||[]).forEach(function(m){ var k=m.claim&&m.claim.state==='active'?'__clock':m.status; (groups[k]=groups[k]||[]).push(m); });
+      var order=['__clock'].concat(((d.columns)||[]).map(function(c){ return c.id; }));
+      var any=false;
+      order.forEach(function(k){
+        var list=groups[k]; if(!list||!list.length) return; any=true;
+        html+=qSection((k==='__clock'?'On the clock':stageLabel(k))+' ('+list.length+')', list.map(matchRow).join(''));
+      });
+      if(!any) html+='<div class="banner"><span>'+IC.info+'</span><div><span class="bt">No deals yet.</span> Take a pair from Matches — once you reach both sides within the hour it stays in your pipeline.</div></div>';
+    }else{
+      if(hasGaps) html+='<div class="td-home-lens">'+lensSeg((d.available||[]).length, d.gaps.length)+'</div>';
+      if(hasGaps && matchLens==='gaps'){
+        html+='<div class="banner warn" style="margin-top:18px" data-open><span>'+IC.info+'</span><div><span class="bt">These pairs are missing a price.</span> Take one, call the side without a price and write down what they say. The order is updated, the desk verifies it, and the pair is scored like any match. Largest and freshest first.</div></div>';
+        html+=qSection('Missing price ('+d.gaps.length+')', d.gaps.length?d.gaps.slice(0,30).map(matchRow).join(''):'<div class="td-qempty t-small">No pairs are missing a price right now.</div>');
+      }else{
+        html+=qSection('Available ('+(d.available||[]).length+')', (d.available||[]).length?(d.available||[]).slice(0,30).map(matchRow).join(''):'<div class="td-qempty t-small">No free pairs right now.</div>');
+      }
+    }
+    convo.innerHTML=html;
+    bindLens(convo);
+    convo.querySelectorAll('[data-open-match]').forEach(function(b){ b.addEventListener('click',function(){ openMatch(b.getAttribute('data-open-match')); }); });
+  }
+  function matchRow(m){
+    var right=m.claim&&m.claim.state==='active'
+      ? '<span class="t-small age td-clock" data-deadline="'+esc(m.claim.deadlineAt)+'">'+clockText(m.claim.deadlineAt)+'</span>'
+      : '';
+    return '<div class="td-qrow td-pair-row" data-open>'+coAvatar(m.company)
+      +'<div class="meta">'+pairLines(m,'nm')+'</div>'+right
+      +'<button class="btn btn-ghost btn-sm" type="button" data-open-match="'+esc(m.id)+'">Open</button></div>';
+  }
+  async function openMatch(id, opts){
+    opts=opts||{};
+    clearReviewViews();
+    activeMatch=id; activeCompany=null; activePartner=null; activeOpp=null;
+    var lane=(tab==='pipeline'||tab==='opportunities')?'pipeline':'matches';
+    if(tab!=='matches'&&tab!=='pipeline') setTab('matches',{ push:false });
+    if(opts.push!==false) setPersonUrl(lane, id, !!opts.replace);
+    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showConvo();
+    var convo=document.getElementById('convo');
+    convo.className='td-convo';
+    if(!matchesData||opts.reload){
+      convo.innerHTML='<div class="td-asked"><span class="eyebrow">Match</span><span class="q">Loading…</span></div>';
+      try{ await loadMatches(); }catch(e){
+        if(e.message==='unauth') return;
+        if(String(activeMatch)!==String(id)) return;
+        paintList();
+        convo.innerHTML='<div class="td-asked"><span class="eyebrow">Match</span><span class="q">Not loaded</span></div>'+retryHtml();
+        bindRetry(convo);
+        return;
+      }
+    }
+    if(String(activeMatch)!==String(id)) return;
+    paintList();
+    var m=findMatch(id);
+    if(!m){
+      setCtx('Match');
+      convo.innerHTML='<div class="td-asked"><span class="eyebrow">Match</span><span class="q">No longer on the board</span></div>'
+        +'<div class="banner"><span>'+IC.info+'</span><div>This pair was closed or retired. <a href="/matches?match='+esc(id)+'" target="_blank" rel="noopener">Open it in Matches</a> for its history.</div></div>';
+      return;
+    }
+    setCtx(m.company||'Match');
+    renderMatch(convo, m);
+  }
+  function reportWho(r){
+    var when=r&&r.at?new Date(r.at).toLocaleDateString('en-US',{ month:'short', day:'numeric', timeZone:'America/Los_Angeles' }):'';
+    return [r&&r.by, when].filter(Boolean).join(', ');
+  }
+  function sideCol(label, side, mine, rep){
+    if(!side) return '<div class="col"><div class="eyebrow">'+label+'</div><div class="t-small" style="color:var(--muted);margin-top:10px">This order was removed.</div></div>';
+    var kv='<dl class="kv">'
+      +'<dt>From</dt><dd>'+f(side.from)+'</dd>'
+      +(mine?('<dt>Contact</dt><dd>'+f([side.contactName, side.contactEmail].filter(Boolean).join(' · '))+'</dd>'):'')
+      +'<dt>Price</dt><dd data-open>'+f(side.price)+'</dd>'
+      +'<dt>Volume</dt><dd data-open>'+f(side.volume)+'</dd>'
+      +'<dt>Structure</dt><dd data-open>'+f(side.structure)+'</dd>'
+      +'<dt>Class</dt><dd data-open>'+f(side.shareClass)+'</dd>'
+      +'<dt>Updated</dt><dd data-open>'+f(side.lastUpdate)+'</dd>'
+      +(rep?'<dt>Reported</dt><dd data-open><span class="tag pending"><span class="dot"></span>Broker call</span> '+esc(reportWho(rep))+' · desk to verify</dd>':'')
+      +'</dl>';
+    return '<div class="col"><div class="eyebrow">'+label+'</div>'+kv+'</div>';
+  }
+  var CH_LABEL={ email:'Email', whatsapp:'WhatsApp', telegram:'Telegram' };
+  function reachButtons(m, sideKey){
+    var reach=(m.reach||{})[sideKey]||{}, out='';
+    var other='<button class="td-mark td-other" type="button" data-side="'+sideKey+'" title="A call, LinkedIn or any other way — marked by hand with a note">Other…</button>';
+    var group=function(inner){ return '<div class="td-chan" role="group" aria-label="Reach the '+(sideKey==='sell'?'seller':'buyer')+'">'+inner+other+'</div>'; };
+    if(deskDemo){
+      return group(['email','whatsapp','telegram'].map(function(ch){
+        return '<button class="td-demo-touch" type="button" data-side="'+sideKey+'" data-ch="'+ch+'">'+CH_LABEL[ch]+'</button>';
+      }).join(''));
+    }
+    var subj=(m.company?m.company+': ':'')+(sideKey==='sell'?'your offer':'your bid');
+    (reach.emails||[]).slice(0,1).forEach(function(addr){
+      out+='<a target="_blank" rel="noopener" href="/mailbox/'+esc(deskPerson)+'?compose=1&to='+encodeURIComponent(addr)+'&subject='+encodeURIComponent(subj)+'">Email</a>';
+    });
+    // Every channel this side has on the platform — one button each.
+    var seen={};
+    (reach.chats||[]).forEach(function(c){
+      var key=c.channel==='telegram'?'telegram':'whatsapp';
+      if(seen[key]) return; seen[key]=1;
+      out+='<a target="_blank" rel="noopener" href="/messengers/'+esc(deskPerson)+'?chat='+encodeURIComponent(c.id)+'">'+(key==='telegram'?'Telegram':'WhatsApp')+'</a>';
+    });
+    return group(out);
+  }
+  function sideRow(m, sideKey, label){
+    var c=m.claim||{}, s=c[sideKey]||{}, side=m[sideKey];
+    var reached=!!s.at;
+    var how=reached?(String(s.how||'').indexOf('manual:')===0?'by hand':('by '+({ email:'email', whatsapp:'WhatsApp', telegram:'Telegram' }[s.how]||s.how||'message'))):'';
+    var tag=reached?'<span class="tag ready" title="'+esc(String(s.how||'').replace(/^manual:\s*/,''))+'"><span class="dot"></span>Reached · '+esc(how)+'</span>':'<span class="tag pending"><span class="dot"></span>Waiting</span>';
+    var acts='';
+    if(!reached && c.state==='active'){
+      var reach=(m.reach||{})[sideKey]||{};
+      var hasChannel=(reach.emails||[]).length||(reach.chats||[]).length;
+      acts=(hasChannel||deskDemo)?reachButtons(m, sideKey):'<button class="btn btn-ghost btn-sm td-mark" type="button" data-side="'+sideKey+'">Mark reached</button>';
+    }
+    return '<div class="td-side-row"><div class="who"><div class="nm">'+label+'</div><div class="t-small" style="color:var(--muted)">'+esc(side?(side.from||''):'Order removed')+'</div></div>'
+      +tag+'<div class="acts">'+acts+'</div></div>';
+  }
+  // The call to make on a held pair with a side missing its price, and the
+  // form for what that side said (Arthur 2026-10-25). Saved to the order through
+  // the desk's normal checks; the desk sees it as a broker call and verifies it.
+  var RP_STRUCTURES=['Direct trade','SPV','Double-layer SPV','Triple-layer SPV','Direct/SPV','Forward'];
+  var RP_CLASSES=['Common','Preferred','Common/Preferred','Any','Options'];
+  function taskSides(m){
+    var miss=m&&m.priceGap&&m.priceGap.missing;
+    return miss==='both'?['sell','buy']:(miss==='sell'||miss==='buy')?[miss]:[];
+  }
+  function taskPanel(m){
+    var sides=taskSides(m);
+    if(!sides.length || deskDemo) return '';
+    var side=sides.indexOf(taskSide[m.id])!==-1?taskSide[m.id]:sides[0];
+    var who=side==='sell'?'seller':'buyer';
+    var other=side==='sell'?m.buy:m.sell;
+    var known=other&&other.price?((side==='sell'?'The buyer bids ':'The seller asks ')+other.price+(other.volume?' for '+other.volume:'')+'. '):'';
+    var opt=function(list){ return '<option value="">Not stated</option>'+list.map(function(v){ return '<option>'+esc(v)+'</option>'; }).join(''); };
+    var seg=sides.length>1?'<div class="seg" role="tablist" aria-label="Which side you called">'+sides.map(function(sd){
+      var on=sd===side;
+      return '<button type="button" role="tab" data-task-side="'+sd+'" class="'+(on?'on':'')+'" aria-selected="'+(on?'true':'false')+'">'+(sd==='sell'?'Seller':'Buyer')+'</button>';
+    }).join('')+'</div>':'';
+    return '<div class="td-task" id="tdTask" data-side="'+side+'">'
+      +'<div class="td-task-h"><span class="tag pending"><span class="dot"></span>Your task</span><span class="t-h3">Call the '+who+' and ask for the price</span></div>'
+      +seg
+      +'<p class="t-small td-task-copy" data-open>'+esc(known)+'Write down what they tell you. Only what they said — leave the rest empty.</p>'
+      +'<form class="td-form" id="tdReport" novalidate>'
+      +'<div class="field"><label for="rpPrice">Price per share</label><input type="text" id="rpPrice" inputmode="decimal" autocomplete="off" placeholder="e.g. 185.50" data-write></div>'
+      +'<div class="field"><label for="rpSize">Size</label><input type="text" id="rpSize" autocomplete="off" placeholder="e.g. 5M" data-write></div>'
+      +'<div class="field"><label for="rpValuation">Valuation, if stated</label><input type="text" id="rpValuation" autocomplete="off" placeholder="e.g. 350B" data-write></div>'
+      +'<div class="field"><label for="rpStructure">Structure</label><select id="rpStructure" data-write>'+opt(RP_STRUCTURES)+'</select></div>'
+      +'<div class="field"><label for="rpClass">Share class</label><select id="rpClass" data-write>'+opt(RP_CLASSES)+'</select></div>'
+      +'<div class="field wide"><label for="rpNote">What they said</label><textarea id="rpNote" rows="3" placeholder="Their words, as close as you can" data-write></textarea></div>'
+      +'<p class="t-small td-form-err" id="rpErr" role="alert"></p>'
+      +'<div class="td-form-ft"><p class="t-small hint" data-open>Saved to the '+who+'\u2019s order. The desk sees it as your broker call and verifies it.</p>'
+      +'<button class="btn btn-primary" type="submit" id="rpSave" data-write>Save to the deal</button></div>'
+      +'</form></div>';
+  }
+  function reportsList(m){
+    var reps=(m.priceGap&&m.priceGap.reports)||{};
+    var rows=['sell','buy'].filter(function(sd){ return reps[sd]; }).map(function(sd){
+      var r=reps[sd], fl=r.fields||{};
+      var terms=[fl.gross_price?fl.gross_price+' per share':'', fl.max_deal_size?'size '+fl.max_deal_size:'', fl.structure||'', fl.share_class||'', fl.implied_valuation?'valuation '+fl.implied_valuation:''].filter(Boolean).join(' · ');
+      return '<div class="td-qrow"><span class="tag pending"><span class="dot"></span>'+(sd==='sell'?'Seller':'Buyer')+'</span>'
+        +'<div class="meta"><div class="nm">'+esc(terms||'Terms recorded')+'</div><div class="t-small sb">Broker call · '+esc(reportWho(r))+' · desk to verify</div></div></div>';
+    });
+    return rows.length?'<div class="td-reports" data-open>'+rows.join('')+'</div>':'';
+  }
+  function reportDirty(){
+    var f=document.getElementById('tdReport');
+    if(!f) return false;
+    if(f.contains(document.activeElement)) return true;
+    return Array.prototype.some.call(f.querySelectorAll('input,select,textarea'), function(el){ return String(el.value||'').trim()!==''; });
+  }
+  function bindReport(m){
+    document.querySelectorAll('[data-task-side]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        taskSide[m.id]=btn.getAttribute('data-task-side');
+        renderMatch(document.getElementById('convo'), m);
+        var t=document.getElementById('tdTask'); if(t&&t.scrollIntoView) t.scrollIntoView({ block:'nearest' });
+      });
+    });
+    var form=document.getElementById('tdReport');
+    if(!form) return;
+    form.addEventListener('submit', async function(ev){
+      ev.preventDefault();
+      var val=function(id){ return String((document.getElementById(id)||{}).value||'').trim(); };
+      var err=document.getElementById('rpErr'), save=document.getElementById('rpSave');
+      var body={ side:(document.getElementById('tdTask')||{}).getAttribute?document.getElementById('tdTask').getAttribute('data-side'):'',
+        price:val('rpPrice'), size:val('rpSize'), valuation:val('rpValuation'), structure:val('rpStructure'), shareClass:val('rpClass'), note:val('rpNote') };
+      if(err) err.textContent='';
+      if(!body.price && !body.size && !body.valuation && !body.structure && !body.shareClass){ if(err) err.textContent='Enter at least one term they gave you.'; return; }
+      if(body.note.length<3){ if(err) err.textContent='Write down what they said, in their words.'; var n=document.getElementById('rpNote'); if(n) n.focus(); return; }
+      save.disabled=true; save.textContent='Saving…';
+      try{
+        var r=await fetch(api('/matches/'+encodeURIComponent(m.id)+'/price-report'),{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+        on401(r);
+        var b=await r.json().catch(function(){ return {}; });
+        if(!r.ok) throw new Error(b.error||'Could not save. Try again.');
+        delete taskSide[m.id];
+        form.reset();
+        if(window.showToast) showToast('Saved to the deal — the desk will verify it');
+      }catch(e){
+        if(err) err.textContent=e.message||'Could not save. Try again.';
+        save.disabled=false; save.textContent='Save to the deal';
+        return;
+      }
+      openMatch(m.id,{ push:false, reload:true });
+    });
+  }
+  function renderMatch(convo, m){
+    var c=m.claim, mine=!!(c&&matchesData&&(matchesData.mine||[]).some(function(x){ return String(x.id)===String(m.id); }));
+    var win=(matchesData&&matchesData.windowMin)||60;
+    var html='<div class="td-asked"><span class="eyebrow">Match</span><span class="q">'+esc(m.company||'Match')+'</span></div>';
+    // Four figures a candidate reads at a glance: size, ask, bid, the bid's edge.
+    var size=pairSize(m), e=bidEdge(m);
+    html+='<div class="td-figs" data-open>'
+      +'<div class="stat"><div class="v">'+(size?esc(usd(size)):'—')+'</div><div class="l">Deal size</div></div>'
+      +'<div class="stat"><div class="v">'+f(m.sell&&m.sell.price)+'</div><div class="l">Seller asks</div></div>'
+      +'<div class="stat"><div class="v">'+f(m.buy&&m.buy.price)+'</div><div class="l">Buyer bids</div></div>'
+      +'<div class="stat"><div class="v'+(e&&e.above?' up':'')+'">'+(e?((e.above?'+':(e.at?'':'\u2212'))+esc(e.pct)+'%'):'—')+'</div><div class="l">'+(!e?'Bid vs ask':(!e.above&&!e.at?'Bid below the ask':'Bid above the ask'))+'</div></div>'
+      +'</div>';
+    if(m.commissionUsd) html+='<p class="t-small td-figs-note" data-open>Commissions on this deal \u2248 '+esc(usd(m.commissionUsd))+'</p>';
+    // The claim panel — the one control that matters on this screen.
+    var need=m.priceGap&&m.priceGap.missing;
+    if(need && !mine){
+      var nWho=need==='sell'?'the seller has':(need==='buy'?'the buyer has':'neither side has');
+      var known=need==='sell'?(m.buy&&m.buy.price?' The buyer bids '+m.buy.price+'.':''):(need==='buy'?(m.sell&&m.sell.price?' The seller asks '+m.sell.price+'.':''):'');
+      html+='<div class="banner warn" style="margin-bottom:16px" data-open><span>'+IC.info+'</span><div><span class="bt">'+esc(needLabel(m))+'.</span> So far '+nWho+' not named a price.'+esc(known)+' Take the deal, call and write down their terms — the order is updated for the desk to verify, and the pair is scored like any match.</div></div>';
+    }
+    html+='<div class="td-claim">';
+    if(!c){
+      html+='<div class="td-claim-hd"><div class="copy"><b>Nobody holds this deal.</b> Take it and it is reserved for you for '+win+' minutes — no other broker sees it. '
+        +(need?'Call '+(need==='buy'?'the buyer':'the seller')+' for the price and record it here, reach the other side too, and the deal stays yours until it closes; otherwise it returns to the pool.':'Reach the seller and the buyer within that time, and the deal stays yours until it closes; otherwise it returns to the pool.')+'</div>'
+        +'<button class="btn btn-primary" type="button" id="tdTake">Take deal</button></div>';
+    }else if(!mine){
+      html+='<div class="td-claim-hd"><div class="copy"><b>'+esc(c.deskName||'Another broker')+'</b> holds this deal'
+        +(c.state==='active'?' — the clock is running.':' — both sides reached.')+'</div>'
+        +(c.state==='active'?'<span class="tag pending td-clock" data-deadline="'+esc(c.deadlineAt)+'">'+clockText(c.deadlineAt)+'</span>':'<span class="tag ready"><span class="dot"></span>Secured</span>')+'</div>';
+    }else if(c.state==='active'){
+      html+='<div class="td-claim-hd"><div><div class="td-count td-clock" data-deadline="'+esc(c.deadlineAt)+'" data-big="1">'+clockText(c.deadlineAt).replace(' left','')+'</div>'
+        +'<div class="eyebrow" style="margin-top:8px">Left to reach both sides</div></div>'
+        +'<div class="copy">Reserved for you. Reach the seller and the buyer through any channel of the platform — the desk sees your message and ticks that side off. Both reached in time: the deal stays yours until it closes.</div>'
+        +'<button class="btn btn-ghost btn-sm" type="button" id="tdRelease">Release</button></div>'
+        +sideRow(m,'sell','Seller')+sideRow(m,'buy','Buyer')+taskPanel(m)+reportsList(m);
+    }else{
+      html+='<div class="td-claim-hd"><span class="tag ready"><span class="dot"></span>Secured</span><div class="copy"><b>Both sides reached in time.</b> This deal is yours until it closes. Now the real work begins: negotiating with both sides and running the deal to closing.</div>'
+        +'<button class="btn btn-ghost btn-sm" type="button" id="tdRelease">Release</button></div>'
+        +sideRow(m,'sell','Seller')+sideRow(m,'buy','Buyer')+taskPanel(m)+reportsList(m);
+    }
+    html+='</div>';
+    if(mine && deskMode){
+      // On a broker's desk the stage IS the column of their Pipeline board.
+      if(c.state==='secured'){
+        html+='<div class="td-match-tools"><label class="eyebrow" for="tdBoard">Pipeline stage</label><select id="tdBoard">'
+          +BOARD_STAGES.map(function(st){ return '<option value="'+st[0]+'"'+(st[0]===(m.boardStage||'')?' selected':'')+'>'+st[1]+'</option>'; }).join('')
+          +'</select><a class="btn btn-ghost btn-sm" href="/desk/pipeline">Open Pipeline</a></div>';
+      }
+    }else if(mine){
+      var opts=((matchesData&&matchesData.columns)||[]).filter(function(col){ return col.id!=='no_match'; }).map(function(col){
+        return '<option value="'+esc(col.id)+'"'+(col.id===m.status?' selected':'')+'>'+esc(col.label)+'</option>';
+      }).join('');
+      html+='<div class="td-match-tools"><label class="eyebrow" for="tdStage">Stage</label><select id="tdStage">'+opts+'</select>'
+        +(deskDemo?'':'<button class="btn btn-ghost btn-sm" type="button" id="tdNoMatch">No match</button>'
+        +'<a class="btn btn-ghost btn-sm" href="/matches?match='+esc(m.id)+'" target="_blank" rel="noopener">Open in Matches</a>')+'</div>';
+    }
+    var reps=(m.priceGap&&m.priceGap.reports)||{};
+    html+='<div class="td-pair">'+sideCol('Offer · sell-side', m.sell, mine, reps.sell)+sideCol('Bid · buy-side', m.buy, mine, reps.buy)+'</div>';
+    var hist=(m.history||[]).filter(Boolean);
+    if(hist.length){
+      html+=qSection('Earlier on this deal', '<div class="td-hist">'+hist.map(function(h){
+        var when=h.takenAt?new Date(h.takenAt).toLocaleDateString('en-US',{ month:'short', day:'numeric' }):'';
+        var sides=[(h.sell&&h.sell.at)?'seller reached':'seller not reached', (h.buy&&h.buy.at)?'buyer reached':'buyer not reached'].join(', ');
+        var end=h.state==='expired'?'hour ran out':(h.state==='released'?'released':h.state);
+        return '<div class="td-qrow"><span class="avatar">'+esc(mono(h.deskName))+'</span><div class="meta"><div class="nm">'+esc(h.deskName)+' · '+esc(when)+'</div><div class="t-small sb">'+esc(sides+' — '+end)+'</div></div></div>';
+      }).join('')+'</div>');
+    }
+    convo.innerHTML=html;
+    bindMatchActions(m);
+    bindReport(m);
+  }
+  async function postClaim(m, action, body){
+    var r=await fetch(api('/matches/'+encodeURIComponent(m.id)+'/'+action),{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body||{})
+    });
+    on401(r);
+    var b=await r.json().catch(function(){ return {}; });
+    if(!r.ok){
+      var msg=b.error||'Could not update this deal';
+      if(b.code==='taken'&&b.holder) msg=b.holder+' already holds this deal';
+      throw new Error(msg);
+    }
+    return b;
+  }
+  function bindMatchActions(m){
+    var take=document.getElementById('tdTake');
+    if(take) take.addEventListener('click', async function(){
+      take.disabled=true; take.textContent='Taking…';
+      var nextId=m.id;
+      try{ var tb=await postClaim(m,'take'); if(tb&&tb.matchId) nextId=tb.matchId; if(window.showToast) showToast('Deal taken — the clock is running'); }
+      catch(e){ if(window.showToast) showToast(e.message, true); }
+      // A pair missing a price gets its ledger id on the first take.
+      if(String(nextId)!==String(m.id)) openMatch(nextId,{ replace:true, reload:true });
+      else openMatch(m.id,{ push:false, reload:true });
+    });
+    var rel=document.getElementById('tdRelease');
+    if(rel) rel.addEventListener('click', function(){
+      var go=async function(){
+        try{ await postClaim(m,'release'); if(window.showToast) showToast('Deal released to the pool'); }
+        catch(e){ if(window.showToast) showToast(e.message, true); }
+        openMatch(m.id,{ push:false, reload:true });
+      };
+      if(window.confirmModal) confirmModal('Release this deal?','It goes back to the pool and any broker can take it.',go); else go();
+    });
+    document.querySelectorAll('.td-mark').forEach(function(btn){
+      btn.addEventListener('click', function(){ markReachedModal(m, btn.getAttribute('data-side')); });
+    });
+    var board=document.getElementById('tdBoard');
+    if(board) board.addEventListener('change', async function(){
+      try{
+        var r=await fetch(api('/pipeline-board/move'),{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id:m.id, status:board.value }) });
+        if(!r.ok) throw new Error('Could not move');
+        m.boardStage=board.value;
+        if(window.showToast) showToast('Moved to '+board.options[board.selectedIndex].text);
+      }catch(e){ if(window.showToast) showToast(e.message, true); }
+    });
+    var stage=document.getElementById('tdStage');
+    if(stage) stage.addEventListener('change', async function(){
+      try{
+        var r=await fetch(deskDemo?api('/matches/'+encodeURIComponent(m.id)+'/move'):('/api/pipeline-matches/'+encodeURIComponent(m.id)+'/move'),{
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ status:stage.value })
+        });
+        if(!r.ok) throw new Error('Could not move');
+        if(window.showToast) showToast('Moved to '+stageLabel(stage.value));
+      }catch(e){ if(window.showToast) showToast(e.message, true); }
+      openMatch(m.id,{ push:false, reload:true });
+    });
+    var nm=document.getElementById('tdNoMatch');
+    if(nm) nm.addEventListener('click', function(){ noMatchVerdict(m.id, m.company||'Match', null); });
+    document.querySelectorAll('.td-demo-touch').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        btn.disabled=true; btn.textContent='Sending…';
+        try{
+          await postClaim(m,'touch',{ side:btn.getAttribute('data-side'), channel:btn.getAttribute('data-ch') });
+          if(window.showToast) showToast((CH_LABEL[btn.getAttribute('data-ch')]||'Message')+' sent — the desk ticked it off');
+        }catch(e){ if(window.showToast) showToast(e.message, true); }
+        openMatch(m.id,{ push:false, reload:true });
+      });
+    });
+  }
+  function markReachedModal(m, side){
+    if(!window.showModal) return;
+    var who=side==='sell'?'seller':'buyer';
+    showModal('<div class="modal-hd"><h2>Mark the '+who+' reached</h2></div>'
+      +'<div class="modal-bd"><p class="t-small" style="color:var(--muted);margin:0 0 10px">Only for a side we have no mail or chat with — a platform listing, a phone call. Say how you reached them; it stays in the deal history.</p>'
+      +'<textarea id="mrNote" rows="3" style="width:100%" placeholder="e.g. Messaged on the platform"></textarea></div>'
+      +'<div class="modal-ft"><button class="btn btn-ghost" id="mrCancel" type="button">Cancel</button>'
+      +'<button class="btn btn-primary" id="mrGo" type="button">Mark reached</button></div>');
+    var cancel=document.getElementById('mrCancel');
+    if(cancel) cancel.addEventListener('click',function(){ if(window.closeModal) closeModal(); });
+    var go=document.getElementById('mrGo');
+    if(go) go.addEventListener('click', async function(){
+      var note=((document.getElementById('mrNote')||{}).value||'').trim();
+      if(note.length<3){ if(window.showToast) showToast('Say how you reached them', true); return; }
+      go.disabled=true;
+      try{ await postClaim(m,'contacted',{ side:side, note:note }); if(window.closeModal) closeModal(); if(window.showToast) showToast('Marked reached'); }
+      catch(e){ if(window.showToast) showToast(e.message, true); go.disabled=false; return; }
+      openMatch(m.id,{ push:false, reload:true });
+    });
+  }
+  // Countdown text only — no network, no repaint of the page.
+  function tradeClockTick(){
+    document.querySelectorAll('.td-clock[data-deadline]').forEach(function(n){
+      var t=clockText(n.getAttribute('data-deadline'));
+      n.textContent=n.getAttribute('data-big')?t.replace(' left',''):t;
+      if(n.classList.contains('td-count')) n.classList.toggle('late', new Date(n.getAttribute('data-deadline')).getTime()-Date.now()<10*60000);
+    });
+  }
+  // Quiet refresh while a clock runs: pulls the desk's matches and repaints ONLY
+  // when something actually changed (a side got reached, a pair was taken).
+  async function matchesRefreshTick(){
+    if(document.hidden || !deskPerson) return;
+    if(tab!=='matches' && tab!=='pipeline' && tab!=='opportunities' && tab!=='today') return;
+    var overlay=document.getElementById('modalOverlay');
+    if(overlay && overlay.classList.contains('open')) return;
+    if(activeOpp||activeCompany||activePartner) return;
+    var before=matchesPrint, beforeMine=minePrint;
+    try{ await loadMatches(); }catch(_){ return; }
+    if(tab==='today'){
+      // Today only cares about this desk's own clocks; repaint from cache, no refetch.
+      if(minePrint!==beforeMine) renderToday(document.getElementById('convo'), lastQueue, matchesData);
+      return;
+    }
+    if(matchesPrint===before) return;
+    paintList();
+    if(activeMatch && reportDirty()) return;
+    if(activeMatch){ var m=findMatch(activeMatch); if(m) renderMatch(document.getElementById('convo'), m); }
+    else renderMatchesHome(document.getElementById('convo'), tab==='matches'?'matches':'pipeline');
+  }
+  setInterval(tradeClockTick, 1000);
+  setInterval(matchesRefreshTick, 30000);
+
+  async function openCompany(name, opts){
+    opts=opts||{};
+    clearReviewViews();
+    activeCompany=name; activePartner=null; activeOpp=null; activeMatch=null;
+    paintList(); setCtx(name);
+    if(opts.push!==false){
+      if(deskPerson) setPersonUrl('companies', name, !!opts.replace);
+      else setUrl(name, !!opts.replace);
+    }
+    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showConvo();
+    var convo=document.getElementById('convo');
+    convo.innerHTML='<div class="td-asked"><span class="eyebrow">Showing</span><span class="q">'+esc(name)+'</span></div><div class="t-small" style="color:var(--muted)">Pulling live liquidity…</div>';
+    var dealsOk=false;
+    try{
+      var d=await (on401(await fetch(deskMode?api('/company/'+encodeURIComponent(name)):('/api/broker/company/'+encodeURIComponent(name))))).json();
+      renderDeals(name, d);
+      dealsOk=true;
+    }catch(e){
+      if(e.message==='unauth') return;
+      // A desk owner without the broker feed still gets the correspondence.
+      if(!deskPerson){ convo.innerHTML='<div class="banner bad"><span>'+IC.warn+'</span><div>Could not load. Try again.</div></div>'; return; }
+      convo.innerHTML='<div class="td-asked"><span class="eyebrow">Showing</span><span class="q">'+esc(name)+'</span></div>';
+    }
+    if(deskPerson && !deskDemo){
+      try{
+        var tl=await loadTimeline('company', name);
+        convo.insertAdjacentHTML('beforeend', feedHtml(tl.items));
+        fitMail(convo);
+        mountContextReview(tl.items);
+        mountThreadTools(tl.items, { scope:'company', company:name });
+      }catch(_){
+        convo.insertAdjacentHTML('beforeend', '<div class="t-small" style="color:var(--muted);margin-top:16px">Correspondence could not be loaded.</div>');
+      }
+    }
+  }
+
+  async function openPartner(id, opts){
+    opts=opts||{};
+    clearReviewViews();
+    activePartner=id; activeCompany=null; activeOpp=null; activeMatch=null;
+    var row=partners.find(function(p){ return String(p.id)===String(id); });
+    var title=(row&&row.name)||('Partner '+id);
+    paintList(); setCtx(title);
+    if(opts.push!==false) setPersonUrl('partners', id, !!opts.replace);
+    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showConvo();
+    var convo=document.getElementById('convo');
+    var who=deskMode?'Client':'Partner';
+    convo.innerHTML='<div class="td-asked"><span class="eyebrow">'+who+'</span><span class="q">'+esc(title)+'</span></div><div class="t-small" style="color:var(--muted)">Loading correspondence…</div>';
+    try{
+      var tl=await loadTimeline('partner', id);
+      convo.innerHTML='<div class="td-asked"><span class="eyebrow">'+who+'</span><span class="q">'+esc(title)+'</span></div>'+feedHtml(tl.items);
+      try {
+        var docsRes=await fetch('/api/esign/partners/'+encodeURIComponent(id)+'/documents',{credentials:'include'});
+        if(docsRes.ok){var docsData=await docsRes.json();var docs=(docsData.documents||[]);
+          convo.insertAdjacentHTML('afterbegin','<section class="td-asked"><span class="eyebrow">Documents</span>'+
+            (docs.length?docs.map(function(d){return '<div><a href="'+((d.status==='completed'||d.source==='docusign')?'/api/esign/'+encodeURIComponent(d.public_id)+'/final':'/esign?env='+encodeURIComponent(d.public_id))+'" target="_blank" rel="noopener">'+esc(d.title)+'</a> · '+esc(d.status)+(d.source==='docusign'?' · DocuSign archive':'')+' · '+esc(new Date(d.created_at).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}))+'</div>'}).join(''):'<div class="t-small">No documents yet.</div>')+'</section>');}
+      } catch (_) { /* correspondence stays usable when documents are unavailable */ }
+      fitMail(convo);
+      mountContextReview(tl.items);
+      mountThreadTools(tl.items, { scope:'partner', id:id, company:(row&&row.last_company)||'' });
+    }catch(e){ if(e.message!=='unauth') convo.innerHTML='<div class="banner bad"><span>'+IC.warn+'</span><div>Could not load. Try again.</div></div>'; }
+  }
+
+  async function openOpp(id, opts){
+    opts=opts||{};
+    clearReviewViews();
+    activeOpp=id; activeCompany=null; activePartner=null; activeMatch=null;
+    var row=opportunities.find(function(o){ return String(o.id)===String(id); });
+    var title=(row&&row.target_company)||('Deal '+id);
+    paintList(); setCtx(title);
+    if(opts.push!==false) setPersonUrl('opportunities', id, !!opts.replace);
+    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showConvo();
+    var convo=document.getElementById('convo');
+    convo.innerHTML='<div class="td-asked"><span class="eyebrow">Opportunity</span><span class="q">'+esc(title)+'</span></div><div class="t-small" style="color:var(--muted)">Loading correspondence…</div>';
+    try{
+      var tl=await loadTimeline('opportunity', id);
+      var head='<div class="td-asked"><span class="eyebrow">Opportunity</span><span class="q">'+esc(title)+'</span></div>';
+      if(row) head+='<div class="t-small" style="color:var(--muted);margin-bottom:12px">'+esc([row.type,row.structure,row.contact_name].filter(Boolean).join(' · '))+'</div>';
+      convo.innerHTML=head+feedHtml(tl.items);
+      fitMail(convo);
+      mountContextReview(tl.items);
+      mountThreadTools(tl.items, { scope:'opportunity', id:id, company:(row&&row.target_company)||'' });
+    }catch(e){ if(e.message!=='unauth') convo.innerHTML='<div class="banner bad"><span>'+IC.warn+'</span><div>Could not load. Try again.</div></div>'; }
+  }
+
+  /* ── Thread tools: reply in place + book a deal ─────────────────────── */
+  function latestIm(items){
+    var hit=null;
+    (items||[]).forEach(function(it){
+      if(it && it.external_id && (it.channel==='whatsapp'||it.channel==='telegram')) hit=it;
+    });
+    return hit;
+  }
+  function latestInbound(items){
+    var hit=null;
+    (items||[]).forEach(function(it){ if(it && it.direction==='in' && it.body_text) hit=it; });
+    return hit;
+  }
+  function reqId(){ return 'td-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10); }
+  // Demo desk: a reply lands in the thread on the demo desk only — nothing
+  // leaves the platform. Mail and WhatsApp with the client live in one window.
+  function mountDemoThreadTools(items, ctx){
+    var convo=document.getElementById('convo');
+    var box=document.createElement('div');
+    box.className='td-composer';
+    box.innerHTML='<textarea rows="3" placeholder="Write a reply…" aria-label="Write a reply"></textarea>'
+      +'<div class="td-composer-row"><span class="t-small to">Replies go out from your own mail or WhatsApp line, in this same thread</span>'
+      +'<button class="btn btn-primary btn-sm" type="button" data-send disabled>Send</button></div>';
+    convo.appendChild(box);
+    var ta=box.querySelector('textarea'), sendBtn=box.querySelector('[data-send]');
+    ta.addEventListener('input',function(){ sendBtn.disabled=!ta.value.trim(); });
+    sendBtn.addEventListener('click', async function(){
+      var text=ta.value.trim(); if(!text) return;
+      sendBtn.disabled=true;
+      try{
+        var r=await fetch(api('/reply'),{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ scope:ctx.scope, id:ctx.id, body:text }) });
+        if(!r.ok) throw new Error('send');
+        ta.value='';
+        if(window.showToast) showToast('Sent');
+        reopenCurrent();
+      }catch(_){ if(window.showToast) showToast('Could not send', true); sendBtn.disabled=false; }
+    });
+  }
+  function mountThreadTools(items, ctx){
+    if(deskDemo) return mountDemoThreadTools(items, ctx);
+    var convo=document.getElementById('convo');
+    var head=convo.querySelector('.td-asked');
+    if(head){
+      var bar=document.createElement('div');
+      bar.className='td-thread-actions';
+      bar.innerHTML='<button class="btn btn-ghost btn-sm" id="bookDeal" type="button">Book deal</button>';
+      head.insertAdjacentElement('afterend', bar);
+      var bd=document.getElementById('bookDeal');
+      if(bd) bd.addEventListener('click',function(){ bookDealModal(items, ctx||{}); });
+    }
+    var im=latestIm(items);
+    if(im){
+      var box=document.createElement('div');
+      box.className='td-composer';
+      var chName=im.channel==='telegram'?'Telegram':'WhatsApp';
+      box.innerHTML='<textarea rows="2" placeholder="Write a reply…" aria-label="Write a reply"></textarea>'
+        +'<div class="td-composer-row"><span class="t-small to">Replies as your desk in '+chName+' to '+esc(im.display_name||im.sender_name||'this chat')+'</span>'
+        +'<button class="btn btn-primary btn-sm" type="button" disabled>Send</button></div>';
+      convo.appendChild(box);
+      var ta=box.querySelector('textarea'), sendBtn=box.querySelector('button');
+      ta.addEventListener('input',function(){ sendBtn.disabled=!ta.value.trim(); });
+      sendBtn.addEventListener('click', async function(){
+        var text=ta.value.trim(); if(!text) return;
+        sendBtn.disabled=true; sendBtn.textContent='Sending…';
+        try{
+          var r=await fetch('/api/messengers/messages',{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ person:deskPerson, channel:im.channel, to:im.external_id, body:text, requestId:reqId() })
+          });
+          var b=await r.json().catch(function(){ return {}; });
+          if(!r.ok){ if(window.showToast) showToast(b.error||'Could not send', true); sendBtn.disabled=false; sendBtn.textContent='Send'; return; }
+          ta.value='';
+          if(window.showToast) showToast('Sent');
+          sendBtn.textContent='Send';
+          reopenCurrent();
+        }catch(_){ if(window.showToast) showToast('Network error', true); sendBtn.disabled=false; sendBtn.textContent='Send'; }
+      });
+    }else if((items||[]).some(function(it){ return it.channel==='email'; })){
+      var mail=document.createElement('div');
+      mail.className='td-composer';
+      mail.innerHTML='<div class="td-composer-row" style="margin-top:0"><span class="t-small to">This thread lives in email — reply from your mailbox to keep the chain intact.</span>'
+        +'<a class="btn btn-ghost btn-sm" href="/mailbox/'+esc(deskPerson)+'" target="_blank" rel="noopener">Open Mailbox</a></div>';
+      convo.appendChild(mail);
+    }
+  }
+  function reopenCurrent(){
+    if(activePartner) return openPartner(activePartner, { push:false });
+    if(activeOpp) return openOpp(activeOpp, { push:false });
+    if(activeCompany) return openCompany(activeCompany, { push:false });
+  }
+  function bookDealModal(items, ctx){
+    if(!window.showModal) return;
+    writeQS({ book:'1' }, { push:true });
+    bindDeskModalUrl();
+    var inbound=latestInbound(items);
+    var mailItem=null;
+    (items||[]).forEach(function(it){ if(it && it.channel==='email' && it.direction==='in') mailItem=it; });
+    var fld=function(id,label,value,ph){
+      return '<label class="t-small" style="display:block;margin-top:10px;color:var(--muted)">'+label
+        +'<input id="'+id+'" type="text" style="width:100%;margin-top:4px" value="'+esc(value||'')+'" placeholder="'+esc(ph||'')+'"></label>';
+    };
+    showModal('<div class="modal-hd"><h2>Book deal</h2></div>'
+      +'<div class="modal-bd">'
+      +fld('bdCompany','Company *', ctx.company||'','e.g. Anthropic')
+      +'<label class="t-small" style="display:block;margin-top:10px;color:var(--muted)">Side'
+      +'<select id="bdType" style="width:100%;margin-top:4px"><option value="SELL">SELL — offer</option><option value="BUY">BUY — bid</option></select></label>'
+      +fld('bdStructure','Structure','','Direct / SPV / Forward')
+      +fld('bdSize','Volume','','e.g. $10M')
+      +fld('bdPrice','Price per share','','from the message only')
+      +fld('bdEmail','Contact email', (mailItem&&mailItem.sender_address)||'','counterparty email')
+      +fld('bdOrg','Organization','','counterparty firm')
+      +'<label class="t-small" style="display:block;margin-top:10px;color:var(--muted)">Notes — verbatim from the message *'
+      +'<textarea id="bdNotes" rows="4" style="width:100%;margin-top:4px">'+esc(inbound?inbound.body_text:'')+'</textarea></label>'
+      +'</div>'
+      +'<div class="modal-ft"><button class="btn btn-ghost" id="bdCancel" type="button">Cancel</button>'
+      +'<button class="btn btn-primary" id="bdGo" type="button">Book deal</button></div>', { wide:true });
+    var cancel=document.getElementById('bdCancel');
+    if(cancel) cancel.addEventListener('click',function(){ if(window.closeModal) closeModal(); });
+    var go=document.getElementById('bdGo');
+    if(!go) return;
+    go.addEventListener('click', async function(){
+      var v=function(id){ var n=document.getElementById(id); return n?String(n.value||'').trim():''; };
+      var payload={ target_company:v('bdCompany'), type:v('bdType')||'SELL', notes:v('bdNotes') };
+      if(!payload.target_company){ if(window.showToast) showToast('Company is required', true); return; }
+      if(!payload.notes){ if(window.showToast) showToast('Notes must carry the verbatim message', true); return; }
+      if(v('bdStructure')) payload.structure=v('bdStructure');
+      if(v('bdSize')) payload.max_deal_size=v('bdSize');
+      if(v('bdPrice')) payload.gross_price=v('bdPrice');
+      if(v('bdEmail')) payload.contact_email=v('bdEmail');
+      if(v('bdOrg')) payload.source_organization=v('bdOrg');
+      if(!payload.contact_email && !payload.source_organization){
+        if(window.showToast) showToast('Contact email or organization is required', true); return;
+      }
+      go.disabled=true; go.textContent='Booking…';
+      try{
+        var r=await fetch('/api/opportunities',{
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+        });
+        var b=await r.json().catch(function(){ return {}; });
+        if(!r.ok){ if(window.showToast) showToast(b.error||'Could not book', true); go.disabled=false; go.textContent='Book deal'; return; }
+        if(window.closeModal) closeModal();
+        if(window.showToast) showToast('Deal #'+(b.id||'')+' booked');
+        loadOpps('');
+      }catch(_){ if(window.showToast) showToast('Network error', true); go.disabled=false; go.textContent='Book deal'; }
+    });
+  }
+
+  function dealRow(x){
+    var act = deskPerson
+      ? (x.contact_name ? '<span class="t-small">'+esc(x.contact_name)+'</span>' : '<span class="t-small" style="color:var(--muted-2)">—</span>')
+      : (x.opened
+        ? '<span class="tag ready"><span class="dot"></span>Opened</span>'
+        : (x.has_contact ? '<button class="btn btn-primary btn-sm open-cp" data-id="'+x.id+'">Open contact</button>'
+                         : '<span class="t-small" style="color:var(--muted-2)">No contact</span>'));
+    return '<tr>'
+      +'<td class="cell-strong" data-open>'+f(x.structure)+'</td>'
+      +'<td data-open>'+f(x.share_class)+'</td>'
+      +'<td class="num" data-open>'+f(x.volume)+'</td>'
+      +'<td class="num" data-open>'+f(x.valuation)+'</td>'
+      +'<td class="num" data-open>'+f(x.price)+'</td>'
+      +'<td>'+act+'</td></tr>';
+  }
+  function section(label, rows){
+    if(!rows.length) return '';
+    return '<div class="convo-block"><div class="sec-label" data-open><span class="eyebrow">'+label+' ('+rows.length+')</span></div>'
+      +'<div class="table-wrap"><table class="data"><thead><tr>'
+      +'<th>Structure</th><th>Class</th><th class="num">Volume</th><th class="num">Valuation</th><th class="num">PPS</th><th>'+(deskPerson?'Contact':'Contact')+'</th>'
+      +'</tr></thead><tbody>'+rows.map(dealRow).join('')+'</tbody></table></div></div>';
+  }
+  function renderDeals(name, d){
+    var offers=d.offers||[], bids=d.bids||[];
+    var convo=document.getElementById('convo');
+    var head='<div class="td-asked"><span class="eyebrow">Showing</span><span class="q">'+esc(name)+'</span></div>';
+    if(!offers.length && !bids.length){
+      convo.innerHTML=head+'<div class="banner"><span>'+IC.info+'</span><div><span class="bt">No live deals for '+esc(name)+'.</span>'+(deskPerson?'':' Try another company, or add a self-sourced deal you bring yourself (88.5/11.5).')+'</div></div>';
+      return;
+    }
+    if(deskMode) head+='<div class="td-thread-actions"><a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://siliconvalleyinvestclub.com/companies/'+encodeURIComponent(slug(name))+'/">Company profile</a></div>';
+    convo.innerHTML=head
+      +section('Offers · sell-side', offers)
+      +section('Bids · buy-side', bids)
+      +(deskPerson?'':'<div class="banner"><span>'+IC.info+'</span><div><span class="bt">Opening a contact reveals the counterparty</span> and sets that deal to 50/50 with SVIC on close. Deals you source yourself stay 88.5/11.5.</div></div>');
+    convo.querySelectorAll('.open-cp').forEach(function(btn){ btn.addEventListener('click',function(){ openContact(btn.dataset.id, btn); }); });
+  }
+
+  function openContact(id, btn){
+    var go=async function(){
+      btn.disabled=true; btn.textContent='Opening…';
+      try{
+        var r=await fetch('/api/broker/liquidity/'+id+'/open-contact',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+        on401(r); var b=await r.json();
+        if(!r.ok){ if(window.showToast) showToast(b.error||'Could not open',true); btn.disabled=false; btn.textContent='Open contact'; return; }
+        var c=b.contact||{};
+        var html='<dl class="kv"><dt>Name</dt><dd>'+esc(c.name||'—')+'</dd><dt>Email</dt><dd>'+esc(c.email||'—')+'</dd><dt>Phone</dt><dd>'+esc(c.phone||'—')+'</dd></dl>'
+          +'<div class="banner ok" style="margin-top:14px"><span>'+IC.check+'</span><div>Now in your book, locked to 50/50 with SVIC on close.</div></div>';
+        writeQS({ contact:id }, { push:true });
+        bindDeskModalUrl();
+        if(window.showModal){ showModal('Counterparty contact', html); }
+        else if(window.showToast) showToast('Contact opened (50/50)');
+        var td=btn.closest('td'); if(td){ td.innerHTML='<span class="tag ready"><span class="dot"></span>Opened</span>'; }
+      }catch(e){ if(e.message!=='unauth'&&window.showToast) showToast('Network error',true); btn.disabled=false; btn.textContent='Open contact'; }
+    };
+    if(window.confirmModal) confirmModal('Open contact?','This reveals the counterparty and locks the deal to 50/50 with SVIC on close. Continue?',go);
+    else go();
+  }
+
+  function submitQuery(){ var q=chat.value.trim(); if(!q) return; chat.value=''; adjust(); openCompany(q); }
+
+  function applyPath(opts){
+    opts=opts||{};
+    var st=parsePath();
+    if(st.person){
+      deskPerson=st.person;
+      app.classList.add('person-desk');
+      document.getElementById('deskTabs').hidden=!!deskMode;
+      setTab(st.tab||'today', { push:false });
+      setCtx('Trade Desk · '+deskPerson);
+      if(st.tab==='today') return openToday({ push:false });
+      if(st.tab==='messages') return openMessages({ push:false });
+      if((st.tab==='matches'||st.tab==='pipeline') && st.id) return openMatch(st.id, { push:false });
+      if(st.tab==='matches'||st.tab==='pipeline') return openMatchesHome(st.tab, { push:false });
+      if(st.tab==='opportunities' && !st.id) return openMatchesHome('pipeline', { push:false, replace:true });
+      if(st.tab==='partners' && st.id) return openPartner(st.id, { push:false });
+      if(st.tab==='opportunities' && st.id) return openOpp(st.id, { push:false });
+      if(st.tab==='companies' && st.id){
+        var hit=companies.find(function(c){ return slug(c.company)===st.id; });
+        if(hit) return openCompany(hit.company, { push:false });
+      }
+      showWelcome();
+      return;
+    }
+    deskPerson=null;
+    app.classList.remove('person-desk');
+    document.getElementById('deskTabs').hidden=true;
+    document.getElementById('tabMessages').hidden=true;
+    reviewLive=false; messageRows=[];
+    clearReviewViews();
+    if(badgeHandle && window.ImReviewFeed){ ImReviewFeed.destroy(badgeHandle); badgeHandle=null; }
+    var name=companyFromPath();
+    if(name) openCompany(name, { push:false });
+    else showWelcome();
+  }
+
+  window.addEventListener('popstate', function(){
+    applyPath({ push:false });
+    var qs=readQS();
+    var overlay=document.getElementById('modalOverlay');
+    if (overlay && overlay.classList.contains('open') && !qs.book && !qs.contact && !qs.nomatch) {
+      if (window.closeModal) window.closeModal();
+    }
+  });
+
+  (async function init(){
+    try{
+      await loadMe();
+      if(deskMode){
+        var w=await fetch('/api/desk/whoami');
+        if(w.status===401){ location.href=loginUrl(); return; }
+        var who=w.ok?await w.json():null;
+        if(!who||!who.person){
+          app.classList.add('person-desk');
+          document.getElementById('welcome').style.display='none';
+          var cv=document.getElementById('convo'); cv.style.display='block';
+          cv.innerHTML='<div class="td-asked"><span class="eyebrow">Trade Desk</span><span class="q">Not set up yet</span></div>'
+            +'<div class="banner"><span>'+IC.info+'</span><div>Your Trade Desk is being set up. It opens here as soon as it is ready.</div></div>';
+          return;
+        }
+        deskPerson=who.person;
+        deskDemo=who.mode==='demo';
+        if(deskDemo){
+          app.classList.add('desk-demo');
+          // The demo workspace is «Demo Page», not the interviewer's own name. A broker
+          // candidate (loader.js: html.svic-candidate) is himself here: his own name stays.
+          var wn=document.getElementById('whoName'), wm=document.getElementById('whoMono');
+          if(!document.documentElement.classList.contains('svic-candidate')){
+            if(wn) wn.textContent='Demo Page'; if(wm) wm.textContent='D';
+          }
+        }
+      }
+      loadLogoMap();
+      var st=parsePath();
+      deskPerson=st.person;
+      var boot=readQS();
+      if (boot.q) {
+        document.getElementById('coSearch').value=boot.q;
+        try{ await loadCompanies(boot.q); }catch(e){ if(e.message==='unauth') return; }
+      } else {
+        try{ await loadCompanies(''); }catch(e){ if(e.message==='unauth') return; }
+      }
+      if(deskPerson){
+        try{ await Promise.all([loadPartners(boot.q||''), loadOpps(boot.q||'')]); }catch(_){}
+        if(!deskMode) await probeMessages();
+      }
+      applyPath({ push:false });
+    }catch(e){}
+  })();
+})();
+</script>
+</body>
+</html>
