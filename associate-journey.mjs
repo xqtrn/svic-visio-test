@@ -18,6 +18,11 @@ const WELCOME = (process.env.AJ_WELCOME || '').trim();
 const ENGINE = process.env.ENGINE === 'webkit' ? 'webkit' : 'chromium';
 const PHASE = process.env.PHASE || 'all';
 const SIGN_NAME = process.env.SIGN_NAME || 'Test Candidate';
+// NOTYPE=1 (2026-10-25, Arthur: a test candidate's setup walks through with Continue only):
+// nothing is typed — the Details fields and the photo come prefilled by the platform,
+// the typed signature comes prefilled with the signer's name; the run fails if any is empty.
+// It also checks the new-member photo gate: before the photo, any other page leads to /my-photo.
+const NOTYPE = process.env.NOTYPE === '1';
 const BASE = 'https://platform.siliconvalleyinvestclub.com';
 const OUT = 'out';
 fs.mkdirSync(OUT, { recursive: true });
@@ -127,6 +132,16 @@ try {
       // branch front end (OVERRIDE) is the one on screen.
       if (process.env.OVERRIDE === '1') await page.goto(BASE + '/onboarding', { waitUntil: 'domcontentloaded' });
     });
+    if (NOTYPE) await step('photo-gate', async () => {
+      await page.goto(BASE + '/mailbox', { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.waitForURL(/\/my-photo/, { timeout: 30000 });
+      await page.waitForSelector('#mpPick', { timeout: 30000 });
+      await shot('gate-my-photo', { targets: ['#mpPick', '#mpCamera', '#mpNext'], extra: { gate: new URL(page.url()).pathname + new URL(page.url()).search } });
+      const probe = await api('/api/marketplace/book');
+      report.gateApi = probe.status;
+      if (probe.status !== 428) throw new Error('API before the photo answered ' + probe.status + ', expected 428');
+      await page.goto(BASE + '/onboarding', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    });
     await step('account', async () => {
       await page.waitForSelector('.ob-panel.on[data-astep="1"], .ob-panel.on[data-astep="2"]', { timeout: 30000 });
       await shot('setup-1-account', { targets: ['#aBtnNext1', '#aLiState', '#aBtnFace', '#aTest'] });
@@ -134,6 +149,18 @@ try {
     });
     await step('details', async () => {
       await page.waitForSelector('.ob-panel.on[data-astep="2"]', { timeout: 15000 });
+      if (NOTYPE) {
+        await page.waitForSelector('#aPhotoImg:not([hidden])', { timeout: 15000 });
+        const vals = await page.evaluate(() => ({ phone: document.getElementById('aPh').value, city: document.getElementById('aCity').value,
+          state: document.getElementById('aSt').value || document.getElementById('aStText').value, country: document.getElementById('aCtry').value,
+          photo: !document.getElementById('aPhotoRow').hidden && !!document.getElementById('aPhotoImg').src, tag: document.getElementById('aPhotoTag').textContent.trim(),
+          continueEnabled: !document.getElementById('aBtnDetails').disabled }));
+        report.prefill = vals;
+        await shot('setup-2-details-prefilled', { targets: ['#aPh', '#aCity', '#aPhotoRow', '#aBtnDetails'], extra: { prefill: vals } });
+        if (!vals.phone || !vals.city || !vals.state || !vals.photo || !vals.continueEnabled) throw new Error('Details not prefilled: ' + JSON.stringify(vals));
+        await page.click('#aBtnDetails');
+        return;
+      }
       await shot('setup-2-details-empty', { targets: ['#aCtry', '#aPh', '#aSt', '#aCity', '#aBtnDetails'] });
       await page.selectOption('#aCtry', 'US');
       await page.selectOption('#aSt', 'New York');
@@ -160,7 +187,11 @@ try {
       for (let i = 0; i < 16; i++) {
         if (await visible('.modal-hd')) {
           await page.click('#t-type');
-          await page.fill('#typedName', SIGN_NAME);
+          if (NOTYPE) {
+            const typed = await page.inputValue('#typedName');
+            report.typedName = typed ? 'prefilled' : 'empty';
+            if (!typed) throw new Error('typed signature not prefilled');
+          } else await page.fill('#typedName', SIGN_NAME);
           if (!adopted) await shot('sign-adopt', { targets: ['#typedName', '.modal-ft .btn-primary'] });
           adopted = true;
           await page.click('text=Adopt and sign');

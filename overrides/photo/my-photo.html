@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Your photo — Silicon Valley Investclub</title>
+  <link rel="icon" href="/favicon.ico?v=rev3">
+  <link rel="stylesheet" href="/fonts.css">
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/onboarding.css">
+  <script src="/loader.js"></script>
+  <script src="/ui.js" defer></script>
+  <script src="/member-photo.js" defer></script>
+  <script src="/my-photo.js" defer></script>
+</head>
+<body class="fluid" data-no-totop>
+<script src="/auth-guard.js"></script>
+<!-- Фото у каждого нового участника (Артур 2026-10-25): сюда замок
+     src/services/member-photo.js ведёт нового участника без фото. Канон первого
+     входа (onboarding.css): слева обложка, справа одна колонка шага. -->
+<div class="ob-gate">
+  <aside class="ob-aside cover">
+    <div class="ob-brand"><img src="/brandbook-logo.svg" alt="Silicon Valley Investclub"></div>
+    <div class="ob-mid">
+      <div class="ob-eyebrow">Welcome</div>
+      <div class="ob-head" id="mpHead">One last step.</div>
+      <div class="ob-sub">Every member of the platform has a photo. Colleagues and clients see it on your profile, your booking page and in your email signature.</div>
+    </div>
+    <div class="ob-foot">Private &amp; confidential. These systems are for the authorized members of Silicon Valley Investclub.</div>
+  </aside>
+  <main class="ob-main">
+    <div class="ob-card">
+      <section class="ob-panel on" id="mpPanel">
+        <h2>Add your photo</h2>
+        <p class="ob-lead" id="mpLead">A clear photo of your face, looking at the camera. It takes a few seconds.</p>
+        <div class="ob-row ob-photo-row">
+          <div class="ob-photo lg" id="mpPhoto"><span id="mpInit"></span><img id="mpImg" alt="" hidden></div>
+          <div class="grow"><div class="t">Photo</div><div class="s" id="mpNote">JPEG, PNG or WebP, at least 200 pixels on each side.</div></div>
+          <span class="tag ready" id="mpTag" hidden><span class="dot"></span>Added</span>
+          <div class="ob-photo-acts"><button class="btn btn-ghost btn-sm" type="button" id="mpCamera" hidden>Take a photo</button><button class="btn btn-ghost btn-sm" type="button" id="mpPick">Upload photo</button></div>
+          <input type="file" id="mpCamFile" accept="image/*" capture="user" hidden>
+          <input type="file" id="mpFile" accept="image/jpeg,image/png,image/webp" hidden>
+        </div>
+        <p class="ob-err" id="mpErr" hidden></p>
+        <div class="ob-actions"><button class="btn btn-primary" type="button" id="mpNext" disabled>Continue</button><span class="t-small" id="mpHint">Add your photo to continue.</span></div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

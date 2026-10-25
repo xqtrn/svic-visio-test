@@ -11,6 +11,7 @@ on:
       tag: { description: 'Artifact tag', default: 'run' }
       override: { description: '1 = serve the branch front end from overrides/associate', default: '0' }
       slot: { description: 'a | b — which test candidate link secret (AJ_WELCOME_A / AJ_WELCOME_B)', default: 'a' }
+      notype: { description: '1 = type nothing: Details, photo and typed signature must come prefilled; checks the photo gate', default: '0' }
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -30,6 +31,7 @@ jobs:
           PHASE: ${{ inputs.phase }}
           SIGN_NAME: ${{ inputs.sign_name }}
           OVERRIDE: ${{ inputs.override }}
+          NOTYPE: ${{ inputs.notype }}
           # the QA test candidate's setup link, set for the run and deleted right after
           AJ_WELCOME: ${{ inputs.slot == 'b' && secrets.AJ_WELCOME_B || secrets.AJ_WELCOME_A }}
       - uses: actions/upload-artifact@v4
