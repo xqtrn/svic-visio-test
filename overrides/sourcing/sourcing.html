@@ -1,0 +1,1968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sourcing — Silicon Valley Investclub</title>
+  <link rel="icon" href="/favicon.ico?v=rev3">
+  <link rel="stylesheet" href="/fonts.css">
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/note-render.css">
+  <script src="/loader.js"></script>
+  <script src="/ui.js" defer></script>
+  <script src="/offcanvas-menu.js"></script>
+  <script src="/note-render.js"></script>
+  <style>
+    body { font-family: var(--sans); background: var(--page); margin: 0; color: var(--ink); }
+    .wrap { padding: 24px 26px 60px; }
+    .head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 0 0 6px; flex-wrap: wrap; }
+    .head .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 10.5px; color: var(--muted); margin: 0 0 4px; }
+    .head h1 { font-family: var(--serif); font-weight: 600; font-size: 26px; margin: 0; }
+    .head .sub { color: var(--muted); font-size: 12.5px; }
+    .sub { color: var(--muted); font-size: 12.5px; }
+    .sec { margin-top: 30px; }
+    .sec > .eyebrow, .sechead .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 10.5px; color: var(--muted); margin: 0 0 12px; }
+    .sechead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 12px; flex-wrap: wrap; }
+    /* sub-nav — each view has its own copyable hash address (#overview/#queue/#partners/#stats) */
+    .subnav { display: inline-flex; flex-wrap: wrap; gap: 2px; border: 1px solid var(--line); border-radius: var(--r-control); overflow: hidden; margin: 16px 0 4px; }
+    .subnav a { font-size: 12px; font-weight: 600; padding: 8px 15px; color: var(--muted); text-decoration: none; border-right: 1px solid var(--line); background: var(--panel); }
+    .subnav a:last-child { border-right: none; }
+    .subnav a.on { background: var(--navy); color: #fff; }
+    .view { display: none; }
+    .view.on { display: block; }
+    /* hero KPI */
+    .hero { display: grid; grid-template-columns: auto 1fr; gap: 26px; align-items: center; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 22px 24px; }
+    .hero .big { font-family: var(--serif); font-weight: 600; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .hero .big .u { font-size: 15px; color: var(--muted); font-weight: 400; margin-left: 8px; }
+    .hero .cap-note { font-size: 12.5px; color: var(--muted); max-width: 640px; line-height: 1.5; }
+    .state { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; padding: 3px 9px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); }
+    .state.dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; display: inline-block; }
+    .swtch { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 4px 11px; border-radius: 3px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; }
+    .swtch::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .swtch.on { border-color: var(--ok); color: var(--ok); }
+    .swtch.off { border-color: var(--bad); color: var(--bad); }
+    .swtch:disabled { opacity: .5; cursor: default; }
+    /* progress */
+    .prog { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 18px 20px; }
+    .prog .track { height: 8px; border-radius: 4px; background: var(--subtle); overflow: hidden; display: flex; margin: 12px 0 10px; }
+    .prog .track > i { display: block; height: 100%; }
+    .prog .track > .sent { background: var(--accent); }
+    .prog .track > .opened { background: var(--ok); }
+    .prog .track > .replied { background: var(--navy); }
+    .prog .legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 11.5px; color: var(--muted); }
+    .prog .legend b { color: var(--ink); font-variant-numeric: tabular-nums; }
+    .prog .legend .k { display: inline-flex; align-items: center; gap: 6px; }
+    .prog .legend .k::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--subtle); }
+    .prog .legend .k.s::before { background: var(--accent); } .prog .legend .k.o::before { background: var(--ok); }
+    .prog .legend .k.r::before { background: var(--navy); } .prog .legend .k.q::before { background: var(--line); }
+    /* lane cards */
+    .lanes3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+    .lanes3 .box { background: var(--panel); padding: 16px 18px; }
+    .lanes3 .label { text-transform: uppercase; letter-spacing: .08em; font-size: 10px; color: var(--muted); }
+    .lanes3 .val { font-family: var(--serif); font-weight: 600; font-size: 24px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+    .lanes3 .wc { margin-top: 9px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .lanes3 .wc b { color: var(--ink); font-weight: 600; }
+    .split { height: 5px; border-radius: 3px; margin-top: 8px; overflow: hidden; display: flex; background: var(--subtle); }
+    .split > .cold { background: var(--accent); } .split > .warm { background: var(--line); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; text-transform: uppercase; letter-spacing: .07em; font-size: 10px; color: var(--muted); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+    td { padding: 9px 12px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+    tr:hover td { background: var(--subtle); }
+    .tblwrap { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+    .tblwrap.scroll { overflow-x: auto; }
+    .co { font-family: var(--serif); font-weight: 600; }
+    .muted { color: var(--muted); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .lanetabs { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-control); overflow: hidden; margin-bottom: 12px; }
+    .lanetabs button { font: inherit; font-size: 12px; font-weight: 600; padding: 7px 14px; background: var(--panel); border: none; border-right: 1px solid var(--line); color: var(--muted); cursor: pointer; }
+    .lanetabs button:last-child { border-right: none; }
+    .lanetabs button.on { background: var(--navy); color: #fff; }
+    .pill { display: inline-block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; padding: 1px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); }
+    .pill.sub { border-color: var(--accent); color: var(--accent); }
+    .pill.pe { border-color: var(--ok); color: var(--ok); }
+    .empty { padding: 30px; text-align: center; color: var(--muted); font-size: 13px; }
+    .pTpl { border: 1px solid var(--line); border-radius: var(--r-control); background: var(--subtle); padding: 14px 16px; margin-bottom: 16px; font-size: 13px; color: var(--ink); line-height: 1.5; white-space: pre-wrap; max-width: 640px; }
+    .pTpl .ph { color: var(--accent); font-weight: 600; }
+    .pBar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    /* Deliverability of the sending mailboxes, beside the control that chooses one. */
+    .pHealth { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; font-size: 12px; }
+    .pHealth .who { color: var(--muted); }
+    .pHealth .sep { color: var(--line); }
+    .pBar select { min-width: 150px; }
+    .pAll { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; cursor: pointer; }
+    .pmuted td { color: var(--muted); }
+    .pmuted .co { color: var(--muted); }
+    /* A person's companies, as a choice inside the row: the design system's on/off tag
+       (.tag.dlflag), set in the serif that company names wear everywhere else on the board. */
+    .pCos { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+    .pCos .dlflag { margin-left: 0; font: 600 12.5px/1.2 var(--serif); letter-spacing: 0; text-transform: none; }
+    .pCos .dlflag.off { color: var(--ink); }
+    .pSep { color: var(--muted-2); }
+    .pMore { font-size: 11.5px; color: var(--muted); cursor: default; }
+    /* Order of the board: the rows you can tick first (default), or the old firm / company orders. */
+    .pBar .seg button { padding: 7px 12px; }
+    .pDivider td { padding: 16px 12px 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-2); border-bottom: 1px solid var(--line); background: transparent; }
+    tr.pDivider:hover td { background: transparent; }
+    /* Stats — the period control, the figures for it, and the two charts that show its shape. */
+    .rangebar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 18px; }
+    .rdates { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .rdates label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+    .rdates input[type=date] { font: inherit; font-size: 12.5px; padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--r-control); background: var(--panel); color: var(--ink); font-variant-numeric: tabular-nums; }
+    .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+    .kpis .box { background: var(--panel); padding: 16px 18px; }
+    .kpis .label { text-transform: uppercase; letter-spacing: .08em; font-size: 10px; color: var(--muted); }
+    .kpis .val { font-family: var(--serif); font-weight: 600; font-size: 26px; margin-top: 6px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .kpis .foot { margin-top: 7px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .partner-kpis { grid-template-columns: repeat(3, 1fr); }
+    .chartbox { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 16px 18px 10px; }
+    .chartbox svg { display: block; width: 100%; height: auto; }
+    .chartbox [role="button"] { cursor: pointer; }
+    .chartbox [role="button"]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .chartbox .cempty { padding: 34px 0; text-align: center; color: var(--muted); font-size: 13px; }
+    .clegend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 11.5px; color: var(--muted); margin-top: 10px; }
+    .clegend .k { display: inline-flex; align-items: center; gap: 6px; }
+    .clegend .k i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+    .clegend b { color: var(--ink); font-variant-numeric: tabular-nums; }
+    .statshead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 18px; }
+    .statshead .lanetabs { margin: 0; }
+    .statpanel[hidden] { display: none; }
+    /* A day with several replies lists its people once, above the open thread. The list is a
+       short scroll cap, not a page: seventy replies on a bulk day stay three rows tall. */
+    .stats-people-list { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-card); overflow: auto; max-height: 176px; }
+    .stats-person { display: flex; flex: 0 0 auto; flex-direction: column; gap: 2px; align-items: flex-start; width: 100%; min-height: 44px; padding: 8px 12px; background: var(--panel); border: 0; border-left: 2px solid transparent; font: inherit; text-align: left; color: var(--ink); cursor: pointer; transition: var(--t-fast); }
+    .stats-person:hover { background: var(--subtle); }
+    .stats-person.on { background: var(--subtle); border-left-color: var(--accent); }
+    .stats-person:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .stats-person-name { font-family: var(--serif); font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+    .stats-person-meta { color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+    .ep-track { display: flex; flex-direction: column; margin: 0 0 18px; border-top: 1px solid var(--line); }
+    .ep-step { display: flex; gap: 12px; align-items: baseline; padding: 9px 2px; border-bottom: 1px solid var(--line); font-size: 13px; }
+    .ep-step-when { flex: 0 0 124px; color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+    .ep-step-what { flex: 1 1 auto; overflow-wrap: anywhere; }
+    .ep-step-what b { font-weight: 600; }
+    .ep-step-note { display: block; margin-top: 2px; color: var(--muted); font-size: 11.5px; }
+    .ep-step.is-miss .ep-step-what b { color: var(--bad); }
+    .ep-step.is-held .ep-step-what b { color: var(--ok); }
+    .ep-step.is-focus { border-left: 2px solid var(--accent); padding-left: 10px; }
+    @media (max-width: 600px) {
+      .ep-step { flex-direction: column; gap: 2px; }
+      .ep-step-when { flex: 0 0 auto; }
+    }
+    .stats-thread-head { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+    .stats-thread-email { color: var(--ink); }
+    /* Five figures over two columns leave a hole; the last one takes the full width instead. */
+    @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } .kpis .box:last-child { grid-column: 1 / -1; } }
+    /* relationship lists — four panels ruled like one table */
+    .relGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+    .relPanel { background: var(--panel); padding: 20px 22px; display: flex; flex-direction: column; min-width: 0; }
+    .relPanel h3 { font-family: var(--serif); font-weight: 600; font-size: 17px; margin: 0 0 4px; }
+    .relPanel .relRule { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 14px; }
+    .relList { list-style: none; margin: 0 0 14px; padding: 0; border-top: 1px solid var(--line); }
+    .relList li { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+    .relList li.empty { color: var(--muted); font-size: 12px; justify-content: flex-start; }
+    .relWho { flex: 1 1 auto; min-width: 0; }
+    .relWho b { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+    .relWho span { display: block; color: var(--muted); font-size: 11.5px; overflow-wrap: anywhere; }
+    .relMeta { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+    .relMeta .tag { font-size: 10px; padding: 2px 7px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .relAdd { margin-top: auto; display: grid; gap: 8px; }
+    .relAdd textarea { min-height: 64px; resize: vertical; font-size: 12.5px; }
+    .relAdd .btn { justify-self: start; }
+    .relMsg { font-size: 11.5px; color: var(--muted); min-height: 0; }
+    @media (max-width: 900px) { .relGrid { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) {
+      .relPanel { padding: 16px 14px; }
+      .relList li { flex-wrap: wrap; }
+      .relMeta { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+    }
+    @media (max-width: 900px) { .lanes3 { grid-template-columns: 1fr; } .hero { grid-template-columns: 1fr; gap: 14px; } }
+    @media (max-width: 600px) {
+      .topbar-in { min-width: 0; box-sizing: border-box; gap: 10px; padding-inline: 14px; }
+      .tb-brand { min-width: 0; }
+      .tb-logo { max-width: 140px; }
+      /* Dashboard remains available through the logo and hamburger menu.
+         Keeping this extra link made the topbar 435px wide at 390px. */
+      .tb-link { display: none; }
+      .wrap { min-width: 0; padding: 18px 14px 48px; }
+      /* Inline flex otherwise keeps its max-content width when links wrap. */
+      .subnav { display: flex; width: 100%; max-width: 100%; box-sizing: border-box; }
+      .subnav a { flex: 1 1 auto; padding: 8px 10px; text-align: center; }
+      /* Tables own their horizontal scroll instead of widening the page. */
+      .tblwrap { max-width: 100%; overflow-x: auto; }
+      /* The partner decision table is actionable content, not a spreadsheet:
+         stack every row as a labelled card so no company/status is clipped. */
+      #v-partners .tblwrap { overflow: visible; border: 0; }
+      #v-partners table, #v-partners tbody { display: block; }
+      #v-partners thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      #v-partners #pBody { display: grid; gap: 8px; }
+      #v-partners #pBody tr { display: grid; grid-template-columns: 30px minmax(0, 1fr); padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+      #v-partners #pBody td { display: block; grid-column: 2; min-width: 0; padding: 4px 0; border: 0; overflow-wrap: anywhere; }
+      #v-partners #pBody td:first-child { grid-column: 1; grid-row: 1 / span 4; padding-top: 5px; }
+      #v-partners #pBody td:nth-child(5) { text-align: left !important; }
+      #v-partners #pBody td:nth-child(n+2)::before { display: block; margin-bottom: 2px; color: var(--muted-2); font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+      #v-partners #pBody td:nth-child(2)::before { content: 'Partner'; }
+      #v-partners #pBody td:nth-child(3)::before { content: 'Firm'; }
+      #v-partners #pBody td:nth-child(4)::before { content: 'Investor in'; }
+      #v-partners #pBody td:nth-child(5)::before { content: 'Status'; }
+      #v-partners #pBody td.empty { grid-column: 1 / -1; grid-row: auto; text-align: center; }
+      #v-partners #pBody tr:hover td { background: transparent; }
+      .pBar { align-items: stretch; }
+      .pBar select { min-width: 0; max-width: 100%; }
+      .pBar .seg { display: flex; width: 100%; }
+      .pBar .seg button { flex: 1 1 0; min-height: 44px; padding: 8px 6px; }
+      #v-partners #pBody tr.pDivider { grid-template-columns: 1fr; border: 0; background: transparent; padding: 8px 0 0; }
+      #v-partners #pBody tr.pDivider td { grid-column: 1 / -1; grid-row: auto; padding: 0 0 4px; border-bottom: 1px solid var(--line); }
+      .rangebar { align-items: stretch; }
+      .statshead { display: block; }
+      .statshead .lanetabs { display: flex; width: 100%; }
+      .statshead .lanetabs button { flex: 1 1 50%; min-height: 44px; }
+      .statshead .sub { display: block; margin-top: 10px; }
+      .rangebar .seg { display: flex; width: 100%; }
+      .rangebar .seg button { flex: 1 1 auto; padding: 8px 6px; }
+      .rdates { width: 100%; }
+      .rdates { gap: 6px; }
+      .rdates input[type=date] { flex: 1 1 118px; min-width: 0; padding: 7px 6px; }
+      .kpis { grid-template-columns: 1fr 1fr; }
+      /* Dense delivery tables keep their natural width inside their own scroller; squeezing six
+         columns into 390px made domains and headings break one letter per line. */
+      #statsSendQueue .tblwrap.scroll table { min-width: 680px; }
+      /* Partner lane has only three people, so on a phone each row is a readable sender card
+         rather than a miniature spreadsheet. */
+      #statsPartnerLane .tblwrap { overflow: visible; border: 0; }
+      #statsPartnerLane table, #statsPartnerLane tbody { display: block; }
+      #statsPartnerLane thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      #statsPartnerLane #partnerBody { display: grid; gap: 8px; }
+      #statsPartnerLane #partnerBody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 10px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+      #statsPartnerLane #partnerBody td { display: block; min-width: 0; padding: 5px 6px; border: 0; text-align: left; overflow-wrap: anywhere; }
+      #statsPartnerLane #partnerBody td:first-child { grid-column: 1 / -1; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+      #statsPartnerLane #partnerBody td:first-child .muted { display: block; margin-top: 3px; }
+      #statsPartnerLane #partnerBody td:nth-child(n+2)::before { display: block; margin-bottom: 3px; color: var(--muted-2); font-size: 9px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
+      #statsPartnerLane #partnerBody td:nth-child(2)::before { content: 'Sent'; }
+      #statsPartnerLane #partnerBody td:nth-child(3)::before { content: 'Replied'; }
+      #statsPartnerLane #partnerBody td:nth-child(4)::before { content: 'Reply rate'; }
+      #statsPartnerLane #partnerBody td.empty { grid-column: 1 / -1; text-align: center; }
+      #statsPartnerLane #partnerBody tr:hover td { background: transparent; }
+      .stats-people-list { max-height: 150px; }
+    }
+  </style>
+</head>
+<body class="fluid">
+  <header class="topbar"><div class="topbar-in">
+    <button class="tb-burger" onclick="openOffcanvas()" aria-label="Menu"></button>
+    <div class="tb-brand" onclick="location.href='/'"><img class="tb-logo" src="/brandbook-logo.svg" alt="Silicon Valley Investclub"></div>
+    <div class="tb-div"></div><div class="tb-ctx">Sourcing</div>
+    <div class="tb-spacer"></div>
+  </div></header>
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow">Outreach</p><h1>Sourcing</h1></div>
+      <div class="sub" id="asof"></div>
+    </div>
+    <p class="sub" style="margin:0;max-width:640px">Daily cold-outreach under live buy-order demand. Coverage-first: reach the maximum number of distinct investor funds, one email per fund per day.</p>
+
+    <nav class="subnav" id="subnav">
+      <a href="#overview" data-view="overview">Overview</a>
+      <a href="#inbox" data-view="inbox">Inbox</a>
+      <a href="#schedule" data-view="schedule">Schedule</a>
+      <a href="#queue" data-view="queue">Send queue</a>
+      <a href="#partners" data-view="partners">Partner lane</a>
+      <a href="#relationships" data-view="relationships">Relationships</a>
+      <a href="#stats" data-view="stats">Stats</a>
+    </nav>
+
+    <!-- OVERVIEW -->
+    <section class="view" id="v-overview" data-view="overview">
+      <div class="sec">
+        <div class="hero">
+          <div>
+            <div class="big" id="heroFunds">—<span class="u">funds / day</span></div>
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="swtch" id="sendSwitch" disabled>…</button>
+              <span class="state dot" id="stateChip">not prepared</span>
+            </div>
+          </div>
+          <div class="cap-note" id="heroNote">Loading the day's coverage…</div>
+        </div>
+      </div>
+      <div class="sec">
+        <p class="eyebrow">Sending progress — today</p>
+        <div class="prog">
+          <div class="track" id="progTrack"></div>
+          <div class="legend" id="progLegend"></div>
+        </div>
+      </div>
+      <div class="sec">
+        <p class="eyebrow">Per lane — funds covered &amp; proportional warm/cold per box</p>
+        <div class="lanes3" id="laneCards"></div>
+      </div>
+      <div class="sec">
+        <div class="sechead">
+          <p class="eyebrow">Company queue — buy-order demand (fresh ≤14 days; IPO'd excluded)</p>
+          <span class="muted" style="font-size:11.5px" id="coCount"></span>
+        </div>
+        <div class="tblwrap scroll"><table><thead><tr><th>#</th><th>Company</th><th class="num">Score</th><th class="num">Orders</th><th class="num">Buyers</th><th class="num">Direct</th><th>Last listing</th><th class="num">Demand</th></tr></thead><tbody id="coBody"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- SEND QUEUE -->
+    <section class="view" id="v-queue" data-view="queue">
+      <div class="sec">
+        <p class="eyebrow">Monday send queue — assembled contacts (most deal-relevant person per fund)</p>
+        <div class="lanetabs" id="laneTabs"></div>
+        <div class="tblwrap scroll"><table><thead><tr><th>Contact</th><th>Role</th><th>Fund</th><th>Target company</th><th>Email</th><th>Lane</th></tr></thead><tbody id="qBody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- PARTNER LANE -->
+    <section class="view" id="v-partners" data-view="partners">
+      <div class="sec">
+        <p class="eyebrow">Partner lane — your approval required</p>
+        <p class="muted" style="margin:-4px 0 14px;max-width:640px">Every partner∩company match is shown. You send one note per partner a week — the most relevant company is pre-ticked, but you can pick a different one for that partner instead; ticking a company greys the partner's other companies for the week. Real cooldowns (emailed this week / sent &lt;30 days ago) stay locked. "Select all" ticks one per partner. Choose who it comes from, and send. A daily link brings you here.</p>
+        <p class="muted" style="margin:-6px 0 14px;max-width:640px;font-size:12px">Firms on WhatsApp, partners on personal email check-ins, paused threads and the stop list are locked here automatically — <a href="#relationships">manage the relationship lists</a>.</p>
+        <div id="pTemplate" class="pTpl" style="display:none"></div>
+        <div class="pBar">
+          <div class="seg" id="pSort" role="group" aria-label="Order of the board">
+            <button type="button" data-sort="actionable" class="on" title="Rows you can tick first, then what went out today, then cooldowns">Actionable first</button>
+            <button type="button" data-sort="firm" title="Firm, then partner, then the engine's company rank">By firm</button>
+            <button type="button" data-sort="company" title="Target company by the engine's rank, then firm">By company</button>
+          </div>
+          <label class="pAll"><input type="checkbox" id="pSelAll"> Select all</label>
+          <span class="muted" id="pSelCount">0 selected</span>
+          <span class="muted" id="pReady"></span>
+          <span style="flex:1 1 auto"></span>
+          <button class="btn btn-ghost btn-sm" id="pSnooze" disabled title="Defer the selected matches for a week — they drop off the send list and out of the daily reminder, then come back automatically">Snooze 1 week</button>
+          <label class="muted" style="font-size:12px">From</label>
+          <select id="pSender"></select>
+          <button class="btn btn-primary btn-sm" id="pSendSel" disabled>Send selected</button>
+        </div>
+        <div class="pHealth" id="pHealth"></div>
+        <div class="tblwrap"><table><thead><tr><th style="width:34px"></th><th>Partner</th><th>Firm</th><th>Investor in</th><th style="text-align:right">Status</th></tr></thead><tbody id="pBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- RELATIONSHIPS — the desk's own word on who the mailing leaves alone (Daria 2026-10-26) -->
+    <section class="view" id="v-relationships" data-view="relationships">
+      <div class="sec">
+        <div class="sechead">
+          <p class="eyebrow">Relationship lists — who the mailing leaves alone</p>
+          <span class="muted" style="font-size:11.5px" id="relDue"></span>
+        </div>
+        <p class="muted" style="margin:-4px 0 16px;max-width:640px">Paste one or more email addresses (one per line) into a list. A whole firm can be entered as <b>@domain.com</b>. Both the partner lane and the cold lane respect these lists at the moment of sending. Moving an address to another list replaces its old entry.</p>
+        <div class="relGrid" id="relGrid"><div class="relPanel"><p class="muted">Loading…</p></div></div>
+      </div>
+    </section>
+
+    <!-- INBOX — the outreach mailbox lives here as a subsection; loaded lazily on first open -->
+    <section class="view" id="v-inbox" data-view="inbox">
+      <iframe id="oiFrame" title="Outreach Inbox" style="width:100%;height:calc(100vh - 96px);min-height:620px;border:1px solid var(--line);border-radius:6px;background:var(--panel);display:block"></iframe>
+    </section>
+
+    <!-- STATS -->
+    <section class="view" id="v-stats" data-view="stats">
+      <div class="statshead">
+        <div class="lanetabs" id="statsTabs" role="tablist" aria-label="Statistics entity">
+          <button type="button" role="tab" data-stats-scope="send">Send queue</button>
+          <button type="button" role="tab" data-stats-scope="partner">Partner lane</button>
+        </div>
+        <span class="sub" id="statsScopeNote"></span>
+      </div>
+      <!-- The period every figure below is read over. Presets for the questions asked daily,
+           two dates for anything else; the choice travels in the address, so a period worth
+           discussing can be sent to someone as a link. -->
+      <div class="rangebar">
+        <div class="seg" id="rPresets" role="group" aria-label="Period">
+          <button type="button" data-days="7">7 days</button>
+          <button type="button" data-days="30">30 days</button>
+          <button type="button" data-days="90">90 days</button>
+          <button type="button" data-days="0">All time</button>
+        </div>
+        <div class="rdates">
+          <label for="rFrom">From</label><input type="date" id="rFrom">
+          <label for="rTo">To</label><input type="date" id="rTo">
+          <button type="button" class="btn btn-ghost btn-sm" id="rApply">Apply</button>
+        </div>
+      </div>
+      <p class="sub" id="rangeNote" style="margin:10px 0 0"></p>
+
+      <div class="statpanel" id="statsSendQueue" data-stats-panel="send">
+      <!-- First on purpose: who reached Mariam's booking step is the figure this tab is opened to see. -->
+      <div class="sec">
+        <div class="sechead">
+          <p class="eyebrow" style="margin:0">Mariam's calendar link — leads the autopilot took to the booking step</p>
+          <span class="sub" id="invitesHover"></span>
+        </div>
+        <div class="chartbox"><div id="chartInvites"><div class="cempty">Loading…</div></div></div>
+        <div class="clegend" id="invitesLegend"></div>
+        <p class="sub" style="margin:8px 0 0;max-width:640px" id="invitesNote"></p>
+      </div>
+
+      <div class="sec">
+        <div class="kpis" id="kpis"><div class="box"><div class="label">Loading…</div></div></div>
+      </div>
+
+      <div class="sec">
+        <div class="sechead">
+          <p class="eyebrow" style="margin:0">Letters by day — each bar is that day's outreach, split by what we can see of it</p>
+          <span class="sub" id="sendsHover"></span>
+        </div>
+        <div class="chartbox"><div id="chartSends"><div class="cempty">Loading…</div></div></div>
+        <div class="clegend" id="sendsLegend"></div>
+        <p class="sub" style="margin:8px 0 0;max-width:640px">Opens and answers are counted against the day the letter went out, however late they arrive, so a bar and the chart below it always describe the same letters. Not visible: a mail privacy proxy fetched the letter on delivery and serves it to the reader from its own copy, so whether a person opened it cannot be seen. Loads by mail security scanners and cloud sandboxes are not counted as opens.</p>
+      </div>
+
+      <div class="sec">
+        <div class="sechead">
+          <p class="eyebrow" style="margin:0">Replies by day</p>
+          <span class="sub" id="repliesHover"></span>
+        </div>
+        <div class="chartbox"><div id="chartReplies"><div class="cempty">Loading…</div></div></div>
+        <div class="clegend" id="repliesLegend"></div>
+      </div>
+
+      <div class="sec">
+        <div class="sechead">
+          <p class="eyebrow" style="margin:0">Calls the Send queue won — one bar per call</p>
+          <span class="sub" id="callsHover"></span>
+        </div>
+        <div class="chartbox"><div id="chartCalls"><div class="cempty">Loading…</div></div></div>
+        <div class="clegend" id="callsLegend"></div>
+        <p class="sub" style="margin:8px 0 0;max-width:640px" id="callsNote"></p>
+      </div>
+
+      <div class="sec">
+        <p class="eyebrow">Per sender domain — delivery health (bounced = distinct dead addresses; unsubscribes = confirmed only)</p>
+        <div class="tblwrap scroll"><table><thead><tr><th>Domain</th><th class="num">Sent</th><th class="num">Opened</th><th class="num">Replied</th><th class="num">Bounced</th><th class="num">Unsub</th></tr></thead><tbody id="domBody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table></div>
+      </div>
+      </div>
+
+      <div class="statpanel" id="statsPartnerLane" data-stats-panel="partner" hidden>
+        <div class="sec">
+          <div class="kpis partner-kpis" id="partnerKpis"><div class="box"><div class="label">Loading…</div></div></div>
+        </div>
+        <div class="sec">
+          <div class="sechead">
+            <p class="eyebrow" style="margin:0">Letters by day — Partner lane warm notes</p>
+            <span class="sub" id="partnerSendsHover"></span>
+          </div>
+          <div class="chartbox"><div id="chartPartnerSends"><div class="cempty">Loading…</div></div></div>
+          <div class="clegend" id="partnerSendsLegend"></div>
+        </div>
+        <div class="sec">
+          <div class="sechead">
+            <p class="eyebrow" style="margin:0">Replies by day — Partner lane</p>
+            <span class="sub" id="partnerRepliesHover"></span>
+          </div>
+          <div class="chartbox"><div id="chartPartnerReplies"><div class="cempty">Loading…</div></div></div>
+          <div class="clegend" id="partnerRepliesLegend"></div>
+        </div>
+        <div class="sec">
+          <p class="eyebrow">Partner lane by sender — warm notes out and partners answering. Each cell: this period / all time</p>
+          <div class="tblwrap scroll"><table>
+            <thead><tr><th>Sender</th><th class="num">Sent</th><th class="num">Partners replied</th><th class="num">Reply rate</th></tr></thead>
+            <tbody id="partnerBody"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
+          </table></div>
+          <p class="sub" id="partnerNote" style="margin:8px 0 0;max-width:640px"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCHEDULE -->
+    <section class="view" id="v-schedule" data-view="schedule">
+      <div class="sec">
+        <p class="eyebrow">Send schedule — weekday PST window, human-paced drip</p>
+        <div class="tblwrap"><table><thead><tr><th>Day</th><th>Sending</th></tr></thead><tbody id="schBody"><tr><td colspan="2" class="empty">Loading…</td></tr></tbody></table></div>
+        <div id="schHours" style="margin-top:16px"></div>
+        <p class="sub" id="schCadence" style="margin-top:16px;max-width:640px"></p>
+      </div>
+    </section>
+  </div>
+
+  <div class="sheet-overlay page-sheet" id="statsDetailOverlay">
+  <aside class="sheet" id="statsDetailDrawer" role="dialog" aria-modal="true" aria-labelledby="statsDetailTitle" aria-hidden="true" tabindex="-1">
+    <div class="sheet-hd">
+      <h3 id="statsDetailTitle" class="sheet-title">Details</h3>
+      <button class="iconbtn" id="statsDetailClose" type="button" aria-label="Close details" data-ic="x"></button>
+    </div>
+    <div class="sheet-bd" id="statsDetailBody"></div>
+  </aside>
+  </div>
+
+  <script>
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const num = n => (n == null ? '—' : Number(n).toLocaleString('en-US'));
+    const PE_RE = /secondar|private equity|direct invest|growth equity|private markets|private companies|alternativ/i;
+    const VIEWS = ['overview', 'inbox', 'schedule', 'queue', 'partners', 'relationships', 'stats'];
+    function readQS() {
+      return (window.svicUrlState && window.svicUrlState.read()) || {};
+    }
+    function writeQS(patch, opts) {
+      if (window.svicUrlState) window.svicUrlState.write(patch, opts || {});
+    }
+    let PLAN = null, lane = 'gmail', PREPARED = 0, SENDING = false, FOLLOWUPS = 0, QCOUNTS = [];
+    let PARTNER_SENDING = false, PARTNERS_PAINTED = false, PARTNER_LOAD_SEQ = 0;
+    const bootQS = readQS();
+    if (bootQS.lane === 'microsoft' || bootQS.lane === 'other' || bootQS.lane === 'gmail') lane = bootQS.lane;
+
+    // #inbox carries an optional thread sub-address: #inbox/t%3D<counterparty> — forwarded into
+    // the embedded mailbox, which mirrors its own navigation back up (see message listener).
+    function showView(raw) {
+      const parts = String(raw || '').split('/');
+      let v = parts[0];
+      if (!VIEWS.includes(v)) v = 'overview';
+      VIEWS.forEach(k => document.getElementById('v-' + k).classList.toggle('on', k === v));
+      document.querySelectorAll('#subnav a').forEach(a => a.classList.toggle('on', a.getAttribute('data-view') === v));
+      if (v === 'partners' && typeof loadPartners === 'function') {
+        if (PARTNER_SENDING) { /* in-flight send owns the board — a tab click must not re-tick leftovers */ }
+        else if (PARTNERS_PAINTED) {
+          const checked = new Set(Array.from(document.querySelectorAll('.pChk:checked')).map(c => +c.getAttribute('data-pid')));
+          loadPartners({ autocheck: false, checkedIds: checked });
+        } else loadPartners();
+      }
+      if (v === 'stats' && typeof loadStats === 'function') loadStats();
+      if (v === 'relationships' && typeof loadRelationships === 'function') loadRelationships();
+      if (v === 'inbox') {
+        const f = document.getElementById('oiFrame');
+        const sub = parts.length > 1 ? decodeURIComponent(parts.slice(1).join('/')) : '';
+        if (!f.getAttribute('src')) f.src = '/outreach-inbox?embed=1' + (sub ? '#' + sub : '');
+        else if (sub) { try { f.contentWindow.location.hash = sub; } catch (e) {} }
+      }
+    }
+    window.addEventListener('hashchange', () => showView((location.hash || '#overview').slice(1)));
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin || !e.data || e.data.type !== 'oi-hash') return;
+      if ((location.hash || '').slice(1).split('/')[0] !== 'inbox') return;
+      history.replaceState(null, '', '#inbox' + (e.data.hash ? '/' + encodeURIComponent(e.data.hash) : ''));
+    });
+
+    function renderSwitch() {
+      const b = document.getElementById('sendSwitch');
+      b.disabled = false;
+      b.className = 'swtch ' + (SENDING ? 'on' : 'off');
+      b.textContent = SENDING ? 'Sending on' : 'Sending off';
+      b.onclick = async () => {
+        b.disabled = true;
+        try {
+          const r = await fetch('/api/sourcing/sending', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !SENDING }) }).then(x => x.json());
+          if (r.error) throw new Error(r.error);
+          SENDING = !!r.enabled;
+          if (window.showToast) showToast(SENDING ? 'All campaigns enabled' : 'All campaigns paused');
+        } catch (e) { if (window.showToast) showToast('Toggle failed: ' + e.message); }
+        renderSwitch();
+      };
+    }
+
+    async function load() {
+      let d;
+      try { d = await fetch('/api/sourcing/plan', { credentials: 'same-origin' }).then(r => r.json()); }
+      catch (e) { document.getElementById('coBody').innerHTML = '<tr><td colspan="8" class="empty">Error loading plan.</td></tr>'; return; }
+      if (d.error) { document.getElementById('coBody').innerHTML = '<tr><td colspan="8" class="empty">' + esc(d.error) + '</td></tr>'; return; }
+      PLAN = d.plan; SENDING = !!d.sending; FOLLOWUPS = d.followupsDue || 0;
+      document.getElementById('asof').textContent = 'Plan for ' + (PLAN.date || '—');
+      try { const q = await fetch('/api/sourcing/queue?date=' + encodeURIComponent(PLAN.date), { credentials: 'same-origin' }).then(r => r.json()); PREPARED = (q.rows || []).length; QCOUNTS = q.counts || []; } catch (e) { PREPARED = 0; QCOUNTS = []; }
+      renderSwitch();
+      renderHero(PLAN);
+      renderProgress();
+      renderLaneCards(PLAN);
+      renderCompanies(PLAN.ranked);
+      renderLanes(PLAN);
+      loadPartners();
+      renderSchedule(d.schedule);
+      showView((location.hash || '#overview').slice(1));
+    }
+
+    function renderHero(p) {
+      const f = p.filled || {};
+      document.getElementById('heroFunds').innerHTML = num(f.funds) + '<span class="u">funds / day</span>';
+      const chip = document.getElementById('stateChip');
+      if (PREPARED > 0) { chip.className = 'state dot'; chip.style.color = 'var(--ok)'; chip.style.borderColor = 'var(--ok)'; chip.textContent = 'prepared · ' + num(PREPARED) + ' queued'; }
+      else { chip.className = 'state dot'; chip.textContent = 'computed · not yet prepared'; }
+      document.getElementById('heroNote').textContent =
+        'Gmail ' + num(f.gmail) + ' · Microsoft ' + num(f.microsoft) + ' · Other ' + num(f.other)
+        + (FOLLOWUPS ? ' · follow-ups due ' + num(FOLLOWUPS) : '')
+        + '. One email per fund; the daily maximum equals the number of distinct reachable funds. Opened-but-silent recipients get one follow-up (same thread, counts against the day\'s cold budget). The switch pauses or enables every campaign send.';
+    }
+
+    function renderProgress() {
+      const by = {}; (QCOUNTS || []).forEach(c => { by[c.status] = (by[c.status] || 0) + Number(c.n); });
+      const total = Object.values(by).reduce((a, b) => a + b, 0) || 0;
+      const sent = by.sent || 0, prepared = by.prepared || 0;
+      const p = n => total ? Math.round(n / total * 100) : 0;
+      document.getElementById('progTrack').innerHTML =
+        '<i class="sent" style="width:' + p(sent) + '%"></i>';
+      document.getElementById('progLegend').innerHTML = total
+        ? '<span class="k s">Sent <b>' + num(sent) + '</b></span><span class="k q">Prepared / queued <b>' + num(prepared) + '</b></span><span class="k">Total today <b>' + num(total) + '</b></span>'
+        : '<span class="muted">Nothing prepared for ' + esc(PLAN.date || 'today') + ' yet — the day\'s queue appears here once prepared, and fills as it sends.</span>';
+    }
+
+    function renderLaneCards(p) {
+      const f = p.filled || {}, wc = p.warmup || {}, pbc = p.perBoxCold || {};
+      const card = (label, funds, warm, cold) => {
+        const total = (warm || 0) + (cold || 0) || 50;
+        const cp = Math.max(2, Math.round((cold || 0) / total * 100));
+        return '<div class="box"><div class="label">' + label + '</div><div class="val">' + num(funds) + '</div>'
+          + '<div class="split"><i class="cold" style="width:' + cp + '%"></i><i class="warm" style="width:' + (100 - cp) + '%"></i></div>'
+          + '<div class="wc">per box · <b>' + (warm == null ? '—' : warm) + '</b> warm-up + <b>' + (cold == null ? '—' : cold) + '</b> cold</div></div>';
+      };
+      document.getElementById('laneCards').innerHTML =
+        card('Gmail lane', f.gmail, wc.gmail, pbc.gmail) + card('Microsoft lane', f.microsoft, wc.microsoft, pbc.microsoft) + card('Other lane (bench)', f.other, wc.other, pbc.other);
+    }
+
+    function renderCompanies(ranked) {
+      document.getElementById('coCount').textContent = (ranked || []).length + ' companies in demand';
+      const rows = (ranked || []).slice(0, 40).map((r, i) =>
+        '<tr><td class="muted">' + (i + 1) + '</td><td class="co">' + esc(r.company) + '</td><td class="num">' + r.score + '</td><td class="num">' + r.orders + '</td><td class="num">' + r.buyers + '</td><td class="num">' + r.direct + '</td><td class="muted">' + esc(r.lastListing || '—') + '</td><td class="num">$' + num(r.volM) + 'M</td></tr>').join('');
+      document.getElementById('coBody').innerHTML = rows || '<tr><td colspan="8" class="empty">No fresh buy-order companies.</td></tr>';
+    }
+
+    function renderLanes(p) {
+      const counts = { gmail: p.lanes.gmail.length, microsoft: p.lanes.microsoft.length, other: p.lanes.other.length };
+      document.getElementById('laneTabs').innerHTML = ['gmail', 'microsoft', 'other'].map(k =>
+        '<button data-lane="' + k + '"' + (k === lane ? ' class="on"' : '') + '>' + k[0].toUpperCase() + k.slice(1) + ' · ' + counts[k] + '</button>').join('');
+      document.querySelectorAll('#laneTabs button').forEach(b => b.addEventListener('click', () => {
+        lane = b.getAttribute('data-lane');
+        writeQS({ lane: lane === 'gmail' ? '' : lane });
+        renderLanes(p);
+      }));
+      const list = p.lanes[lane] || [];
+      const rows = list.map(x => {
+        const pe = PE_RE.test(x.position || '');
+        return '<tr><td>' + esc(x.first_name || '—') + (x.is_subscriber ? ' <span class="pill sub">subscriber</span>' : '') + '</td>'
+          + '<td class="muted">' + (x.position ? esc(String(x.position).slice(0, 46)) + (pe ? ' <span class="pill pe">PE</span>' : '') : '—') + '</td>'
+          + '<td>' + esc(x.fund || '—') + '</td><td class="co">' + esc(x.target_company || '—') + '</td>'
+          + '<td class="muted">' + esc(x.email) + '</td><td>' + esc(x.provider) + '</td></tr>';
+      }).join('');
+      document.getElementById('qBody').innerHTML = rows || '<tr><td colspan="6" class="empty">No contacts assembled in this lane.</td></tr>';
+    }
+
+    let PARTNER_MB = [];
+    function renderPartnerTemplate(t) {
+      const el = document.getElementById('pTemplate');
+      t = t || {};
+      if (!t.body) { el.style.display = 'none'; return; }
+      const hl = s => esc(s).replace(/\{(first_name|company_name|target_company)\}/g, '<span class="ph">{$1}</span>');
+      el.style.display = 'block';
+      el.innerHTML = '<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);margin-bottom:8px">The note each partner receives</div>'
+        + '<div style="font-weight:600;margin-bottom:8px">Subject: ' + hl(t.subject || '') + '</div>' + hl(t.body || '');
+    }
+    async function loadPartners(opts) {
+      const seq = ++PARTNER_LOAD_SEQ;
+      const q = (opts && opts.refresh === false) ? '?refresh=0' : '';
+      let d;
+      try { d = await fetch('/api/sourcing/partners' + q, { credentials: 'same-origin' }).then(r => r.json()); }
+      catch (e) {
+        if (seq !== PARTNER_LOAD_SEQ) return;
+        document.getElementById('pBody').innerHTML = '<tr><td colspan="5" class="empty">Error loading partner lane.</td></tr>';
+        return;
+      }
+      if (seq !== PARTNER_LOAD_SEQ) return;
+      renderPartners(d, opts);
+    }
+    function partnerSentTag(mbEmail) {
+      const f = PARTNER_MB.find(m => m.email === mbEmail);
+      return '<span class="tag ok"><span class="dot"></span>Sent' + (f ? ' · ' + esc((f.display_name || '').split(' ')[0]) : '') + '</span>';
+    }
+    function partnerUncertainTag() {
+      return '<span class="tag warn" title="Delivery was not confirmed. Check Sent before retrying.">Check Sent</span>';
+    }
+    let PARTNER_HEALTH = {}, PARTNER_THRESHOLD = 90;
+    // What each sending mailbox actually achieves at Gmail and at Microsoft, from the same
+    // measurement the Requests lane uses. A mailbox may only write where it clears the bar,
+    // so the desk sees it before choosing whom the note comes from (Arthur 2026-07-27).
+    function renderPartnerHealth() {
+      const el = document.getElementById('pHealth');
+      if (!el) return;
+      const label = { google: 'Gmail', microsoft: 'Microsoft' };
+      const parts = PARTNER_MB.map(m => {
+        const h = PARTNER_HEALTH[(m.email || '').toLowerCase()];
+        const who = esc((m.display_name || m.email || '').split(' ')[0]);
+        if (!h) return '<span class="who">' + who + ': not measured</span>';
+        const tags = ['google', 'microsoft'].map(p => {
+          const r = h[p];
+          if (!r || !r.measured) return '<span class="tag neutral">' + label[p] + ' n/a</span>';
+          return '<span class="tag ' + (r.ok ? 'ok' : 'warn') + '" title="' + esc(r.source || '')
+            + (r.ageDays != null ? ' · ' + r.ageDays + 'd ago' : '') + '">'
+            + label[p] + ' ' + r.pct + '%</span>';
+        }).join(' ');
+        return '<span class="who">' + who + '</span> ' + tags;
+      });
+      el.innerHTML = parts.length
+        ? parts.join('<span class="sep">|</span>')
+          + '<span class="who">a mailbox may only write where it clears ' + PARTNER_THRESHOLD + '%</span>'
+        : '';
+    }
+
+    // Order of the board. The server already returns rows «actionable first» (sort_key band
+    // + firm order) — the two other modes are re-orderings of the same rows on the page.
+    // The choice is a reader's convenience, kept in the browser; switching never drops a tick.
+    const PARTNER_SORT_MODES = ['actionable', 'firm', 'company'];
+    let PARTNER_DATA = null, PARTNER_SORT = 'actionable';
+    if (bootQS.sort && PARTNER_SORT_MODES.includes(bootQS.sort)) PARTNER_SORT = bootQS.sort;
+    else {
+      try { const v = localStorage.getItem('sourcing.partnerSort'); if (PARTNER_SORT_MODES.includes(v)) PARTNER_SORT = v; } catch (e) { /* private window: default order */ }
+      if (PARTNER_SORT !== 'actionable') writeQS({ sort: PARTNER_SORT });
+    }
+    function partnerFirmOrder(a, b) {
+      return (a.partner_company || '').toLowerCase().localeCompare((b.partner_company || '').toLowerCase())
+        || String(a.partner_email || '').localeCompare(String(b.partner_email || ''))
+        || (a.company_rank ?? 9999) - (b.company_rank ?? 9999);
+    }
+    function partnerRowComparator(mode) {
+      if (mode === 'firm') return (a, b) => partnerFirmOrder(a, b) || a._i - b._i;
+      if (mode === 'company') return (a, b) => (a.company_rank ?? 9999) - (b.company_rank ?? 9999)
+        || (a.target_company || '').toLowerCase().localeCompare((b.target_company || '').toLowerCase())
+        || partnerFirmOrder(a, b) || a._i - b._i;
+      return (a, b) => (a.sort_key ?? 99) - (b.sort_key ?? 99) || a._i - b._i;
+    }
+    function sortedPartnerRows(rows, mode) {
+      return rows.map((p, i) => Object.assign({}, p, { _i: i })).sort(partnerRowComparator(mode));
+    }
+    function renderPartnerSortControl() {
+      document.querySelectorAll('#pSort button').forEach(b => b.classList.toggle('on', b.getAttribute('data-sort') === PARTNER_SORT));
+    }
+    function setPartnerSort(mode) {
+      if (!PARTNER_SORT_MODES.includes(mode) || mode === PARTNER_SORT) return;
+      PARTNER_SORT = mode;
+      writeQS({ sort: mode === 'actionable' ? '' : mode });
+      try { localStorage.setItem('sourcing.partnerSort', mode); } catch (e) { /* not persisted */ }
+      renderPartnerSortControl();
+      if (!PARTNER_DATA) return;
+      // keep what the desk already ticked — a re-order must not cost a selection
+      const checked = new Set(Array.from(document.querySelectorAll('.pChk:checked')).map(c => +c.getAttribute('data-pid')));
+      renderPartners(PARTNER_DATA, { checkedIds: checked });
+    }
+    function renderPartners(data, opts) {
+      data = data || {};
+      PARTNER_DATA = data;
+      PARTNERS_PAINTED = true;
+      const autocheck = !opts || opts.autocheck !== false;
+      const checkedIds = opts && opts.checkedIds instanceof Set ? opts.checkedIds : null;
+      renderPartnerSortControl();
+      PARTNER_MB = data.mailboxes || [];
+      PARTNER_HEALTH = {};
+      for (const k of Object.keys(data.senderHealth || {})) PARTNER_HEALTH[k.toLowerCase()] = data.senderHealth[k];
+      PARTNER_THRESHOLD = data.warmupThreshold || 90;
+      renderPartnerTemplate(data.template);
+      document.getElementById('pSender').innerHTML = PARTNER_MB.map(m => '<option value="' + esc(m.email) + '">' + esc(m.display_name) + '</option>').join('');
+      let readyN = 0, coolN = 0;
+      const ordered = sortedPartnerRows(data.rows || [], PARTNER_SORT);
+      // ONE ROW PER PERSON (Daria 2026-09-09: «после отправления в списке стали отображаться варианты
+      // отправить одному партнёру рассылки по нескольким разным компаниям сразу»). The board keeps
+      // every partner∩company match (101 of 201 partners had several companies that day, up to 17),
+      // but a person reads a row as a letter — five rows for Stephan Hanzlik looked like five letters
+      // to one man. The rule «one note per partner a week» is now the SHAPE of the list: the pending
+      // matches of one partner fold into one row, the companies sit inside it as a choice, the
+      // engine's top pick is pre-selected. Sent / queued / not-sent rows stay one per letter — each is
+      // its own event. Grouping keeps the order of the first member, so «actionable first» still holds.
+      const groups = [], byKey = new Map();
+      ordered.forEach((p) => {
+        const key = p.status === 'pending'
+          ? (p.pgroup || p.partner_email || String(p.id)) + '|' + (p.choosable ? 'choosable' : 'held:' + (p.reason || ''))
+          : null;
+        if (key && byKey.has(key)) { byKey.get(key).rows.push(p); return; }
+        const g = { key, lead: p, rows: [p] };
+        if (key) byKey.set(key, g);
+        groups.push(g);
+      });
+      // Under «actionable first» a hairline caption separates the rows to sign from the rest.
+      let dividerAt = -1;
+      if (PARTNER_SORT === 'actionable') {
+        const lastChoosable = groups.map(g => !!g.lead.choosable).lastIndexOf(true);
+        if (lastChoosable >= 0 && lastChoosable < groups.length - 1) dividerAt = lastChoosable + 1;
+      }
+      const rows = groups.map((g, i) => {
+        const lead = i === dividerAt
+          ? '<tr class="pDivider"><td colspan="5">Sent or on hold · ' + (groups.length - i) + '</td></tr>'
+          : '';
+        return lead + partnerRowHtml(g);
+      }).join('');
+      function companyList(rs) {
+        // the person's companies, best-ranked first; long lists fold after four
+        const names = rs.slice().sort((a, b) => (a.company_rank ?? 9999) - (b.company_rank ?? 9999)).map(r => r.target_company || '—');
+        const shown = names.slice(0, 4).map(n => '<span class="co">' + esc(n) + '</span>').join('<span class="pSep"> · </span>');
+        const more = names.length > 4 ? ' <span class="pMore" title="' + esc(names.slice(4).join(', ')) + '">+' + (names.length - 4) + ' more</span>' : '';
+        return shown + more;
+      }
+      function partnerRowHtml(g) {
+        const p = g.lead;
+        const who = esc(p.partner_name || '—'), firm = esc(p.partner_company || '—');
+        const tgt = '<span class="co">' + esc(p.target_company || '—') + '</span>';
+        if (p.status === 'sent') return '<tr class="pmuted"><td></td><td>' + who + '</td><td>' + firm + '</td><td>' + tgt + '</td><td style="text-align:right">' + partnerSentTag(p.mailbox_email) + '</td></tr>';
+        if (p.status === 'approved') return '<tr class="pmuted"><td></td><td>' + who + '</td><td>' + firm + '</td><td>' + tgt + '</td><td style="text-align:right"><span class="tag pending"><span class="dot"></span>Queued</span></td></tr>';
+        if (p.status === 'sending') return '<tr class="pmuted"><td></td><td>' + who + '</td><td>' + firm + '</td><td>' + tgt + '</td><td style="text-align:right"><span class="tag pending"><span class="dot"></span>Sending</span></td></tr>';
+        // Не ушедшее письмо теперь ВИДНО вместе с причиной. Раньше отказ молча возвращал строку
+        // в список выбора — и та же кнопка предлагала «оставшихся 10», ничего не объясняя.
+        if (p.status === 'failed') return '<tr class="pmuted"><td></td><td>' + who + '</td><td>' + firm + '</td><td>' + tgt + '</td><td style="text-align:right"><span class="tag bad" title="' + esc(p.last_error || '') + '">Not sent</span></td></tr>';
+        if (p.status === 'uncertain') return '<tr class="pmuted"><td></td><td>' + who + '</td><td>' + firm + '</td><td>' + tgt + '</td><td style="text-align:right">' + partnerUncertainTag() + '</td></tr>';
+        if (p.status === 'skipped') return '<tr class="pmuted"><td></td><td>' + who + '</td><td>' + firm + '</td><td>' + tgt + '</td><td style="text-align:right"><span class="tag neutral" title="' + esc(p.last_error || '') + '">Skipped</span></td></tr>';
+        if (p.choosable) {
+          readyN++;   // one sendable PERSON
+          const grp = esc(p.pgroup || p.partner_email || String(p.id));
+          const members = g.rows.slice().sort((a, b) => (a.company_rank ?? 9999) - (b.company_rank ?? 9999));
+          const dflt = members.find(r => r.eligible) || members[0];
+          // a remembered tick names the company that was picked; otherwise the engine's default
+          const remembered = checkedIds ? members.find(r => checkedIds.has(r.id)) : null;
+          const pick = remembered || dflt;
+          const on = checkedIds ? !!remembered : (autocheck && !!dflt);
+          const chips = members.length === 1
+            ? '<span class="co">' + esc(pick.target_company || '—') + '</span>'
+            : '<span class="pCos" role="radiogroup" aria-label="Company for ' + who + '">'
+              + members.map(r => '<button type="button" class="tag dlflag pCo ' + (r.id === pick.id ? 'on' : 'off') + '" role="radio" aria-checked="' + (r.id === pick.id ? 'true' : 'false') + '" data-pid="' + r.id + '" data-pgroup="' + grp + '" title="' + (r.eligible ? 'best match this week' : 'send this company instead') + '">' + esc(r.target_company || '—') + '</button>').join('')
+              + '</span>';
+          return '<tr data-pid="' + pick.id + '" data-pgroup="' + grp + '"><td><input type="checkbox" class="pChk" data-pid="' + pick.id + '" data-pgroup="' + grp + '" data-default="' + dflt.id + '"' + (on ? ' checked' : '') + ' aria-label="Send to ' + who + '"></td><td>' + who + '</td><td>' + firm + '</td><td>' + chips + '</td><td style="text-align:right" class="pStatus"></td></tr>';
+        }
+        coolN++;   // one held PERSON
+        return '<tr class="pmuted"><td></td><td>' + who + '</td><td>' + firm + '</td><td>' + companyList(g.rows) + '</td><td style="text-align:right"><span class="tag neutral" title="' + esc(p.reason || 'on hold') + '">' + esc(p.reason || 'on hold') + '</span></td></tr>';
+      }
+      document.getElementById('pBody').innerHTML = rows || '<tr><td colspan="5" class="empty">No partner matches today.</td></tr>';
+      document.getElementById('pSelAll').checked = false;
+      const queuedN = (data.rows || []).filter(r => r.status === 'approved' || r.status === 'sending').length;
+      const failedN = (data.rows || []).filter(r => r.status === 'failed').length;
+      document.getElementById('pReady').textContent = (data.rows || []).length
+        ? (readyN + ' can send · ' + coolN + ' on cooldown'
+           + (queuedN ? ' · ' + queuedN + ' queued' : '')
+           + (failedN ? ' · ' + failedN + ' not sent' : ''))
+        : '';
+      renderPartnerHealth();
+      applyPartnerExclusion();
+      updatePartnerSel();
+    }
+    // One warm touch per partner / week is the SHAPE of the row now: a person is one checkbox and
+    // the companies are chips inside it (radio), so nothing needs greying across rows. The server
+    // enforces the same cap at the send throat, so this is UX, not the guarantee.
+    function applyPartnerExclusion() {
+      document.querySelectorAll('.pChk').forEach(c => {
+        const tr = c.closest('tr'); if (!tr) return;
+        const st = tr.querySelector('.pStatus');
+        if (st) st.innerHTML = c.checked ? '<span class="tag pending"><span class="dot"></span>Ready</span>' : '';
+      });
+    }
+    // Picking a company ticks the person — choosing what to send IS the intent to send it.
+    function choosePartnerCompany(btn) {
+      const tr = btn.closest('tr'); if (!tr) return;
+      const pid = btn.getAttribute('data-pid');
+      tr.querySelectorAll('.pCo').forEach(b => { const on = b === btn; b.classList.toggle('on', on); b.classList.toggle('off', !on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+      tr.setAttribute('data-pid', pid);
+      const chk = tr.querySelector('.pChk');
+      if (chk) { chk.setAttribute('data-pid', pid); chk.checked = true; }
+      applyPartnerExclusion(); updatePartnerSel();
+    }
+    function updatePartnerSel() {
+      const n = document.querySelectorAll('.pChk:checked').length;
+      document.getElementById('pSelCount').textContent = n + ' selected';
+      const btn = document.getElementById('pSendSel');
+      const snz = document.getElementById('pSnooze');
+      const all = document.getElementById('pSelAll');
+      if (PARTNER_SENDING) {
+        btn.disabled = true;
+        if (snz) snz.disabled = true;
+        if (all) all.disabled = true;
+        return;
+      }
+      if (all) all.disabled = false;
+      btn.disabled = n === 0 || PARTNER_MB.length === 0;
+      btn.textContent = n > 0 ? ('Send selected (' + n + ')') : 'Send selected';
+      if (snz) { snz.disabled = n === 0; snz.textContent = n > 0 ? ('Snooze 1 week (' + n + ')') : 'Snooze 1 week'; }
+    }
+    // ── Relationship lists ────────────────────────────────────────────────────────────────
+    // What each list does, in the desk's words. The lock itself lives on the server
+    // (contact-tiers.js) and is enforced at the send throats; this is only the explanation.
+    const REL_ORDER = ['whatsapp_group', 'email_relationship', 'paused', 'stop'];
+    const REL_RULE = {
+      whatsapp_group: 'We set up a WhatsApp group with this partner. Nobody at the firm gets an email from us; check in on WhatsApp every 45 days.',
+      email_relationship: 'We spoke and they prefer email. The firm’s colleagues get no mailing; this partner gets a personal check-in every 60 days.',
+      paused: 'In correspondence, no call yet. No template to this person for 60 days, then only about a different company. Colleagues may still be written to.',
+      stop: 'Asked us not to write. This address never gets an email from the mailing.',
+    };
+    let REL = null;
+    async function loadRelationships() {
+      const grid = document.getElementById('relGrid');
+      let d;
+      try { d = await fetch('/api/sourcing/relationships', { credentials: 'same-origin' }).then(r => r.json()); }
+      catch (e) { d = { error: 'Could not load the lists' }; }
+      if (!d || d.error) { grid.innerHTML = '<div class="relPanel"><p class="muted">' + esc((d && d.error) || 'Could not load the lists') + '</p></div>'; return; }
+      REL = d;
+      document.getElementById('relDue').textContent = d.due ? (d.due + ' check-in' + (d.due === 1 ? '' : 's') + ' due') : 'No check-ins due';
+      grid.innerHTML = REL_ORDER.map(relPanelHtml).join('');
+    }
+    function relItemHtml(tier, it) {
+      const who = it.whole_firm ? (it.firm_name || it.address.slice(1)) + ' · whole firm' : (it.person_name || it.address);
+      const sub = [it.whole_firm ? it.address : (it.person_name ? it.address : ''), it.whole_firm ? '' : (it.firm_name || '')].filter(Boolean).join(' · ');
+      const tags = [];
+      const acts = [];
+      if (it.due_at) {
+        tags.push(it.due
+          ? '<span class="tag pending" title="Last touch ' + esc(it.last_touch) + '"><span class="dot"></span>Check-in due</span>'
+          : '<span class="tag neutral" title="Last touch ' + esc(it.last_touch) + '">Next ' + esc(it.due_at) + '</span>');
+        acts.push('<button type="button" class="iconbtn" data-rel-copy="' + it.id + '" title="Copy the check-in message" aria-label="Copy the check-in message">' + (window.ICON ? ICON.copy : 'Copy') + '</button>');
+        acts.push('<button type="button" class="iconbtn" data-rel-checkin="' + it.id + '" title="Mark as checked in today" aria-label="Mark as checked in today">' + (window.ICON ? ICON.check : 'Done') + '</button>');
+      }
+      if (tier === 'paused') {
+        tags.push(it.resumed
+          ? '<span class="tag neutral" title="Only a company not pitched to them before">Other companies only</span>'
+          : '<span class="tag neutral">Until ' + esc(it.resumes_at) + '</span>');
+      }
+      acts.push('<button type="button" class="iconbtn" data-rel-remove="' + it.id + '" title="Take off this list" aria-label="Take off this list">' + (window.ICON ? ICON.x : 'Remove') + '</button>');
+      const added = 'Added ' + esc(it.added_at) + (it.added_by ? ' by ' + esc(it.added_by) : '');
+      return '<li><div class="relWho"><b>' + esc(who) + '</b><span>' + esc(sub) + '</span><span title="' + added + '">' + added + '</span></div>'
+        + '<div class="relMeta">' + tags.join('') + acts.join('') + '</div></li>';
+    }
+    function relPanelHtml(tier) {
+      const meta = (REL.tiers && REL.tiers[tier]) || { title: tier };
+      const items = (REL.lists && REL.lists[tier]) || [];
+      return '<div class="relPanel" data-tier="' + tier + '">'
+        + '<h3>' + esc(meta.title) + ' <span class="muted" style="font-family:var(--sans);font-size:12px;font-weight:500">' + items.length + '</span></h3>'
+        + '<p class="relRule">' + esc(REL_RULE[tier] || '') + '</p>'
+        + '<ul class="relList">' + (items.length ? items.map(it => relItemHtml(tier, it)).join('') : '<li class="empty">Nobody on this list yet.</li>') + '</ul>'
+        + '<div class="relAdd"><textarea data-rel-input="' + tier + '" placeholder="name@firm.com — one per line" aria-label="Addresses to add to ' + esc(meta.title) + '"></textarea>'
+        + '<button type="button" class="btn btn-ghost btn-sm" data-rel-add="' + tier + '">Add to list</button>'
+        + '<div class="relMsg" data-rel-msg="' + tier + '"></div></div></div>';
+    }
+    function relFind(id) {
+      for (const k of REL_ORDER) { const it = ((REL && REL.lists && REL.lists[k]) || []).find(x => String(x.id) === String(id)); if (it) return it; }
+      return null;
+    }
+    const REL_TITLE = { whatsapp_group: 'WhatsApp groups', email_relationship: 'Email relationships', paused: 'Paused', stop: 'Stop list' };
+    document.getElementById('relGrid').addEventListener('click', async (e) => {
+      const add = e.target.closest('[data-rel-add]');
+      const rm = e.target.closest('[data-rel-remove]');
+      const ci = e.target.closest('[data-rel-checkin]');
+      const cp = e.target.closest('[data-rel-copy]');
+      const toast = (m) => { if (window.showToast) showToast(m); };
+      if (add) {
+        const tier = add.getAttribute('data-rel-add');
+        const box = document.querySelector('[data-rel-input="' + tier + '"]');
+        const msg = document.querySelector('[data-rel-msg="' + tier + '"]');
+        const text = (box.value || '').trim();
+        if (!text) { msg.textContent = 'Paste at least one address.'; return; }
+        add.disabled = true;
+        let r;
+        try {
+          r = await fetch('/api/sourcing/relationships', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tier, text }) }).then(x => x.json());
+        } catch (err) { r = { ok: false, error: 'Network error' }; }
+        add.disabled = false;
+        if (!r || !r.ok) { msg.textContent = (r && r.error) || 'Could not add'; return; }
+        const parts = [];
+        if (r.added.length) parts.push(r.added.length + ' added');
+        if (r.moved.length) parts.push(r.moved.length + ' moved from ' + [...new Set(r.moved.map(m => REL_TITLE[m.from] || m.from))].join(', '));
+        if (r.already.length) parts.push(r.already.length + ' already here');
+        await loadRelationships();
+        const after = document.querySelector('[data-rel-msg="' + tier + '"]');
+        const rej = r.rejected.map(x => x.reason).join('; ');
+        if (after) after.textContent = parts.join(' · ') + (rej ? (parts.length ? ' · ' : '') + 'Not added: ' + rej : '');
+        if (rej) { const b2 = document.querySelector('[data-rel-input="' + tier + '"]'); if (b2) b2.value = r.rejected.map(x => x.input).join('\n'); }
+        return;
+      }
+      if (rm) {
+        const id = rm.getAttribute('data-rel-remove');
+        rm.disabled = true;
+        const r = await fetch('/api/sourcing/relationships/' + id + '/remove', { method: 'POST', credentials: 'same-origin' }).then(x => x.json()).catch(() => null);
+        toast(r && r.ok ? 'Taken off the list — the mailing may write to ' + r.address + ' again' : 'Could not remove');
+        loadRelationships();
+        return;
+      }
+      if (ci) {
+        const id = ci.getAttribute('data-rel-checkin');
+        ci.disabled = true;
+        const r = await fetch('/api/sourcing/relationships/' + id + '/checkin', { method: 'POST', credentials: 'same-origin' }).then(x => x.json()).catch(() => null);
+        toast(r && r.ok ? 'Checked in — next reminder moves forward' : 'Could not save');
+        loadRelationships();
+        return;
+      }
+      if (cp) {
+        const it = relFind(cp.getAttribute('data-rel-copy'));
+        if (!it) return;
+        try { await navigator.clipboard.writeText(it.checkin_text || ''); toast('Check-in message copied'); }
+        catch (err) { toast('Copy failed'); }
+      }
+    });
+
+    async function snoozePartnersSelected() {
+      const ids = Array.from(document.querySelectorAll('.pChk:checked')).map(c => +c.getAttribute('data-pid'));
+      if (!ids.length) return;
+      const btn = document.getElementById('pSnooze'); btn.disabled = true; btn.textContent = 'Snoozing…';
+      document.getElementById('pSelAll').checked = false;
+      try {
+        const r = await fetch('/api/sourcing/partners/snooze', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, days: 7 }) }).then(r => r.json());
+        if (window.showToast) showToast(r && r.ok ? ('Deferred ' + (r.snoozed || ids.length) + ' for a week') : 'Snooze failed');
+      } catch (e) { if (window.showToast) showToast('Snooze failed'); }
+      loadPartners();   // refresh — snoozed matches grey out («snoozed · resumes …») and leave the send list
+    }
+    // Пока очередь едет, экран просто ПОКАЗЫВАЕТ движение. Он ничего не досылает и не может
+    // предложить «оставшихся» — строка, стоящая в очереди, закрывает своего партнёра целиком.
+    // Закрытая вкладка отправку не останавливает: везёт её сервер, а не браузер.
+    async function waitPartnerSend(ids) {
+      const want = new Set(ids);
+      const deadline = Date.now() + 45 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await loadPartners({ autocheck: false, refresh: false });
+        const rows = (PARTNER_DATA && PARTNER_DATA.rows) || [];
+        const still = rows.filter(r => want.has(r.id) && (r.status === 'approved' || r.status === 'sending')).length;
+        const btn = document.getElementById('pSendSel');
+        if (btn) { btn.disabled = true; btn.textContent = still ? ('Sending ' + still + '…') : 'Refreshing status…'; }
+        if (!still) {
+          const sent = rows.filter(r => want.has(r.id) && r.status === 'sent').length;
+          const fail = rows.filter(r => want.has(r.id) && (r.status === 'failed' || r.status === 'skipped')).length;
+          if (window.showToast) showToast('Sent ' + sent + (fail ? ', ' + fail + ' not sent — see the list' : ''));
+          return;
+        }
+        await new Promise(r => setTimeout(r, 4000));
+      }
+      if (window.showToast) showToast('Still sending — the queue keeps going on the server, you can close this page.');
+    }
+    async function sendPartnersSelected() {
+      const sender = document.getElementById('pSender').value;
+      const ids = Array.from(document.querySelectorAll('.pChk:checked')).map(c => +c.getAttribute('data-pid'));
+      if (!sender || !ids.length || PARTNER_SENDING) return;
+      const btn = document.getElementById('pSendSel'); btn.disabled = true;
+      document.getElementById('pSelAll').checked = false;
+      btn.textContent = 'Sending ' + ids.length + '…';
+      PARTNER_SENDING = true;
+      updatePartnerSel();
+      try {
+        const response = await fetch('/api/sourcing/partners/send', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids, mailbox_email: sender })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.error) throw new Error(payload.error || ('HTTP ' + response.status));
+        if (window.showToast) showToast('Queued ' + (payload.queued || 0) + ' — letters go out on their own');
+        await waitPartnerSend(ids);
+      } catch (e) {
+        if (window.showToast) showToast('Send failed: ' + (e.message || 'unknown error'));
+      } finally {
+        PARTNER_SENDING = false;
+        btn.textContent = 'Refreshing status…';
+        await loadPartners({ autocheck: false });
+        updatePartnerSel();
+      }
+    }
+    document.getElementById('pSelAll').addEventListener('change', function () {
+      const on = this.checked;
+      // one checkbox per person; the company chip already chosen on the row is respected
+      document.querySelectorAll('.pChk').forEach(c => { c.checked = on; });
+      applyPartnerExclusion(); updatePartnerSel();
+    });
+    document.getElementById('pBody').addEventListener('change', e => { if (e.target && e.target.classList && e.target.classList.contains('pChk')) { applyPartnerExclusion(); updatePartnerSel(); } });
+    document.getElementById('pBody').addEventListener('click', e => { const b = e.target && e.target.closest && e.target.closest('button.pCo'); if (b) choosePartnerCompany(b); });
+    document.getElementById('pSendSel').addEventListener('click', sendPartnersSelected);
+    document.getElementById('pSort').addEventListener('click', e => { const b = e.target && e.target.closest('button[data-sort]'); if (b) setPartnerSort(b.getAttribute('data-sort')); });
+    document.getElementById('pSnooze').addEventListener('click', snoozePartnersSelected);
+
+    // ── STATS ───────────────────────────────────────────────────────────────────────────────
+    // Every figure in this view is read over one period, chosen above it (Arthur 2026-08-04).
+    // The period lives in the address bar, so a week worth discussing can be sent as a link,
+    // and reloading keeps it. Charts are drawn at real pixel size against the measured width
+    // of their box rather than scaled from a fixed viewBox — a 900-wide drawing squeezed into
+    // a phone takes its axis labels down to four pixels with it.
+    let RANGE = { from: null, to: null }, STATS = null, STATS_SCOPE = 'send';
+    // The period switch answers the click, not the network (Arthur 2026-09-09: «переключатель
+    // работает с большой задержкой»). Three things make it feel instant: the button lights up
+    // before the request leaves, an already-seen period redraws from memory, and the numbers on
+    // screen stay put — dimmed — instead of being wiped to «Loading…» while the next set loads.
+    const STATS_CACHE = new Map();
+    const rangeKey = (r) => (r.from || 'all') + '|' + (r.to || '');
+    let STATS_REQ = null, STATS_REQ_KEY = null;
+
+    const dayFmt = (d) => { const p = String(d).split('-'); return MONTHS_SHORT[+p[1] - 1] + ' ' + (+p[2]); };
+    const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    // Доля меньше десяти процентов держит один знак после запятой: ответы — это полпроцента,
+    // и округление до целых показывало «0% of sent» при двадцати ответах (Артур 2026-10-01).
+    const pctFmt = (p) => (p < 10 ? (Math.round(p * 10) / 10) : Math.round(p)) + '%';
+    const pctOf = (a, b) => (+b > 0 ? pctFmt((+a / +b) * 100) : '—');
+    const todayPST = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const shiftDay = (days) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Date.now() + days * 86400000));
+
+    function readRangeFromUrl() {
+      const q = new URLSearchParams(location.search);
+      STATS_SCOPE = q.get('stats') === 'partner' ? 'partner' : 'send';
+      const ok = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+      const from = ok(q.get('from')) ? q.get('from') : (q.get('from') === 'all' ? null : undefined);
+      const to = ok(q.get('to')) ? q.get('to') : undefined;
+      RANGE = {
+        from: from === undefined ? shiftDay(-29) : from,
+        to: to === undefined ? todayPST() : to,
+      };
+    }
+
+    function writeRangeToUrl() {
+      writeQS({
+        from: RANGE.from || 'all',
+        to: RANGE.to || todayPST(),
+        stats: STATS_SCOPE,
+      });
+      if (window.svicUrlState) return;
+      const q = new URLSearchParams(location.search);
+      if (RANGE.from) q.set('from', RANGE.from); else q.delete('from');
+      if (RANGE.to) q.set('to', RANGE.to); else q.delete('to');
+      q.set('stats', STATS_SCOPE);
+      history.replaceState(null, '', location.pathname + '?' + q.toString() + location.hash);
+    }
+
+    function setStatsScope(scope, options) {
+      STATS_SCOPE = scope === 'partner' ? 'partner' : 'send';
+      document.querySelectorAll('[data-stats-scope]').forEach(b => {
+        const on = b.getAttribute('data-stats-scope') === STATS_SCOPE;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      document.querySelectorAll('[data-stats-panel]').forEach(p => {
+        p.hidden = p.getAttribute('data-stats-panel') !== STATS_SCOPE;
+      });
+      document.getElementById('statsScopeNote').textContent = STATS_SCOPE === 'partner'
+        ? 'Warm, human-approved outreach sent from Partner lane.'
+        : 'Cold outreach assembled and sent automatically from Send queue.';
+      if (!options || options.write !== false) writeRangeToUrl();
+      if (STATS && (!options || options.render !== false)) requestAnimationFrame(renderStatsAll);
+    }
+
+    function renderRangeControls() {
+      document.getElementById('rFrom').value = RANGE.from || '';
+      document.getElementById('rTo').value = RANGE.to || todayPST();
+      const spanDays = RANGE.from ? Math.round((Date.parse(RANGE.to) - Date.parse(RANGE.from)) / 86400000) + 1 : 0;
+      document.querySelectorAll('#rPresets button').forEach(b => {
+        const d = +b.getAttribute('data-days');
+        const on = RANGE.to === todayPST() && ((d === 0 && !RANGE.from) || (d > 0 && RANGE.from && spanDays === d));
+        b.classList.toggle('on', on);
+      });
+    }
+
+    function setStatsBusy(busy) {
+      document.querySelectorAll('[data-stats-panel]').forEach(p => {
+        p.setAttribute('aria-busy', busy ? 'true' : 'false');
+        p.classList.toggle('is-stale', !!busy);   // §States — stale-while-refreshing, defined in app.css
+      });
+    }
+
+    async function loadStats(force) {
+      if (STATS && !force) { renderStatsAll(); return; }
+      const key = rangeKey(RANGE);
+      const cached = STATS_CACHE.get(key);
+      // Drawing the remembered answer must never be able to cancel the fresh one that follows.
+      if (cached) {
+        STATS = cached;
+        try { renderStatsAll(); restoreStatsWindows(); } catch (e) { console.error('stats redraw', e); }
+      }
+      else if (!STATS) {
+        document.getElementById('kpis').innerHTML = '<div class="box"><div class="label">Loading…</div></div>';
+        document.getElementById('partnerKpis').innerHTML = '<div class="box"><div class="label">Loading…</div></div>';
+      }
+      setStatsBusy(true);
+      // A period the reader has left is a period whose answer no longer belongs on screen: the
+      // previous request is dropped, and a late one that still arrives is ignored by its key.
+      if (STATS_REQ) STATS_REQ.abort();
+      const ctrl = new AbortController();
+      STATS_REQ = ctrl; STATS_REQ_KEY = key;
+      const q = new URLSearchParams();
+      if (RANGE.from) q.set('from', RANGE.from);
+      if (RANGE.to) q.set('to', RANGE.to);
+      let d;
+      try { d = await fetch('/api/sourcing/stats?' + q.toString(), { credentials: 'same-origin', signal: ctrl.signal }).then(r => r.json()); }
+      catch (e) { if (e && e.name === 'AbortError') return; d = { error: e.message }; }
+      if (STATS_REQ_KEY !== key || rangeKey(RANGE) !== key) return;
+      STATS_REQ = null;
+      setStatsBusy(false);
+      if (!d || d.error) {
+        if (cached) return;
+        const errorBox = '<div class="box"><div class="label">Statistics</div><div class="foot">' + esc((d && d.error) || 'not available') + '</div></div>';
+        document.getElementById('kpis').innerHTML = errorBox;
+        document.getElementById('partnerKpis').innerHTML = errorBox;
+        return;
+      }
+      STATS_CACHE.set(key, d);
+      STATS = d;
+      renderStatsAll();
+      restoreStatsWindows();
+    }
+
+    function renderStatsAll() {
+      if (!STATS) return;
+      renderRangeControls();
+      renderRangeNote(STATS);
+      setStatsScope(STATS_SCOPE, { write: false, render: false });
+      const send = STATS.sendQueue || {};
+      const conversion = send.conversion || {};
+      renderKpis(send);
+      renderSendsChart(send.series || []);
+      renderRepliesChart(send.series || [], send.replyDetails || []);
+      renderCallsChart(conversion);
+      renderInvitesChart(conversion);
+      renderDomains(send.byDomain || []);
+      renderPartnerLane(STATS.partnerLane);
+    }
+
+    function renderRangeNote(s) {
+      const r = s.range || {};
+      const label = r.from ? dayFmt(r.from) + ' — ' + dayFmt(r.to) : 'all available history';
+      document.getElementById('rangeNote').textContent =
+        'Showing ' + label + '. Days are the desk’s own days (PST).';
+    }
+
+    function renderKpis(s) {
+      const t = s.totals || {}, all = t.allTime || {};
+      // The desk's own figure counts meetings, not seats: two of them in one partner call is one
+      // call. Summing the people would count it twice and quietly overstate the week.
+      const conversion = s.conversion || {};
+      const callSummary = conversion.calls && conversion.calls.summary;
+      // «Состоялось» — это held, не booked: до 12.09 подпись обещала одно, а цифра показывала
+      // другое, и ещё не наступившая встреча объявлялась состоявшейся (разбор 2026-09-12).
+      const calls = callSummary ? callSummary.range.held : null;
+      const missedCalls = callSummary ? (callSummary.range.missed || 0) : 0;
+      const upcomingCalls = callSummary ? (callSummary.range.upcoming || 0) : 0;
+      const unconfirmedCalls = callSummary ? (callSummary.range.unconfirmed || 0) : 0;
+      const callsAll = callSummary ? callSummary.all.booked : null;
+      const leads = (conversion.calls && conversion.calls.leads) || null;
+      const fundsWritten = (conversion.calls && conversion.calls.letters && conversion.calls.letters.firms) || 0;
+      const box = (label, val, foot) => '<div class="box"><div class="label">' + label + '</div><div class="val">' + val + '</div><div class="foot">' + foot + '</div></div>';
+      document.getElementById('kpis').innerHTML =
+        box('Funds reached', num(t.funds), num(all.funds) + ' all time') +
+        box('Letters sent', num(t.sent), num(all.sent) + ' all time') +
+        // Ответ — единственный исход, который видно всегда: его не прячет ни прокси приватности,
+        // ни почта, не показавшая картинку. Поэтому он идёт раньше открытий (Артур 2026-10-01).
+        box('Replied', num(t.replied), pctOf(t.replied, t.sent) + ' of sent') +
+        (() => {
+          // Процент — по письмам, где открытие вообще можно увидеть: письмо, картинку которого
+          // забрал прокси приватности, не «не открыто», а «не видно». И только с начала журнала
+          // просмотров: раньше «открыто» ставила любая загрузка, включая роботов. Число на
+          // плитке и процент под ним — об одних и тех же письмах, иначе они спорят друг с другом.
+          const measured = Number(t.measured_sent || 0);
+          if (!measured) return box('Opened', num(t.opened), pctOf(t.opened, t.sent) + ' of sent · old count, robots included');
+          const shown = (STATS && STATS.range) || {};
+          const parts = [(t.open_rate != null ? pctFmt(+t.open_rate) : '—') + ' of letters we can see'];
+          const hidden = Number(t.measured_hidden || 0);
+          if (hidden) parts.push(num(hidden) + ' not visible');
+          if (t.measured_from && (!shown.from || shown.from < t.measured_from)) parts.push('since ' + dayFmt(t.measured_from));
+          // «Открыто» отвечает на «открывали ли», «просмотров» — на «сколько раз» (Артур 2026-09-12):
+          // просмотры показываются всегда, когда они есть.
+          const views = Number(t.views || 0);
+          if (views) parts.push(num(views) + ' views');
+          return box('Opened', num(t.measured_opened), parts.join(' · '));
+        })() +
+        box('Calls held', calls == null ? '—' : num(calls), (() => {
+          if (calls == null) return 'not connected';
+          const parts = [];
+          if (upcomingCalls) parts.push(num(upcomingCalls) + ' upcoming');
+          if (missedCalls) parts.push(num(missedCalls) + (missedCalls === 1 ? ' no-show' : ' no-shows') + ' not counted');
+          if (unconfirmedCalls) parts.push(num(unconfirmedCalls) + ' not marked');
+          if (!parts.length) {
+            parts.push(leads == null ? num(callsAll) + ' all time'
+              : num(leads.range) + (leads.range === 1 ? ' firm' : ' firms') + ' of ' + num(fundsWritten) + ' written to');
+          }
+          return parts.join(' · ');
+        })());
+    }
+
+    // The summary chart stays compact. Its drawer reads one immutable outreach episode across
+    // the cold and team-mail stores; Outreach Inbox remains a separate UI and is never changed.
+    // A day on the chart opens the conversation itself (Arthur 2026-09-10: the list with an
+    // button in a list was a step nobody wanted). A day with one reply is the thread;
+    // a day with several shows the people once, as a short selectable list above the thread,
+    // and the first of them is already open. The address carries the person (`conv`) from the
+    // first click, so a link pasted to a colleague lands on the same letter.
+    let LAST_DETAIL_TRIGGER = null;
+    let LAST_DETAIL_STATE = null;
+    let CONV_REQUEST = 0;
+    const detailDateTime = (v) => v ? new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    }).format(new Date(v)) : '';
+    const itemName = (item) => (item && (item.name || item.email)) || 'Counterparty';
+    const ordinal = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
+    // Повод и номер письма со ссылкой называются прямо: один человек получает её по нескольку раз.
+    const itemContext = (item) => [item.firm, item.targetCompany, item.reason || '',
+      item.linkNo > 1 ? ordinal(item.linkNo) + ' link letter' : ''].filter(Boolean).join(' · ');
+    // Исход едет в шапку и в список дня: клик по неявке открывал заголовок, который читался как
+    // состоявшийся звонок (разбор 2026-09-12).
+    const itemTiming = (kind, item, day) => kind === 'call'
+      ? [item.at ? detailDateTime(item.at) : dayFmt(item.day || day), item.title,
+         CALL_OUTCOME[item.outcome] || '', item.source ? 'Source: ' + item.source : ''].filter(Boolean).join(' · ')
+      : [item.repliedAt ? 'Replied ' + detailDateTime(item.repliedAt) : '', item.subject, item.sender ? 'Sent by ' + item.sender : ''].filter(Boolean).join(' · ');
+    // Hover and tooltip name the people behind a bar, so the click is never a surprise.
+    const namesOf = (items) => {
+      const names = (items || []).map(itemName);
+      if (!names.length) return '';
+      const shown = names.slice(0, 3).join(', ');
+      return names.length > 3 ? shown + ' +' + (names.length - 3) + ' more' : shown;
+    };
+    function closeStatsDetails(opts) {
+      opts = opts || {};
+      CONV_REQUEST += 1;
+      document.getElementById('statsDetailOverlay').classList.remove('open');
+      const drawer = document.getElementById('statsDetailDrawer');
+      drawer.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
+      if (LAST_DETAIL_TRIGGER && typeof LAST_DETAIL_TRIGGER.focus === 'function') LAST_DETAIL_TRIGGER.focus();
+      LAST_DETAIL_TRIGGER = null;
+      LAST_DETAIL_STATE = null;
+      if (!opts.keepUrl) writeQS({ detail: '', conv: '', convLane: '', convMail: '' });
+    }
+    function openStatsDetails(kind, day, items, trigger, opts) {
+      opts = opts || {};
+      if (!Array.isArray(items) || !items.length) return;
+      LAST_DETAIL_TRIGGER = trigger || document.activeElement;
+      const wanted = opts.episodeId != null ? String(opts.episodeId) : null;
+      const wantedMail = opts.email ? String(opts.email).toLowerCase() : null;
+      const current = items.find(it => wanted != null && String(it.episodeId) === wanted)
+        || items.find(it => wantedMail && String(it.email || '').toLowerCase() === wantedMail)
+        || items[0];
+      LAST_DETAIL_STATE = { kind, day, items, current, trigger: LAST_DETAIL_TRIGGER };
+      const body = document.getElementById('statsDetailBody');
+      const WORD = { call: ['call', 'calls'], invite: ['lead', 'leads'], reply: ['reply', 'replies'] };
+      const w = WORD[kind] || WORD.reply;
+      const eyebrow = items.length + ' ' + (items.length === 1 ? w[0] : w[1]) + ' · ' + dayFmt(day);
+      body.innerHTML = (items.length > 1
+        ? '<div class="sheet-section stats-people"><div class="sheet-section-title">' + esc(eyebrow) + '</div>'
+          + '<div class="stats-people-list" role="listbox" aria-label="' + esc(eyebrow) + '">'
+          + items.map(item => {
+            const on = item === current;
+            const context = itemContext(item);
+            return '<button class="stats-person' + (on ? ' on' : '') + '" type="button" role="option" aria-selected="' + (on ? 'true' : 'false') + '"'
+              + ' data-episode="' + esc(item.episodeId || '') + '" data-lane="' + esc(item.lane || 'send') + '"'
+              + ' data-mail="' + esc(item.email || '') + '">'
+              + '<span class="stats-person-name">' + esc(itemName(item)) + '</span>'
+              + (context ? '<span class="stats-person-meta">' + esc(context) + '</span>' : '')
+              + '</button>';
+          }).join('') + '</div></div>'
+        : '')
+        + '<div class="sheet-section stats-thread" id="statsThread"></div>';
+      document.getElementById('statsDetailOverlay').classList.add('open');
+      const drawer = document.getElementById('statsDetailDrawer');
+      drawer.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
+      drawer.focus();
+      if (!opts.skipUrlPush) writeQS({ detail: kind + ':' + day, conv: current.episodeId || '',
+        convLane: (current.lane === 'partner' ? 'partner' : '') }, { push: true });
+      showStatsPerson(current, { skipUrlPush: true });
+    }
+    // One person of the open day: the head names them, the thread loads beneath. Switching a
+    // person replaces the address (no push), so Back always returns to the chart, not to the
+    // previous person.
+    function showStatsPerson(item, opts) {
+      opts = opts || {};
+      const s = LAST_DETAIL_STATE;
+      if (!s || !item) return;
+      s.current = item;
+      const context = itemContext(item);
+      document.getElementById('statsDetailTitle').textContent = [itemName(item), context, dayFmt(s.day)].filter(Boolean).join(' · ');
+      document.querySelectorAll('#statsDetailBody .stats-person').forEach(b => {
+        const on = item.episodeId
+          ? String(b.getAttribute('data-episode')) === String(item.episodeId)
+          : String(b.getAttribute('data-mail') || '').toLowerCase() === String(item.email || '').toLowerCase();
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        if (on && typeof b.scrollIntoView === 'function') b.scrollIntoView({ block: 'nearest' });
+      });
+      if (!opts.skipUrlPush) {
+        writeQS({ conv: item.episodeId || '', convLane: (item.lane === 'partner' ? 'partner' : ''),
+          convMail: item.episodeId ? '' : (item.email || '') });
+      }
+      const timing = itemTiming(s.kind, item, s.day);
+      const head = '<div class="stats-thread-head">'
+        + (item.email ? '<div class="stats-thread-email">' + esc(item.email) + '</div>' : '')
+        + (timing ? '<div class="stats-thread-meta">' + esc(timing) + '</div>' : '')
+        + '</div>';
+      // Строки реестра может не быть — у воронки календаря так у двоих лидов из трёх: переписка
+      // с человеком есть всегда, и карточка собирается по его адресу (Артур 2026-09-12).
+      if (!item.episodeId && !item.email) {
+        document.getElementById('statsThread').innerHTML = head + '<div class="empty">No letter is linked to this ' + (s.kind === 'call' ? 'call' : 'reply') + '.</div>';
+        return;
+      }
+      openStatsConversation(item.lane || 'send', item.episodeId, head, item.email, item.linkMessageId || null);
+    }
+    async function openStatsConversation(lane, episodeId, head, email, focusMessageId) {
+      if (!episodeId && !email) return;
+      const ticket = ++CONV_REQUEST;
+      const host = () => document.getElementById('statsThread');
+      if (!host()) return;
+      host().innerHTML = (head || '') + '<div class="empty">Loading conversation…</div>';
+      let data;
+      try {
+        const q = episodeId
+          ? new URLSearchParams({ lane: lane || 'send', episode: String(episodeId) })
+          : new URLSearchParams({ email: String(email) });
+        const response = await fetch('/api/sourcing/stats/conversation?' + q, { credentials: 'same-origin' });
+        data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Conversation unavailable');
+      } catch (e) {
+        if (ticket !== CONV_REQUEST || !host()) return;
+        host().innerHTML = (head || '') + '<div class="empty">' + esc(e.message || 'Conversation unavailable') + '</div>';
+        return;
+      }
+      if (ticket !== CONV_REQUEST || !host()) return;
+      const messages = data.messages || [];
+      const mail = messages.map(m => ({
+        from: m.fromName || m.fromEmail || '',
+        email: m.fromEmail || '',
+        date: m.date,
+        subject: m.subject || '',
+        body: m.text || '',
+        rcptTo: m.to || [],
+        rcptCc: m.cc || [],
+      }));
+      const thread = (window.NoteRender && messages.length)
+        ? NoteRender.renderMailThread(mail)
+        : '';
+      const track = renderEpisodeTrack(data.timeline || [], focusMessageId);
+      host().innerHTML = (head || '') + track
+        + (thread || '<div class="empty">No messages found for this outreach episode.</div>');
+    }
+    // Письма и действия — один список по одним часам. Карточка звонка раньше показывала только
+    // наши письма, поэтому засчитанный звонок выглядел доказательством самого себя: у Ричарда
+    // Сиволда стояли две наши одинаковые записки, ни одного его ответа и ни следа того, что
+    // связало его с кампанией — он сам взял слот и не пришёл (Артур 2026-09-12).
+    const CALL_OUTCOME = { no_show: 'did not come', held: 'call held', upcoming: 'still ahead', unconfirmed: 'not marked' };
+    const EP_STEP = {
+      letter:      { word: 'We wrote',      cls: '' },
+      link:        { word: 'Sent the calendar link', cls: '' },
+      reply:       { word: 'They replied',  cls: '' },
+      booked:      { word: 'Took a slot',   cls: '' },
+      rescheduled: { word: 'Moved the slot', cls: '' },
+      meeting:     { word: 'Meeting',       cls: '' },
+      unmarked:    { word: 'Meeting',       cls: '' },
+      held:        { word: 'Call held',     cls: 'is-held' },
+      viewed:      { word: 'They opened it', cls: '' },
+      no_show:     { word: 'Did not come',  cls: 'is-miss' },
+      canceled:    { word: 'Cancelled',     cls: 'is-miss' },
+    };
+    // Один формат времени на всю ленту, в часах читателя — сервер присылает моменты, не строки.
+    function stampOf(value) {
+      const when = new Date(value);
+      if (isNaN(when)) return '';
+      return when.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        + ', ' + when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    function renderEpisodeTrack(items, focusMessageId) {
+      if (!items || !items.length) return '';
+      const focus = String(focusMessageId || '').toLowerCase();
+      const rows = items.map(i => {
+        const spec = EP_STEP[i.kind] || { word: i.kind, cls: '' };
+        // Клик по дню открывает карточку НА письме этого дня: одному человеку ссылка уходит
+        // по нескольку раз, и без отметки два столбца выглядят одинаково (Артур 2026-09-12).
+        const isFocus = focus && String(i.messageId || '').toLowerCase() === focus;
+        const stamp = stampOf(i.at);
+        const parts = [];
+        if (i.subject) parts.push(esc(i.subject));
+        // Кто написал — и кто перенёс: актора шага было видно только в ответе сервера.
+        if (i.who && ['reply', 'letter', 'link', 'rescheduled', 'canceled', 'viewed'].includes(i.kind)) parts.push(esc(i.who));
+        const note = [];
+        if (i.machine) note.push('automatic answer');
+        if (i.slotAt) note.push('slot ' + esc(stampOf(i.slotAt)));
+        if (i.upcoming) note.push('still ahead');
+        if (i.kind === 'unmarked') note.push('nobody marked whether it happened');
+        if (i.markedAt) note.push('marked ' + esc(stampOf(i.markedAt)));
+        if (i.detail) note.push(esc(String(i.detail)));
+        return '<div class="ep-step ' + spec.cls + (isFocus ? ' is-focus' : '') + '"' + (isFocus ? ' aria-current="true"' : '') + '>'
+          + '<span class="ep-step-when">' + esc(stamp) + '</span>'
+          + '<span class="ep-step-what"><b>' + esc(spec.word) + '</b>'
+          + (parts.length ? ' — ' + parts.join(' · ') : '')
+          + (note.length ? '<span class="ep-step-note">' + note.join(' · ') + '</span>' : '')
+          + '</span></div>';
+      }).join('');
+      return '<div class="ep-track">' + rows + '</div>';
+    }
+    document.getElementById('statsDetailClose').addEventListener('click', closeStatsDetails);
+    document.getElementById('statsDetailOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeStatsDetails(); });
+    document.getElementById('statsDetailBody').addEventListener('click', e => {
+      const button = e.target.closest('.stats-person[data-episode]');
+      if (!button || !LAST_DETAIL_STATE) return;
+      const id = button.getAttribute('data-episode');
+      const mail = String(button.getAttribute('data-mail') || '').toLowerCase();
+      const item = LAST_DETAIL_STATE.items.find(it => (id && String(it.episodeId || '') === String(id))
+        || (!id && mail && String(it.email || '').toLowerCase() === mail));
+      if (item && item !== LAST_DETAIL_STATE.current) showStatsPerson(item);
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && document.getElementById('statsDetailDrawer').classList.contains('open')) closeStatsDetails();
+    });
+    function itemsForDetail(kind, day) {
+      if (!STATS) return [];
+      if (kind === 'reply') {
+        const send = (STATS.sendQueue && STATS.sendQueue.replyDetails) || [];
+        const partner = (STATS.partnerLane && STATS.partnerLane.replyDetails) || [];
+        return send.concat(partner).filter(item => item.day === day);
+      }
+      if (kind === 'call') {
+        const series = (STATS.sendQueue && STATS.sendQueue.conversion && STATS.sendQueue.conversion.callSeries) || [];
+        const row = series.find(d => d.day === day);
+        return (row && row.calls) || [];
+      }
+      if (kind === 'invite') {
+        const f = (STATS.sendQueue && STATS.sendQueue.conversion && STATS.sendQueue.conversion.linkFunnel) || {};
+        const row = (f.series || []).find(d => d.day === day);
+        return (row && row.people) || [];
+      }
+      return [];
+    }
+    // A pasted link may carry only the person. The day is found from the loaded range, so the
+    // drawer opens exactly as it did for the colleague who copied the address.
+    function findDetailByEpisode(episodeId) {
+      if (!STATS || episodeId == null) return null;
+      const id = String(episodeId);
+      const replies = ((STATS.sendQueue && STATS.sendQueue.replyDetails) || []).concat((STATS.partnerLane && STATS.partnerLane.replyDetails) || []);
+      const reply = replies.find(it => String(it.episodeId) === id);
+      if (reply) return { kind: 'reply', day: reply.day };
+      const series = (STATS.sendQueue && STATS.sendQueue.conversion && STATS.sendQueue.conversion.callSeries) || [];
+      for (const row of series) if ((row.calls || []).some(c => String(c.episodeId) === id)) return { kind: 'call', day: row.day };
+      return null;
+    }
+    function restoreStatsWindows() {
+      const qs = readQS();
+      let kind = null, day = null;
+      if (qs.detail) {
+        const i = String(qs.detail).indexOf(':');
+        kind = i > 0 ? qs.detail.slice(0, i) : 'reply';
+        day = i > 0 ? qs.detail.slice(i + 1) : qs.detail;
+      }
+      if (qs.conv && !(kind && itemsForDetail(kind, day).some(it => String(it.episodeId) === String(qs.conv)))) {
+        const found = findDetailByEpisode(qs.conv);
+        if (found) { kind = found.kind; day = found.day; }
+      }
+      const items = kind ? itemsForDetail(kind, day) : [];
+      if (items.length) {
+        openStatsDetails(kind, day, items, null, { skipUrlPush: true, episodeId: qs.conv || null, email: qs.convMail || null });
+        // The address is completed in place (no push): a link without `conv` now names the person it opened.
+        const cur = LAST_DETAIL_STATE && LAST_DETAIL_STATE.current;
+        writeQS({ detail: kind + ':' + day, conv: (cur && cur.episodeId) || '',
+          convMail: (cur && !cur.episodeId && cur.email) ? cur.email : '' });
+        return;
+      }
+      if (qs.conv || qs.convMail) {
+        // The episode is outside the loaded range: still show the letter, without a day list.
+        LAST_DETAIL_TRIGGER = document.activeElement;
+        LAST_DETAIL_STATE = { kind: 'reply', day: null, items: [], current: null, trigger: LAST_DETAIL_TRIGGER };
+        document.getElementById('statsDetailTitle').textContent = 'Conversation';
+        document.getElementById('statsDetailBody').innerHTML = '<div class="sheet-section stats-thread" id="statsThread"></div>';
+        document.getElementById('statsDetailOverlay').classList.add('open');
+        const drawer = document.getElementById('statsDetailDrawer');
+        drawer.classList.add('open');
+        drawer.setAttribute('aria-hidden', 'false');
+        drawer.focus();
+        // Полоса берётся из адреса: ссылка на тёплую карточку, пересланная коллеге, открывалась
+        // как «not found», потому что восстановление всегда просило полосу рассылки.
+        openStatsConversation(qs.convLane === 'partner' ? 'partner' : 'send', qs.conv, '', qs.convMail || '');
+      }
+    }
+    window.addEventListener('popstate', () => {
+      const qs = readQS();
+      if (qs.lane === 'microsoft' || qs.lane === 'other' || qs.lane === 'gmail') {
+        if (qs.lane !== lane && PLAN) { lane = qs.lane; renderLanes(PLAN); }
+        else if (qs.lane !== lane) lane = qs.lane;
+      } else if (!qs.lane && lane !== 'gmail' && PLAN) {
+        lane = 'gmail'; renderLanes(PLAN);
+      }
+      if (qs.sort && PARTNER_SORT_MODES.includes(qs.sort) && qs.sort !== PARTNER_SORT) setPartnerSort(qs.sort);
+      if (qs.detail || qs.conv) restoreStatsWindows();
+      else if (document.getElementById('statsDetailDrawer').classList.contains('open')) closeStatsDetails({ keepUrl: true });
+    });
+
+    // ── charts ──────────────────────────────────────────────────────────────────────────────
+    // Small deliberate drawing routine instead of a charting library: two chart shapes, both
+    // stacked bars over days, both obeying the brand tokens (one accent, hairlines, no shadow,
+    // no gradient) and both re-skinning with the theme because every colour is a var().
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const el = (name, attrs) => { const n = document.createElementNS(SVG_NS, name); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+    // The top of the scale is a round number at or just above the tallest bar, so a day of three
+    // calls is not drawn against a ceiling of ten. Only the floor and the ceiling are labelled —
+    // a middle label would have to round, and a rounded axis label is a small lie.
+    const niceMax = (v) => {
+      if (v <= 1) return 1;
+      const p = Math.pow(10, Math.floor(Math.log10(v)));
+      for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10]) if (m * p >= v) return m * p;
+      return 10 * p;
+    };
+
+    // One bar per day between the two ends of the period, so a silent day is a visible gap and
+    // not a missing column that quietly closes the timeline up.
+    function fillDays(rows, from, to) {
+      const byDay = new Map(rows.map(r => [r.day, r]));
+      if (!from) from = rows.length ? rows[0].day : to;
+      const out = [];
+      let cur = Date.parse(from + 'T00:00:00Z'), end = Date.parse(to + 'T00:00:00Z');
+      if (!(cur <= end)) return rows.slice();
+      // Very long periods collapse to the days that carry something, or the bars vanish.
+      if ((end - cur) / 86400000 > 190) return rows.slice();
+      while (cur <= end) {
+        const day = new Date(cur).toISOString().slice(0, 10);
+        out.push(byDay.get(day) || { day });
+        cur += 86400000;
+      }
+      return out;
+    }
+
+    // A chart is redrawn whenever the box it lives in changes width — at first paint, when the
+    // tab is opened, when the window is resized. Measuring once and trusting it produced a
+    // drawing made for 280px stretched across a desktop, with axis labels five times too big.
+    const CHART_JOBS = new Map();
+    const CHART_RO = typeof ResizeObserver === 'function' ? new ResizeObserver(entries => {
+      for (const e of entries) {
+        const job = CHART_JOBS.get(e.target);
+        const w = Math.round(e.contentRect.width);
+        if (!job || !w || Math.abs(w - job.width) <= 2) continue;
+        job.width = w;
+        drawStacked(e.target, job.days, job.layers, job.onHover, job.onActivate, job.marker);
+      }
+    }) : null;
+
+    function drawStacked(host, days, layers, onHover, onActivate, marker) {
+      if (CHART_RO) {
+        const known = CHART_JOBS.get(host);
+        CHART_JOBS.set(host, { days, layers, onHover, onActivate, marker, width: known ? known.width : 0 });
+        if (!known) CHART_RO.observe(host);
+      }
+      host.innerHTML = '';
+      const total = (d) => layers.reduce((a, l) => a + (+l.value(d) || 0), 0);
+      const peak = days.reduce((a, d) => Math.max(a, total(d)), 0);
+      if (!days.length || peak === 0) {
+        host.innerHTML = '<div class="cempty">Nothing in this period.</div>';
+        return;
+      }
+
+      const W = Math.max(280, host.clientWidth || host.parentElement.clientWidth || 640);
+      if (CHART_JOBS.has(host)) CHART_JOBS.get(host).width = W;
+      const H = 200, padL = 34, padR = 6, padB = 26, padT = 8;
+      const plotW = W - padL - padR, plotH = H - padT - padB;
+      const max = niceMax(peak);
+      const y = (v) => padT + plotH - (v / max) * plotH;
+      const step = plotW / days.length;
+      const bw = Math.max(2, Math.min(38, step - (step > 8 ? 4 : 1)));
+
+      const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, role: 'img' });
+      // gridlines + scale
+      [0, 0.5, 1].forEach(f => {
+        const v = max * f;
+        svg.appendChild(el('line', { x1: padL, x2: W - padR, y1: y(v), y2: y(v), stroke: 'var(--line)', 'stroke-width': 1 }));
+        if (f === 0.5) return;
+        const t = el('text', { x: padL - 7, y: y(v) + 3.5, 'text-anchor': 'end', fill: 'var(--muted)', 'font-size': 10 });
+        t.textContent = v >= 1000 ? Math.round(v / 100) / 10 + 'k' : String(Math.round(v));
+        svg.appendChild(t);
+      });
+      // one label every nth day, so they never collide
+      const everyN = Math.max(1, Math.ceil(days.length / Math.max(2, Math.floor(plotW / 52))));
+      let lastTick = null;
+      days.forEach((d, i) => {
+        const x = padL + i * step + (step - bw) / 2;
+        let acc = 0;
+        const g = el('g', {});
+        const parts = [];
+        layers.forEach(l => {
+          const v = +l.value(d) || 0;
+          if (v > 0) {
+            const h = Math.max(1, (v / max) * plotH);
+            g.appendChild(el('rect', { x: x, y: y(acc) - h, width: bw, height: h, fill: l.color }));
+            acc += v;
+          }
+          parts.push(l.label + ' ' + num(+l.value(d) || 0));
+        });
+        const who = namesOf(d.replies || d.calls);
+        const label = dayFmt(d.day) + ' — ' + parts.join(', ') + (who ? ' · ' + who : '');
+        const tip = el('title', {}); tip.textContent = label; g.appendChild(tip);
+        // a transparent full-height target, so hovering a thin bar is not a game of skill
+        // A touch screen has no hover and shows no SVG tooltip, so the same target answers a
+        // tap — otherwise the day's numbers exist only for people with a mouse.
+        // Что именно стоит за днём, знает сам день: ответы, звонки или люди, получившие ссылку
+        // на календарь. Список видов закрытый — иначе новый график молча остаётся некликабельным
+        // (Артур 2026-09-12: столбцы воронки календаря должны открываться, как у ответов).
+        const actionable = onActivate && ((d.replies && d.replies.length)
+          || (d.calls && d.calls.length) || (d.people && d.people.length));
+        const attrs = { x: padL + i * step, y: padT, width: step, height: plotH, fill: 'transparent', 'data-day': d.day };
+        if (actionable) Object.assign(attrs, { role: 'button', tabindex: '0', 'aria-label': 'Open ' + label });
+        const hit = el('rect', attrs);
+        hit.addEventListener('mouseenter', () => onHover && onHover(label));
+        hit.addEventListener('mouseleave', () => onHover && onHover(''));
+        hit.addEventListener('click', () => { if (onHover) onHover(label); if (actionable) onActivate(d, hit); });
+        hit.addEventListener('keydown', e => {
+          if (actionable && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onActivate(d, hit); }
+        });
+        g.appendChild(hit);
+        svg.appendChild(g);
+        if (i % everyN === 0 || i === days.length - 1) {
+          // Последний день подписан всегда, но не поверх соседней подписи: на узком экране
+          // «Sep 29» и «Oct 1» сливались в одно слово. Тогда уступает предыдущая.
+          if (i === days.length - 1 && i % everyN !== 0 && lastTick && i - lastTick.i < everyN * 0.75) lastTick.t.remove();
+          // Подпись у правого края выравнивается по краю, а не по центру столбца, иначе её
+          // половина уходит за рамку графика.
+          const cx = padL + i * step + step / 2;
+          const atEdge = cx + 16 > W;
+          const t = el('text', { x: atEdge ? W - 1 : cx, y: H - 8, 'text-anchor': atEdge ? 'end' : 'middle', fill: 'var(--muted)', 'font-size': 10 });
+          t.textContent = dayFmt(d.day);
+          svg.appendChild(t);
+          lastTick = { i, t };
+        }
+      });
+      svg.appendChild(el('line', { x1: padL, x2: W - padR, y1: padT + plotH, y2: padT + plotH, stroke: 'var(--line-2, var(--line))', 'stroke-width': 1 }));
+      // Граница смены подсчёта: слева от неё столбцы считались по-старому, и сравнивать их с
+      // правыми нельзя. Линия стоит перед первым днём нового подсчёта, подпись — у её верха.
+      if (marker && marker.day) {
+        const mi = days.findIndex(d => d.day >= marker.day);
+        if (mi > 0) {
+          const mx = padL + mi * step;
+          svg.appendChild(el('line', { x1: mx, x2: mx, y1: padT, y2: padT + plotH, stroke: 'var(--muted)', 'stroke-width': 1, 'stroke-dasharray': '3 3' }));
+          const mt = el('text', { x: mx + 4, y: padT + 9, 'text-anchor': 'start', fill: 'var(--muted)', 'font-size': 10 });
+          mt.textContent = marker.label;
+          svg.appendChild(mt);
+        }
+      }
+      host.appendChild(svg);
+    }
+
+    // Letters out, split by outcome: answered, opened but silent, and never opened. The three
+    // add up to the day's sends, so the bar's height is the volume and its make-up is the result.
+    function renderSendsChart(rows) {
+      const r = (STATS && STATS.range) || {};
+      const days = fillDays(rows, r.from || (rows[0] && rows[0].day), r.to || todayPST());
+      const layers = [
+        { label: 'opened', color: 'var(--chart-1)', value: d => d.opened || 0 },
+        { label: 'not visible', color: 'var(--chart-4)', value: d => d.hidden || 0 },
+        { label: 'not opened', color: 'var(--chart-5)', value: d => Math.max(0, (d.sent || 0) - (d.opened || 0) - (d.hidden || 0)) },
+      ];
+      const hover = document.getElementById('sendsHover');
+      const t = ((STATS && STATS.sendQueue) || {}).totals || {};
+      const marker = t.measured_from ? { day: t.measured_from, label: 'robots filtered from ' + dayFmt(t.measured_from) } : null;
+      drawStacked(document.getElementById('chartSends'), days, layers, h => { hover.textContent = h; }, null, marker);
+      const tot = rows.reduce((a, d) => ({ sent: a.sent + d.sent, opened: a.opened + d.opened, hidden: a.hidden + (d.hidden || 0) }), { sent: 0, opened: 0, hidden: 0 });
+      document.getElementById('sendsLegend').innerHTML =
+        // Легенда — только счёт столбцов: процент открытий живёт на плитке и считается с начала
+        // честного подсчёта, а столбцы левее границы — ещё по-старому.
+        '<span class="k"><i style="background:var(--chart-1)"></i>Opened <b>' + num(tot.opened) + '</b></span>'
+        + '<span class="k"><i style="background:var(--chart-4)"></i>Not visible <b>' + num(tot.hidden) + '</b></span>'
+        + '<span class="k"><i style="background:var(--chart-5)"></i>Not opened <b>' + num(Math.max(0, tot.sent - tot.opened - tot.hidden)) + '</b></span>'
+        + '<span class="k">Sent <b>' + num(tot.sent) + '</b></span>';
+    }
+
+    // Replies get a panel of their own. Stacked into the bar above they were two per cent of it
+    // — a line of pixels at the foot of the column — and the reply is the whole point of the
+    // letter, so it needs a scale on which one more or one fewer is visible.
+    function renderRepliesChart(rows, details) {
+      const r = (STATS && STATS.range) || {};
+      const byDay = new Map();
+      (details || []).forEach(item => {
+        if (!byDay.has(item.day)) byDay.set(item.day, []);
+        byDay.get(item.day).push(item);
+      });
+      const cohorts = rows.map(d => ({ ...d, replies: byDay.get(d.day) || [] }));
+      const days = fillDays(cohorts, r.from || (rows[0] && rows[0].day), r.to || todayPST());
+      const hover = document.getElementById('repliesHover');
+      drawStacked(document.getElementById('chartReplies'), days,
+        [{ label: 'replied', color: 'var(--chart-2)', value: d => d.replied || 0 }],
+        t => { hover.textContent = t; },
+        (d, trigger) => openStatsDetails('reply', d.day, d.replies || [], trigger));
+      const tot = rows.reduce((a, d) => ({ sent: a.sent + d.sent, replied: a.replied + d.replied }), { sent: 0, replied: 0 });
+      const best = rows.slice().sort((a, b) => b.replied - a.replied)[0];
+      document.getElementById('repliesLegend').innerHTML =
+        '<span class="k"><i style="background:var(--chart-2)"></i>Replied <b>' + num(tot.replied) + '</b> ' + pctOf(tot.replied, tot.sent) + ' of sent</span>'
+        + (best && best.replied ? '<span class="k">Best day <b>' + dayFmt(best.day) + '</b> · ' + num(best.replied) + '</span>' : '');
+    }
+
+    // Calls booked from cold outreach, by day. This funnel offers Mariam's calendar, so Mariam
+    // is the one campaign owner shown. A meeting is still one result however many teammates
+    // attended it — attendees never become extra legend entries or extra calls.
+    function renderCallsChart(conversion) {
+      const host = document.getElementById('chartCalls');
+      const note = document.getElementById('callsNote');
+      const legend = document.getElementById('callsLegend');
+      if (!conversion || conversion.error || !(conversion.calls && conversion.calls.available)) {
+        host.innerHTML = '<div class="cempty">Calls not connected' + (conversion && conversion.calls && conversion.calls.reason ? ': ' + esc(conversion.calls.reason) : '') + '.</div>';
+        legend.innerHTML = '';
+        note.textContent = '';
+        return;
+      }
+      const r = (STATS && STATS.range) || {};
+      const rows = conversion.callSeries || [];
+      const days = fillDays(rows, r.from || (rows[0] && rows[0].day), r.to || todayPST());
+      const owner = (conversion.calls.owner && conversion.calls.owner.name) || 'Mariam';
+      // Неявка рисуется, но в цифру не идёт: звонка, на который человек не пришёл, у деска не
+      // было (Артур 2026-09-12, Ричард Сиволд взял слот сам и не пришёл).
+      const missed = rows.reduce((n, d) => n + (+d.missed || 0), 0);
+      const layers = [{ label: owner, color: 'var(--chart-1)', value: d => d.total || 0 }];
+      if (missed) layers.push({ label: 'No-show', color: 'var(--chart-5)', value: d => d.missed || 0 });
+      const hover = document.getElementById('callsHover');
+      drawStacked(host, days, layers, t => { hover.textContent = t; },
+        (d, trigger) => openStatsDetails('call', d.day, d.calls || [], trigger));
+      legend.innerHTML = '<span class="k"><i style="background:var(--chart-1)"></i>' + esc(owner) + ' <b>'
+        + num(rows.reduce((n, d) => n + (+d.total || 0), 0)) + '</b></span>'
+        + (missed ? '<span class="k"><i style="background:var(--chart-5)"></i>No-show <b>' + num(missed) + '</b></span>' : '');
+      note.textContent = 'Sources: ' + (conversion.calls.sources || []).map(s => ({
+        booking: 'our own booking page', calendly: 'Calendly', calendar: 'the calendar', invitation: 'meeting invitations in the mailbox',
+      }[s] || s)).join(', ') + '. Only meetings this campaign earned are counted: someone at the meeting is an address we wrote to, the meeting is not older than that letter, and we had never spoken to that firm before it went out. The desk\'s other meetings — standing catch-ups, introductions from elsewhere — belong to the calendar, not to this funnel.'
+        + ' Every campaign call belongs to Mariam; a call known to two sources or attended by several of us is counted once.'
+        + ' A meeting the guest did not attend is shown apart and not counted — the desk never had that call;'
+        + ' whether someone came is known from our booking records, so a meeting that exists only in the calendar stays unmarked rather than assumed.'
+        + (conversion.upcoming && conversion.upcoming.length ? ' Next up: ' + conversion.upcoming.slice(0, 3).map(u => dayFmt(u.day) + ' · ' + u.who).join('; ') + '.' : '');
+    }
+
+    // The one step between a cold letter and a call: the lead answers, the autopilot replies in
+    // Mariam's name and offers her calendar. Only letters that actually carry that link count —
+    // not what the lane was meant to send, and not the desk's other correspondence.
+    function renderInvitesChart(conversion) {
+      const host = document.getElementById('chartInvites');
+      const legend = document.getElementById('invitesLegend');
+      const note = document.getElementById('invitesNote');
+      const f = conversion && conversion.linkFunnel;
+      if (!f || !Array.isArray(f.series)) {
+        host.innerHTML = '<div class="cempty">Not available.</div>';
+        legend.innerHTML = ''; note.textContent = '';
+        return;
+      }
+      const r = (STATS && STATS.range) || {};
+      const days = fillDays(f.series, r.from || (f.series[0] && f.series[0].day), r.to || todayPST());
+      const layers = [
+        { label: 'answered a question', color: 'var(--chart-1)', value: d => d.question || 0 },
+        { label: 'introduced to a colleague', color: 'var(--chart-2)', value: d => d.intro || 0 },
+        { label: 'nudged a silent thread', color: 'var(--chart-5)', value: d => d.followup || 0 },
+      ];
+      const hover = document.getElementById('invitesHover');
+      // Столбец открывает переписку, как у ответов и звонков (Артур 2026-09-12): день — это
+      // люди, и клик по нему ведёт к ним, а не в никуда.
+      drawStacked(host, days, layers, t => { hover.textContent = t; },
+        (d, trigger) => openStatsDetails('invite', d.day, d.people || [], trigger));
+      const tot = f.series.reduce((a, d) => ({ q: a.q + (d.question || 0), i: a.i + (d.intro || 0), fu: a.fu + (d.followup || 0) }), { q: 0, i: 0, fu: 0 });
+      legend.innerHTML =
+        '<span class="k"><i style="background:var(--chart-1)"></i>Answered a question <b>' + num(tot.q) + '</b></span>'
+        + '<span class="k"><i style="background:var(--chart-2)"></i>Introduced onward <b>' + num(tot.i) + '</b></span>'
+        + '<span class="k"><i style="background:var(--chart-5)"></i>Nudged again <b>' + num(tot.fu) + '</b></span>'
+        + '<span class="k">Letters <b>' + num(f.letters ? f.letters.range : 0) + '</b></span>'
+        + '<span class="k">Leads reached <b>' + num(f.leads ? f.leads.range : 0) + '</b></span>'
+        + '<span class="k">Of them booked <b>' + num(f.booked || 0) + '</b></span>';
+      note.textContent = 'Every letter here went out in Mariam\'s name and carried her calendar link, sent by the autopilot minutes after the lead answered a cold note. '
+        + 'Letters that merely mention a meeting, and the desk\'s other correspondence, are not counted. Each bar is a letter, so a lead who got the link twice appears on two days; Leads reached counts each person once.';
+    }
+
+    // Partner lane is a warm, human-approved queue. Replies are counted per partner who
+    // answered after a note, not per message, so a chatty thread does not inflate the result.
+    function renderPartnerLane(d) {
+      const kpis = document.getElementById('partnerKpis');
+      const body = document.getElementById('partnerBody');
+      const note = document.getElementById('partnerNote');
+      if (!d || d.error || !Array.isArray(d.people)) {
+        kpis.innerHTML = '<div class="box"><div class="label">Partner lane</div><div class="foot">Not available' + (d && d.error ? ': ' + esc(d.error) : '') + '</div></div>';
+        body.innerHTML = '<tr><td colspan="4" class="empty">Not available' + (d && d.error ? ': ' + esc(d.error) : '') + '</td></tr>';
+        if (note) note.textContent = '';
+        document.getElementById('chartPartnerSends').innerHTML = '<div class="cempty">Not available.</div>';
+        document.getElementById('chartPartnerReplies').innerHTML = '<div class="cempty">Not available.</div>';
+        return;
+      }
+      // A partial payload must not take the whole tab down with it: the shape is filled in first,
+      // then whatever the server sent overwrites it (2026-09-09, stand run — an answer without
+      // `totals.sent` threw inside the render and silently killed the load that followed it).
+      const totals = { sent: { range: 0, all: 0 }, replied: { range: 0, all: 0 }, ...(d.totals || {}) };
+      const box = (label, val, foot) => '<div class="box"><div class="label">' + label + '</div><div class="val">' + val + '</div><div class="foot">' + foot + '</div></div>';
+      kpis.innerHTML = box('Letters sent', num(totals.sent.range), num(totals.sent.all) + ' all time')
+        + box('Partners replied', num(totals.replied.range), num(totals.replied.all) + ' all time')
+        + box('Reply rate', pctOf(totals.replied.range, totals.sent.range), pctOf(totals.replied.all, totals.sent.all) + ' all time');
+      const pair = (a, b) => '<td class="num">' + num(a) + ' <span class="muted" style="font-weight:400">/ ' + num(b) + '</span></td>';
+      body.innerHTML = d.people.map(p => {
+        return '<tr><td>' + esc(p.name) + '<span class="muted" style="font-size:11px"> · ' + esc(p.mailbox) + '</span></td>'
+          + pair(p.sent.range, p.sent.all)
+          + pair(p.replied.range, p.replied.all)
+          + '<td class="num">' + pctOf(p.replied.range, p.sent.range)
+          + ' <span class="muted" style="font-weight:400">/ ' + pctOf(p.replied.all, p.sent.all) + '</span></td></tr>';
+      }).join('');
+      if (note) note.textContent = 'Only warm partner outreach sent from Partner lane is shown here. Cold Send queue letters and their calls are excluded. Each cell reads this period / all time.';
+      renderPartnerCharts(d.series || []);
+    }
+
+    function renderPartnerCharts(rows) {
+      const r = (STATS && STATS.range) || {};
+      const days = fillDays(rows, r.from || (rows[0] && rows[0].day), r.to || todayPST());
+      const sentHover = document.getElementById('partnerSendsHover');
+      drawStacked(document.getElementById('chartPartnerSends'), days,
+        [{ label: 'sent', color: 'var(--chart-1)', value: d => d.sent || 0 }],
+        t => { sentHover.textContent = t; });
+      const repliedHover = document.getElementById('partnerRepliesHover');
+      drawStacked(document.getElementById('chartPartnerReplies'), days,
+        [{ label: 'replied', color: 'var(--chart-2)', value: d => d.replied || 0 }],
+        t => { repliedHover.textContent = t; },
+        (d, trigger) => openStatsDetails('reply', d.day, d.replies || [], trigger));
+      const totals = rows.reduce((a, d) => ({ sent: a.sent + (+d.sent || 0), replied: a.replied + (+d.replied || 0) }), { sent: 0, replied: 0 });
+      document.getElementById('partnerSendsLegend').innerHTML = '<span class="k"><i style="background:var(--chart-1)"></i>Sent <b>' + num(totals.sent) + '</b></span>';
+      document.getElementById('partnerRepliesLegend').innerHTML = '<span class="k"><i style="background:var(--chart-2)"></i>Replied <b>' + num(totals.replied) + '</b> ' + pctOf(totals.replied, totals.sent) + ' of sent notes</span>';
+    }
+
+    function renderDomains(dom) {
+      document.getElementById('domBody').innerHTML = dom.length
+        ? dom.map(d => '<tr><td>' + esc(d.domain) + '</td><td class="num">' + num(d.sent) + '</td><td class="num">' + num(d.opened) + '</td><td class="num">' + num(d.replied) + '</td><td class="num">' + num(d.bounced) + '</td><td class="num">' + num(d.unsubs) + '</td></tr>').join('')
+        : '<tr><td colspan="6" class="empty">No sends in this period</td></tr>';
+    }
+
+    function applyRange(from, to) {
+      RANGE = { from: from || null, to: to || todayPST() };
+      if (RANGE.from && RANGE.from > RANGE.to) RANGE = { from: RANGE.to, to: RANGE.from };
+      writeRangeToUrl();
+      // The switch answers here, before the network: the pressed button lights up and the period
+      // caption changes on the click itself, not after the server replies.
+      renderRangeControls();
+      renderRangeNote({ range: RANGE });
+      loadStats(true);
+    }
+
+    document.getElementById('rPresets').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const d = +b.getAttribute('data-days');
+      applyRange(d ? shiftDay(-(d - 1)) : null, todayPST());
+    });
+    document.getElementById('rApply').addEventListener('click', () => {
+      applyRange(document.getElementById('rFrom').value || null, document.getElementById('rTo').value || todayPST());
+    });
+    ['rFrom', 'rTo'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('rApply').click(); }));
+    document.getElementById('statsTabs').addEventListener('click', e => {
+      const b = e.target.closest('[data-stats-scope]');
+      if (b) setStatsScope(b.getAttribute('data-stats-scope'));
+    });
+
+    // Charts are sized from the box they sit in, so a resize (or a phone turning) redraws them.
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      if (!STATS || !document.getElementById('v-stats').classList.contains('on')) return;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const send = STATS.sendQueue || {};
+        renderSendsChart(send.series || []);
+        renderRepliesChart(send.series || [], send.replyDetails || []);
+        renderCallsChart(send.conversion || {});
+        renderPartnerCharts(((STATS.partnerLane || {}).series) || []);
+      }, 150);
+    });
+
+    function renderSchedule(sch) {
+      sch = sch || {};
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const active = new Set(sch.sendDays || [1, 2, 3, 4, 5]);
+      const tz = sch.tzLabel || 'PST';
+      const ws = sch.windowStart || '08:00', we = sch.windowEnd || '17:00';
+      const toMin = t => { const p = String(t).split(':'); return (+p[0]) * 60 + (+p[1] || 0); };
+      const winMin = Math.max(1, toMin(we) - toMin(ws));
+      const perBox = sch.perBoxTotal || 50;
+      const iv = Math.max(1, Math.round(winMin / perBox));
+      const badge = (on) => on
+        ? '<span class="num co" style="color:var(--ok);font-weight:600">' + ws + '–' + we + ' ' + tz + '</span> <span class="muted">cold outreach + warm-up</span>'
+        : '<span class="muted" style="font-weight:600">warm-up only</span> <span class="muted">· no cold sends</span>';
+      const order = [1, 2, 3, 4, 5, 6, 0];
+      document.getElementById('schBody').innerHTML = order.map(dow =>
+        '<tr><td class="muted" style="width:22%">' + days[dow] + '</td><td>' + badge(active.has(dow)) + '</td></tr>').join('');
+      const sh = Math.floor(toMin(ws) / 60), eh = Math.ceil(toMin(we) / 60);
+      let strip = '';
+      for (let h = 7; h <= 19; h++) {
+        const on = h >= sh && h < eh;
+        strip += '<span style="flex:1 0 auto;min-width:34px;text-align:center;font-size:10px;padding:7px 0;border:1px solid var(--line);border-radius:4px;'
+          + (on ? 'background:var(--navy);color:#fff' : 'background:var(--panel);color:var(--muted)') + '">' + String(h).padStart(2, '0') + '</span>';
+      }
+      document.getElementById('schHours').innerHTML =
+        '<div style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Daily window (' + tz + ')</div>'
+        + '<div style="display:flex;gap:3px;flex-wrap:wrap">' + strip + '</div>';
+      document.getElementById('schCadence').innerHTML =
+        'Each mailbox drips its daily quota across the window — about <b>one email every ' + iv + ' min</b>, randomized ±' + (sch.jitterMinutes || 6)
+        + ' min, no bursts. Battle boxes send <b>' + (sch.perBoxColdBattle || 30) + '</b> cold + ' + (perBox - (sch.perBoxColdBattle || 30))
+        + ' warm-up per day; bench boxes <b>' + (sch.perBoxColdBench || 10) + '</b> other-lane. Timezone ' + esc(sch.tz || 'America/Los_Angeles')
+        + '. Weekends are warm-up only. Sending starts only when the master switch is on.';
+    }
+
+    readRangeFromUrl();
+    renderRangeControls();
+    setStatsScope(STATS_SCOPE, { write: false, render: false });
+    // The view opens immediately on the tab in the address, and Stats fetches its own figures
+    // rather than waiting behind the daily plan — assembling the plan takes seconds, and none
+    // of it is needed to draw a period that has already happened.
+    showView((location.hash || '#overview').slice(1));
+    load();
+  </script>
+</body>
+</html>
