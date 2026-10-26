@@ -224,10 +224,12 @@ async function phone() {
   const search = await state('#coSearch');
   check('full list: search is visible and takes the finger', search.hit === true, search);
   await shot('full-list');
+  // Start the page view scrolled (as after reading the start screen) — the pair must still open at its top.
+  await page.evaluate(() => { const sc = document.getElementById('scroll'); if (sc) sc.scrollTop = 600; });
   await tap('#coList .co-item[data-mid] .co-name');
   await waitAct('up');
   s = await state();
-  check('pair from the full list opens alone', s.side === 'none' && s.main !== 'none', s);
+  check('pair from the full list opens alone, at its top', s.side === 'none' && s.main !== 'none' && s.scrollTop === 0, s);
   await shot('full-list-open');
   await tap('#railToggle');
   await waitAct('list');
@@ -246,7 +248,7 @@ async function phone() {
   await tap('#coList .co-item .co-name');
   await waitAct('up');
   s = await state();
-  check('order book: company opens alone with a Back control', s.side === 'none' && /Order Book/.test(s.label), s);
+  check('order book: company opens alone with a Back control, at its top', s.side === 'none' && /Order Book/.test(s.label) && s.scrollTop === 0, s);
   await shot('order-book-company', { full: true });
   await tap('#railToggle');
   await page.waitForSelector('#coList .co-item', { timeout: 15000 });

@@ -198,7 +198,7 @@
 
   /* Burger opens the platform menu (same as every page); the company rail is the
      page's own content, toggled on mobile by #railToggle. */
-  #railToggle{ display:inline-flex; align-items:center; gap:6px; }
+  #railToggle{ display:inline-flex; align-items:center; gap:8px; }
   .td-head{ display:none; position:static; }
   @media(min-width:641px){ .td-phone-only{ display:none; } }
   @media(max-width:900px){ .td-cards{ grid-template-columns:1fr; } }
@@ -396,14 +396,16 @@
   };
   var homeScroll=null;
   function sectionLabel(){ return { partners:'Clients', opportunities:'Pipeline', pipeline:'Pipeline', matches:'Matches', messages:'Messages', today:'Sections' }[tab]||'Order Book'; }
+  // Where «‹ Back» from an open page lands: the section it was opened from.
+  function upLabel(){ return { today:'Today', messages:'Messages' }[tab]||sectionLabel(); }
   function openItem(){ return activeMatch||activeCompany||activePartner||activeOpp; }
   function headAction(){
     if(app.classList.contains('mobile-open')){
       if(openItem()) return { act:'page', label:'Back', icon:'back' };
-      if(tab==='matches'||tab==='pipeline'||tab==='opportunities'||tab==='messages'||tab==='today'||!deskMode) return { act:'page', label:(tab==='messages'?'Messages':'Overview'), icon:'back' };
+      if(tab==='matches'||tab==='pipeline'||tab==='opportunities'||tab==='messages'||tab==='today'||!deskMode) return { act:'page', label:({ messages:'Messages', today:'Today' }[tab]||'Overview'), icon:'back' };
       return null;   // Order Book / Clients: the list is the section's start
     }
-    if(openItem()) return { act:'up', label:sectionLabel(), icon:'back' };
+    if(openItem()) return { act:'up', label:upLabel(), icon:'back' };
     if(tab==='matches') return { act:'list', label:'Search pairs', icon:'search' };
     if(tab==='pipeline'||tab==='opportunities') return { act:'list', label:'All deals', icon:'search' };
     return { act:'list', label:sectionLabel() };
@@ -420,9 +422,14 @@
   }
   function showListView(){ app.classList.add('mobile-open'); paintList(); syncMobileHead(); }
   function showPageView(){ app.classList.remove('mobile-open'); syncMobileHead(); }
+  // A page opened on a phone starts at its top. Called after showPageView: while
+  // the page view is hidden its scroller ignores scrollTop.
+  function phonePageTop(){ if(!isPhone()) return; var sc=document.getElementById('scroll'); if(sc) sc.scrollTop=0; }
   // From an open page up to its section's list.
   function goUp(){
     if(tab==='matches'||tab==='pipeline'||tab==='opportunities') return openMatchesHome(tab==='matches'?'matches':'pipeline');
+    if(tab==='today') return openToday();
+    if(tab==='messages') return openMessages();
     activeCompany=null; activePartner=null; activeOpp=null; activeMatch=null;
     if(deskPerson) setPersonUrl(tab, null);
     else setUrl(null, false);
@@ -652,6 +659,7 @@
       btn.setAttribute('aria-selected', on?'true':'false');
     });
     app.classList.toggle('on-matches', tab==='matches');
+    if(homeScroll && homeScroll.lane!==(tab==='matches'?'matches':(tab==='pipeline'||tab==='opportunities')?'pipeline':'')) homeScroll=null;
     var ph={ today:'Search companies…', matches:'Search matches…', pipeline:'Search your deals…', companies:'Search companies…', partners:'Search clients…', opportunities:'Search your deals…', messages:'Search conversations…' };
     document.getElementById('coSearch').placeholder=ph[tab]||ph.companies;
     document.getElementById('coSearch').setAttribute('aria-label', ph[tab]||ph.companies);
@@ -739,6 +747,8 @@
     }).join('');
     el.querySelectorAll('.co-item').forEach(function(it){
       it.addEventListener('click', function(){
+        // On a phone the cards live in the page view: show it before scrolling to one.
+        showPageView();
         var card=document.querySelector('[data-draft-id="'+String(it.dataset.draft).replace(/"/g,'')+'"]');
         if(card) card.scrollIntoView({ block:'center', behavior:'smooth' });
       });
@@ -1273,13 +1283,14 @@
     opts=opts||{};
     clearReviewViews();
     var sc=document.getElementById('scroll');
-    if(!activeMatch && !app.classList.contains('mobile-open') && sc && (tab==='matches'||tab==='pipeline'||tab==='opportunities')) homeScroll={ lane:(tab==='matches'?'matches':'pipeline'), top:sc.scrollTop };
-    if(sc && isPhone()) sc.scrollTop=0;
+    homeScroll=(isPhone() && !activeMatch && !app.classList.contains('mobile-open') && sc && (tab==='matches'||tab==='pipeline'||tab==='opportunities'))
+      ? { lane:(tab==='matches'?'matches':'pipeline'), top:sc.scrollTop } : null;
     activeMatch=id; activeCompany=null; activePartner=null; activeOpp=null;
     var lane=(tab==='pipeline'||tab==='opportunities')?'pipeline':'matches';
     if(tab!=='matches'&&tab!=='pipeline') setTab('matches',{ push:false });
     if(opts.push!==false) setPersonUrl(lane, id, !!opts.replace);
     showPageView();
+    phonePageTop();
     showConvo();
     var convo=document.getElementById('convo');
     convo.className='td-convo';
@@ -1668,6 +1679,7 @@
       else setUrl(name, !!opts.replace);
     }
     showPageView();
+    phonePageTop();
     showConvo();
     var convo=document.getElementById('convo');
     convo.innerHTML='<div class="td-asked"><span class="eyebrow">Showing</span><span class="q">'+esc(name)+'</span></div><div class="t-small" style="color:var(--muted)">Pulling live liquidity…</div>';
@@ -1704,6 +1716,7 @@
     paintList(); setCtx(title);
     if(opts.push!==false) setPersonUrl('partners', id, !!opts.replace);
     showPageView();
+    phonePageTop();
     showConvo();
     var convo=document.getElementById('convo');
     var who=deskMode?'Client':'Partner';
@@ -1732,6 +1745,7 @@
     paintList(); setCtx(title);
     if(opts.push!==false) setPersonUrl('opportunities', id, !!opts.replace);
     showPageView();
+    phonePageTop();
     showConvo();
     var convo=document.getElementById('convo');
     convo.innerHTML='<div class="td-asked"><span class="eyebrow">Opportunity</span><span class="q">'+esc(title)+'</span></div><div class="t-small" style="color:var(--muted)">Loading correspondence…</div>';
