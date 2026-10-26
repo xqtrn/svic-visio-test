@@ -213,6 +213,9 @@
     .td-side{ position:static; width:100%; border-right:0; transition:none; }
     .td-app:not(.mobile-open) .td-side{ display:none; }
     .td-app.mobile-open .td-main{ display:none; }
+    .td-pair-row > .td-clock{ display:none; }
+    .td-clock-under{ color:var(--warn); font-variant-numeric:tabular-nums; }
+    .td-phone-only + .td-home-lens{ margin-top:26px; }
     .td-welcome,.td-convo,.td-input{ padding-left:16px; padding-right:16px; }
   }
 </style>
@@ -1257,8 +1260,13 @@
     var right=m.claim&&m.claim.state==='active'
       ? '<span class="t-small age td-clock" data-deadline="'+esc(m.claim.deadlineAt)+'">'+clockText(m.claim.deadlineAt)+'</span>'
       : '';
+    // On a phone the clock takes its own line under the prices (beside them it
+    // squeezed the company name to «ByteDan…»).
+    var under=m.claim&&m.claim.state==='active'
+      ? '<div class="td-pl t-small td-phone-only"><span class="td-clock td-clock-under" data-deadline="'+esc(m.claim.deadlineAt)+'">'+clockText(m.claim.deadlineAt)+'</span></div>'
+      : '';
     return '<div class="td-qrow td-pair-row" data-open data-mid="'+esc(m.id)+'">'+coAvatar(m.company)
-      +'<div class="meta">'+pairLines(m,'nm')+'</div>'+right
+      +'<div class="meta">'+pairLines(m,'nm')+under+'</div>'+right
       +'<button class="btn btn-ghost btn-sm" type="button" data-open-match="'+esc(m.id)+'">Open</button></div>';
   }
   async function openMatch(id, opts){
