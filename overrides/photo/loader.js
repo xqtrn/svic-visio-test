@@ -142,9 +142,18 @@
       var qaCss = document.createElement('style');
       qaCss.id = 'svic-qatest-css';
       qaCss.textContent =
-        'html.svic-qa-testing{--present-h:28px;--topbar-h:90px}' +
+        // scroll-padding: anything scrolled into view (focus, anchors, a control
+        // brought up from below) stops under the strip, never behind it.
+        'html.svic-qa-testing{--present-h:28px;--topbar-h:90px;scroll-padding-top:var(--present-h)}' +
+        'html.svic-qa-testing:has(.topbar){scroll-padding-top:var(--topbar-h)}' +
         'html.svic-qa-testing .topbar{top:var(--present-h)}' +
         'html.svic-qa-testing .topbar-in{height:calc(var(--topbar-h) - var(--present-h))}' +
+        // A test candidate on the candidate-preview screens: the Preview strip (mounted later,
+        // first in the page) stays on top, this strip sits under it, the top bar under both.
+        'html.svic-qa-testing.svic-candidate{--topbar-h:118px}' +
+        'html.svic-qa-testing.svic-candidate .svic-qatest{top:28px}' +
+        'html.svic-qa-testing.svic-candidate .topbar{top:56px}' +
+        'html.svic-qa-testing.svic-candidate .topbar-in{height:calc(var(--topbar-h) - 56px)}' +
         '.svic-qatest{position:sticky;top:0;z-index:calc(var(--z-topbar,1000) + 1);box-sizing:border-box;height:var(--present-h,28px);' +
           'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 26px;margin:0;' +
           'background:var(--navy-2,#13233f);color:var(--on-navy,#cdd6e6);border-bottom:1px solid rgba(205,214,230,.14);' +
@@ -166,6 +175,8 @@
         strip.className = 'svic-qatest';
         strip.setAttribute('role', 'region');
         strip.setAttribute('aria-label', 'Test candidate session');
+        // Never sealed by the candidate lens: it is the way out, not a value.
+        strip.setAttribute('data-open', '');
         strip.innerHTML = '<div class="svic-qatest-l"><i aria-hidden="true"></i>Test candidate<span>&nbsp;· you see the platform as the test candidate</span></div>' +
           '<a class="svic-qatest-x" id="svicQaBack" href="/auth/qa-test-back" title="' +
           (qaMatch[1] === 'r' ? 'Return to your own session' : 'Close the test session and sign in as yourself') + '">Back to my account</a>';
