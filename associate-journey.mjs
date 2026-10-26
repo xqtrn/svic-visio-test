@@ -58,6 +58,9 @@ if (process.env.OVERRIDE === '1') {
     const hit = map.find(([re]) => re.test(p));
     if (!hit || req.method() !== 'GET') return route.fallback();
     const live = await route.fetch();
+    // The server sent this page elsewhere (the photo gate → /onboarding): let the browser
+    // follow the real redirect instead of drawing the override at the old address.
+    if (new URL(live.url()).pathname !== p) return route.fallback();
     if (live.status() !== 200) return route.fulfill({ response: live });
     const headers = { ...live.headers(), 'content-type': 'text/html; charset=utf-8' };
     delete headers['content-length']; delete headers['content-encoding']; delete headers['transfer-encoding'];
