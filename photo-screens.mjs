@@ -145,11 +145,11 @@ try {
   // 2b. STRIP: «Back to my account» goes to the server's restore address (answered here: the
   // stand has no session).
   if (STRIP) {
-    await page.route(/\/auth\/qa-test-back$/, (route) => route.fulfill({ status: 302, headers: { location: '/login?back=ok' } }));
+    await page.route(/\/auth\/qa-test-back$/, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>back</title><p id="backOk">restore requested</p>' }));
     await page.goto(`https://${PLATFORM}/onboarding`, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#svicQaBack');
     await shot('strip-on-onboarding');
-    await Promise.all([page.waitForURL(/\/login\?back=ok/, { timeout: 15000 }), page.click('#svicQaBack')]);
+    await Promise.all([page.waitForURL(/\/auth\/qa-test-back$/, { timeout: 15000 }), page.click('#svicQaBack')]);
     report.backClick = new URL(page.url()).pathname + new URL(page.url()).search;
   }
 
