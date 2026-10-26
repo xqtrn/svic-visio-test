@@ -267,8 +267,10 @@ try {
     if (await sealed.isVisible().catch(() => false) && ENGINE === 'chromium') { await sealed.hover(); await shot('desk-marketplace-sealed-hover', { settle: 800 }); }
   }, { soft: true });
   await step('desk-matches', async () => {
-    await go('/desk/matches', 'body', 'desk-matches', { targets: ['#coList .co-item', '#tdTake'], settle: 4000 });
-    const item = page.locator('#coList .co-item').first();
+    await go('/desk/matches', 'body', 'desk-matches', { targets: ['#convo .td-pair-row .nm', '#coList .co-item', '#tdTake'], settle: 4000 });
+    // On a phone the start screen is the list (2026-10-25: the rail is a separate view, not beside it).
+    const row = page.locator('#convo .td-pair-row .nm >> visible=true').first();
+    const item = (await row.isVisible().catch(() => false)) ? row : page.locator('#coList .co-item').first();
     if (await item.isVisible().catch(() => false)) { await item.click(); await shot('desk-matches-open', { targets: ['#tdTake', '.ds-sealed'], settle: 2500 }); }
     if (ENGINE === 'chromium' && await visible('#tdTake')) { await page.hover('#tdTake'); await shot('desk-matches-take-hover', { targets: ['#tdTake'], settle: 800 }); }
   }, { soft: true });
