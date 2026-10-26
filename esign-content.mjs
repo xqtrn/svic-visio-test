@@ -53,10 +53,11 @@ await ctx.route((u) => u.hostname === PLATFORM, async (route, req) => {
   if (p === '/esign' || p === '/esign.html') return route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(`${DIR}/esign.html`) });
   if (p === '/api/nav') return route.fulfill(json({ menu: { pinned: [], groups: [] }, landing: '/' }));
   if (p === '/api/esign/me') return route.fulfill(json({ role: 'manager', name: 'Daria' }));
-  const content = p.match(/^\/api\/esign\/(qasent|qadone)\/content$/);
+  const content = p.match(/^\/api\/esign\/(qasent|qadone|qavoid)\/content$/);
   if (content) { report.contentHits.push(content[1]); return route.fulfill({ status: 200, contentType: 'application/pdf', headers: { 'content-disposition': 'inline; filename="sent.pdf"' }, body: PDF }); }
   if (p === '/api/esign/qasent') return route.fulfill(json(envelope('qasent', 'in_progress')));
   if (p === '/api/esign/qadone') return route.fulfill(json(envelope('qadone', 'completed')));
+  if (p === '/api/esign/qavoid') return route.fulfill(json(envelope('qavoid', 'voided')));
   if (p.startsWith('/api/')) return route.fulfill(json({ error: 'sample stand' }, 404));
   return route.fallback();
 });
@@ -88,7 +89,7 @@ const docState = () => page.evaluate(() => {
     signersBelow: (() => { const s = document.getElementById('dRecips').getBoundingClientRect(); return s.top >= r.bottom; })() };
 });
 
-for (const [pid, label] of [['qasent', 'sent-not-signed'], ['qadone', 'signed']]) {
+for (const [pid, label] of [['qasent', 'sent-not-signed'], ['qavoid', 'voided'], ['qadone', 'signed']]) {
   await page.goto(`https://${PLATFORM}/esign?env=${pid}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.querySelectorAll('#dDoc canvas').length >= 6 || /did not load/.test(document.getElementById('dDoc')?.textContent || ''), null, { timeout: 30000 }).catch(() => {});
   const state = await docState();
@@ -96,6 +97,8 @@ for (const [pid, label] of [['qasent', 'sent-not-signed'], ['qadone', 'signed']]
   if (state.pages < 1) report.errors.push({ step: `${label}-no-pages`, state });
   if (pid === 'qasent' && !/As sent/.test(state.note)) report.errors.push({ step: 'sent-note', state });
   if (pid === 'qadone' && state.note !== 'Signed copy') report.errors.push({ step: 'signed-note', state });
+  if (pid === 'qavoid' && state.note !== 'As sent.') report.errors.push({ step: 'voided-note', state });
+  if (state.firstPageWidth > 768) report.errors.push({ step: `${label}-page-too-wide`, state });
   await page.locator('#dDoc').scrollIntoViewIfNeeded();
   await page.locator('#dDoc').evaluate((el) => { el.scrollTop = el.scrollHeight / 2; });
   await shot(`${label}-pages-scrolled`);
@@ -109,7 +112,7 @@ if (popup) await popup.waitForURL(/\/content$/, { timeout: 15000 }).catch(() => 
 report.newTab = popup ? popup.url() : null;
 // The new tab shows the PDF (its address is not always readable once a PDF viewer owns it):
 // proof is the tab itself plus the third request to the content address.
-if (!popup || report.contentHits.length !== 3 || report.contentHits[2] !== 'qadone') report.errors.push({ step: 'open-new-tab', url: report.newTab, hits: report.contentHits });
+if (!popup || report.contentHits.length !== 4 || report.contentHits[3] !== 'qadone') report.errors.push({ step: 'open-new-tab', url: report.newTab, hits: report.contentHits });
 
 fs.writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 2));
 console.log('[report]', JSON.stringify({ engine: ENGINE, steps: report.steps.length, errors: report.errors, contentHits: report.contentHits, newTab: report.newTab }));

@@ -123,7 +123,7 @@
   .esign-ftcheck{ flex:1 1 240px; margin-right:auto; font-size:12.5px; line-height:1.4; }
   .esign-preview canvas{ display:block; width:100%; height:auto; border:1px solid var(--line); }
   .esign-docnote{ margin:0; }
-  .esign-docview canvas{ max-width:760px; margin:0 auto; }
+  .esign-docview canvas{ max-width:768px; margin:0 auto; }
   .esign-docview{ max-height:70vh; margin:var(--sp-3) 0 var(--sp-6); padding:var(--sp-3); }
   #dDocOpen{ margin-left:auto; }
   .esign-choice{ display:block; width:100%; text-align:left; font:inherit; color:var(--ink); background:none; border:1px solid var(--line); border-radius:var(--r-card); padding:var(--sp-4); cursor:pointer; }
@@ -678,10 +678,10 @@ function renderDetail(full){show('detailView');env=full.envelope;const archive=i
 let docSeq=0;
 async function renderDetailDoc(e){const box=$('dDocBox'),host=$('dDoc');const seq=++docSeq;const url=e.content_url||null;box.hidden=!url;if(!url){host.innerHTML='';return}
   const signed=e.status==='completed'||isArchiveEnv(e);
-  $('dDocNote').textContent=signed?'Signed copy':'As sent. Signatures appear here once everyone signs.';$('dDocOpen').href=url;
+  $('dDocNote').textContent=signed?'Signed copy':['voided','declined','expired'].includes(e.status)?'As sent.':'As sent. Signatures appear here once everyone signs.';$('dDocOpen').href=url;
   host.innerHTML='<div class="status">Loading the document…</div>';
   try{await ensurePdfjs();const pdf=await pdfjsLib.getDocument({url,withCredentials:true}).promise;if(seq!==docSeq)return;host.innerHTML='';
-    const w=Math.max(240,Math.min(760,(host.clientWidth||640)-2*12));const dpr=Math.min(window.devicePixelRatio||1,2);
+    const w=Math.max(240,Math.min(768,(host.clientWidth||640)-2*12));const dpr=Math.min(window.devicePixelRatio||1,2);
     for(let p=1;p<=pdf.numPages;p++){if(seq!==docSeq)return;const page=await pdf.getPage(p);const v0=page.getViewport({scale:1});const v=page.getViewport({scale:w/v0.width*dpr});
       const cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;cv.setAttribute('role','img');cv.setAttribute('aria-label','Page '+p);host.appendChild(cv);
       await page.render({canvasContext:cv.getContext('2d'),viewport:v}).promise}}
