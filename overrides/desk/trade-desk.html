@@ -129,7 +129,6 @@
      «Offer → Bid» + how the bid stands against the ask. Figures never truncate:
      the edge tag drops under the prices when the line is short of room. */
   @media(min-width:641px){ .td-app.on-matches:not(.collapsed) .td-side{ width:384px; } }
-  @media(max-width:640px){ .td-app.on-matches.mobile-open .td-side{ width:min(384px,100vw); } }
   .td-pl{ display:flex; align-items:baseline; justify-content:space-between; gap:3px 10px; flex-wrap:wrap; }
   .td-pl + .td-pl{ margin-top:3px; }
   .td-pl .co-name,.td-pl .nm{ flex:1 1 0; min-width:0; }
@@ -173,7 +172,7 @@
   .td-pair-item{ align-items:flex-start; }
   .td-pair-item .td-pl.t-small{ font-size:12px; column-gap:8px; }
   .td-pair-item .td-edge{ padding:0 5px; }
-  .td-pair-row{ align-items:flex-start; }
+  .td-pair-row{ align-items:flex-start; cursor:pointer; }
   .td-pair-row [data-open-match]{ align-self:center; }
   /* The pair card: four figures in a hairline grid. */
   .td-figs{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; margin:16px 0 8px; }
@@ -199,13 +198,20 @@
 
   /* Burger opens the platform menu (same as every page); the company rail is the
      page's own content, toggled on mobile by #railToggle. */
-  #railToggle{ display:inline-flex; }
+  #railToggle{ display:inline-flex; align-items:center; gap:6px; }
   .td-head{ display:none; position:static; }
   @media(max-width:900px){ .td-cards{ grid-template-columns:1fr; } }
+  /* Phone: the list and the open page are two views, one at a time, both in the
+     page's flow (onboarding QA on a real iPhone, 2026-10-23 and 10-25: the rail
+     was a fixed panel collapsed to 0 px beside the Matches list, the page took
+     the taps meant for the first pair, and the Order Book list slid under the
+     page head). .mobile-open = the list; otherwise the page. Nothing overlays. */
   @media(max-width:640px){
     .td-head{ display:block; }
-    .td-side{ position:fixed; z-index:50; top:calc(58px + var(--present-h, 0px) + var(--path-h, 0px)); height:calc(100vh - 58px - var(--present-h, 0px) - var(--path-h, 0px)); }  /* --present-h: the presentation strip (loader.js) */
-    .td-app:not(.mobile-open) .td-side{ width:0; border-right:0; overflow:hidden; }
+    .td-head.is-empty{ display:none; }
+    .td-side{ position:static; width:100%; border-right:0; transition:none; }
+    .td-app:not(.mobile-open) .td-side{ display:none; }
+    .td-app.mobile-open .td-main{ display:none; }
     .td-welcome,.td-convo,.td-input{ padding-left:16px; padding-right:16px; }
   }
 </style>
@@ -222,8 +228,8 @@
   </header>
   <!-- Переключатель каталога — под шапкой (IRON: шапка = пять вещей); виден
        только на телефоне, как и был. -->
-  <div class="page-head td-head" id="deskHead"><div class="controls">
-    <button class="btn btn-ghost btn-sm" id="railToggle" aria-label="Toggle company directory">Companies</button>
+  <div class="page-head td-head is-empty" id="deskHead"><div class="controls">
+    <button class="btn btn-ghost btn-sm" id="railToggle" type="button" aria-label="Order Book">Order Book</button>
   </div></div>
   <div class="td-body">
   <!-- Company directory -->
@@ -375,7 +381,56 @@
   }
 
   document.getElementById('burger').addEventListener('click',function(){ if(window.openOffcanvas) window.openOffcanvas(); });
-  document.getElementById('railToggle').addEventListener('click',function(){ app.classList.toggle('mobile-open'); });
+  // Phone (≤640): the list and the open page are two views, never one over the
+  // other. #railToggle in the page head is the one way between them and says
+  // where it leads: «‹ Matches» from an open pair back to the list, «Search» from
+  // the Matches start screen to the full list, «‹ Overview» back again.
+  function isPhone(){ return window.matchMedia ? window.matchMedia('(max-width:640px)').matches : window.innerWidth<=640; }
+  var HEAD_IC={
+    back:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>',
+    search:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>'
+  };
+  var homeScroll=null;
+  function sectionLabel(){ return { partners:'Clients', opportunities:'Pipeline', pipeline:'Pipeline', matches:'Matches', messages:'Messages', today:'Sections' }[tab]||'Order Book'; }
+  function openItem(){ return activeMatch||activeCompany||activePartner||activeOpp; }
+  function headAction(){
+    if(app.classList.contains('mobile-open')){
+      if(openItem()) return { act:'page', label:'Back', icon:'back' };
+      if(tab==='matches'||tab==='pipeline'||tab==='opportunities'||tab==='messages'||tab==='today'||!deskMode) return { act:'page', label:(tab==='messages'?'Messages':'Overview'), icon:'back' };
+      return null;   // Order Book / Clients: the list is the section's start
+    }
+    if(openItem()) return { act:'up', label:sectionLabel(), icon:'back' };
+    if(tab==='matches') return { act:'list', label:'Search pairs', icon:'search' };
+    if(tab==='pipeline'||tab==='opportunities') return { act:'list', label:'All deals', icon:'search' };
+    return { act:'list', label:sectionLabel() };
+  }
+  function syncMobileHead(){
+    var btn=document.getElementById('railToggle'), head=document.getElementById('deskHead');
+    if(!btn||!head) return;
+    var a=headAction();
+    head.classList.toggle('is-empty', !a);
+    if(!a) return;
+    btn.dataset.act=a.act;
+    btn.innerHTML=(a.icon?HEAD_IC[a.icon]:'')+'<span>'+esc(a.label)+'</span>';
+    btn.setAttribute('aria-label', a.act==='page'&&a.label==='Back'?'Back to the page':(a.act==='up'?'Back to '+a.label:a.label));
+  }
+  function showListView(){ app.classList.add('mobile-open'); paintList(); syncMobileHead(); }
+  function showPageView(){ app.classList.remove('mobile-open'); syncMobileHead(); }
+  // From an open page up to its section's list.
+  function goUp(){
+    if(tab==='matches'||tab==='pipeline'||tab==='opportunities') return openMatchesHome(tab==='matches'?'matches':'pipeline');
+    activeCompany=null; activePartner=null; activeOpp=null; activeMatch=null;
+    if(deskPerson) setPersonUrl(tab, null);
+    else setUrl(null, false);
+    showWelcome();
+    syncMobileHead();
+  }
+  document.getElementById('railToggle').addEventListener('click',function(){
+    var act=this.dataset.act||'list';
+    if(act==='up') return goUp();
+    if(act==='page') return showPageView();
+    showListView();
+  });
   document.getElementById('brandHome').addEventListener('click',function(){
     if(deskMode){ location.href='/desk/matches'; return; }
     if(deskPerson){ setTab('today'); openToday(); }
@@ -482,6 +537,7 @@
     activeCompany=null; activePartner=null; activeOpp=null; activeMatch=null;
     setCtx(deskPerson?('Trade Desk · '+deskPerson):null);
     paintList();
+    syncMobileHead();
     writeQS({ chat:'', book:'', contact:'', nomatch:'' });
   }
 
@@ -499,8 +555,9 @@
     c.innerHTML='<div class="td-asked"><span class="eyebrow">'+esc(copy[0])+'</span><span class="q">'+esc(copy[1])+'</span></div>'
       +'<p class="wl-sub" style="margin-top:0">'+esc(copy[2])+'</p>';
     // On a phone the list IS the section's start: open it instead of a blank page.
-    if(window.innerWidth<=640){ app.classList.add('mobile-open'); paintList(); return; }
+    if(isPhone()){ showListView(); return; }
     paintList();
+    syncMobileHead();
     // On a desktop the right half is never empty: the first company / client
     // opens at once (Evelyn UX pass 2026-09-29).
     if(tab==='companies' && companies.length) return openCompany(companies[0].company, { replace:true });
@@ -594,7 +651,7 @@
     var ph={ today:'Search companies…', matches:'Search matches…', pipeline:'Search your deals…', companies:'Search companies…', partners:'Search clients…', opportunities:'Search your deals…', messages:'Search conversations…' };
     document.getElementById('coSearch').placeholder=ph[tab]||ph.companies;
     document.getElementById('coSearch').setAttribute('aria-label', ph[tab]||ph.companies);
-    document.getElementById('railToggle').textContent={ partners:'Clients', opportunities:'Pipeline', pipeline:'Pipeline', matches:'Matches', messages:'Messages' }[tab]||'Order Book';
+    syncMobileHead();
     if(opts.push!==false && deskPerson && !opts.keepId) setPersonUrl(tab, null, !!opts.replace);
     paintList();
   }
@@ -689,7 +746,7 @@
     activeCompany=null; activePartner=null; activeOpp=null; activeMatch=null;
     paintList(); setCtx('Messages');
     if(opts.push!==false) setPersonUrl('messages', null, !!opts.replace);
-    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showPageView();
     showConvo();
     var convo=document.getElementById('convo');
     convo.innerHTML='<div class="td-asked"><span class="eyebrow">Messages</span><span class="q">Waiting replies</span></div>'
@@ -773,7 +830,7 @@
     activeCompany=null; activePartner=null; activeOpp=null; activeMatch=null;
     paintList(); setCtx('Today');
     if(opts.push!==false) setPersonUrl('today', null, !!opts.replace);
-    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showPageView();
     showConvo();
     var convo=document.getElementById('convo');
     convo.className='td-convo td-today';
@@ -1125,6 +1182,7 @@
     activeMatch=null; activeCompany=null; activePartner=null; activeOpp=null;
     setCtx(which==='pipeline'?'Pipeline':'Matches');
     if(opts.push!==false) setPersonUrl(which, null, !!opts.replace);
+    showPageView();
     showConvo();
     var convo=document.getElementById('convo');
     convo.className='td-convo td-today';
@@ -1141,6 +1199,9 @@
     if(tab!==which && !(which==='pipeline'&&tab==='opportunities')) return;
     paintList();
     renderMatchesHome(convo, which);
+    // Back from a pair on a phone lands where the list was left.
+    if(homeScroll && homeScroll.lane===which){ var sc=document.getElementById('scroll'); if(sc) sc.scrollTop=homeScroll.top; }
+    homeScroll=null;
   }
   function renderMatchesHome(convo, which){
     var d=matchesData||{ mine:[], available:[], taken:[] };
@@ -1185,24 +1246,28 @@
     }
     convo.innerHTML=html;
     bindLens(convo);
-    convo.querySelectorAll('[data-open-match]').forEach(function(b){ b.addEventListener('click',function(){ openMatch(b.getAttribute('data-open-match')); }); });
+    // The whole row opens the pair (a phone taps the company, not only «Open»).
+    convo.querySelectorAll('.td-pair-row[data-mid]').forEach(function(row){ row.addEventListener('click',function(){ openMatch(row.getAttribute('data-mid')); }); });
   }
   function matchRow(m){
     var right=m.claim&&m.claim.state==='active'
       ? '<span class="t-small age td-clock" data-deadline="'+esc(m.claim.deadlineAt)+'">'+clockText(m.claim.deadlineAt)+'</span>'
       : '';
-    return '<div class="td-qrow td-pair-row" data-open>'+coAvatar(m.company)
+    return '<div class="td-qrow td-pair-row" data-open data-mid="'+esc(m.id)+'">'+coAvatar(m.company)
       +'<div class="meta">'+pairLines(m,'nm')+'</div>'+right
       +'<button class="btn btn-ghost btn-sm" type="button" data-open-match="'+esc(m.id)+'">Open</button></div>';
   }
   async function openMatch(id, opts){
     opts=opts||{};
     clearReviewViews();
+    var sc=document.getElementById('scroll');
+    if(!activeMatch && !app.classList.contains('mobile-open') && sc && (tab==='matches'||tab==='pipeline'||tab==='opportunities')) homeScroll={ lane:(tab==='matches'?'matches':'pipeline'), top:sc.scrollTop };
+    if(sc && isPhone()) sc.scrollTop=0;
     activeMatch=id; activeCompany=null; activePartner=null; activeOpp=null;
     var lane=(tab==='pipeline'||tab==='opportunities')?'pipeline':'matches';
     if(tab!=='matches'&&tab!=='pipeline') setTab('matches',{ push:false });
     if(opts.push!==false) setPersonUrl(lane, id, !!opts.replace);
-    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showPageView();
     showConvo();
     var convo=document.getElementById('convo');
     convo.className='td-convo';
@@ -1590,7 +1655,7 @@
       if(deskPerson) setPersonUrl('companies', name, !!opts.replace);
       else setUrl(name, !!opts.replace);
     }
-    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showPageView();
     showConvo();
     var convo=document.getElementById('convo');
     convo.innerHTML='<div class="td-asked"><span class="eyebrow">Showing</span><span class="q">'+esc(name)+'</span></div><div class="t-small" style="color:var(--muted)">Pulling live liquidity…</div>';
@@ -1626,7 +1691,7 @@
     var title=(row&&row.name)||('Partner '+id);
     paintList(); setCtx(title);
     if(opts.push!==false) setPersonUrl('partners', id, !!opts.replace);
-    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showPageView();
     showConvo();
     var convo=document.getElementById('convo');
     var who=deskMode?'Client':'Partner';
@@ -1654,7 +1719,7 @@
     var title=(row&&row.target_company)||('Deal '+id);
     paintList(); setCtx(title);
     if(opts.push!==false) setPersonUrl('opportunities', id, !!opts.replace);
-    if(window.innerWidth<=640) app.classList.remove('mobile-open');
+    showPageView();
     showConvo();
     var convo=document.getElementById('convo');
     convo.innerHTML='<div class="td-asked"><span class="eyebrow">Opportunity</span><span class="q">'+esc(title)+'</span></div><div class="t-small" style="color:var(--muted)">Loading correspondence…</div>';
