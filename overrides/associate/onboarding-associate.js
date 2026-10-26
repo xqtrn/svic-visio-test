@@ -1,7 +1,8 @@
 /* Настройка associate на странице первого входа (Артур 2026-10-20, утверждённое
  * демо candidate-onboarding-demo, 30-ob). Четыре шага: Account (LinkedIn,
- * Face ID по желанию) → Details (телефон, страна, штат, город; без фото и без
- * правки LinkedIn) → Documents (Associate Agreement и Confidentiality Agreement
+ * Face ID по желанию) → Details (телефон, страна, штат, город и — новому
+ * участнику с 2026-10-25 — фото: камера на телефоне, загрузка на компьютере;
+ * тестовому кандидату всё заполнено вымышленными значениями) → Documents (Associate Agreement и Confidentiality Agreement
  * одной подписью в нашей электронной подписи, как вошедший человек) → Work
  * email (имя.фамилия@siliconvalleyinvestclub.com, подпись готова). Готово —
  * платформа открывается в Mail с окном приветствия. Каждый шаг сохраняется
@@ -18,7 +19,7 @@
     3: ['Step 3 of 4 · Documents', 'Your documents.', 'Two documents, signed through our e-signature service as the person already signed in. No code to enter.'],
     4: ['Step 4 of 4 · Work email', 'Your work email.', 'Every associate gets an address in the same format: first name dot last name at siliconvalleyinvestclub.com.'],
   };
-  var S = { data: null, methods: null, step: 1, icons: {}, api: null, busy: false };
+  var S = { data: null, methods: null, step: 1, icons: {}, api: null, busy: false, pendingPhoto: null };
 
   function err(id, msg) { var el = $(id); el.textContent = msg || ''; el.hidden = !msg; }
   function a() { return S.data.associate || {}; }
@@ -35,7 +36,7 @@
     var A = ASIDE[step];
     $('aEyebrow').textContent = A[0];
     $('aHead').textContent = step === 1 && firstName() ? 'Welcome, ' + firstName() + '.' : A[1];
-    $('aSub').textContent = A[2];
+    $('aSub').textContent = step === 2 && photoRequired() ? 'Your phone, city and photo. The desk can reach you, and your photo appears on your profile and in your email signature.' : A[2];
     if (step === 3) renderDocs();
     if (step === 4) renderMail();
     window.scrollTo(0, 0);
@@ -89,15 +90,56 @@
     $('aStLabel').textContent = c.regionLabel;
   }
   function placeholder(code) { return country(code).dial === '1' ? '(555) 555-0100' : 'Mobile number'; }
+  // Фото обязательно новому участнику (сервер: src/services/member-photo.js).
+  function photoRequired() { return !!(S.data && S.data.photoRequired); }
+  function hasPhoto() { return !!((S.data.profile || {}).photoUrl); }
+  function photoButtons() {
+    var L = window.SVICMemberPhoto ? window.SVICMemberPhoto.labels(hasPhoto() || !!S.pendingPhoto) : { pick: 'Upload photo', showCamera: false };
+    $('aBtnPhoto').textContent = L.pick;
+    $('aBtnCamera').hidden = !L.showCamera;
+    if (L.showCamera) $('aBtnCamera').textContent = L.camera;
+  }
+  function showPhoto(url, test) {
+    $('aPhotoImg').src = url; $('aPhotoImg').hidden = false; $('aPhotoInit').hidden = true;
+    var tag = $('aPhotoTag');
+    tag.hidden = false;
+    tag.className = 'tag ' + (test ? 'pending' : 'ready');
+    tag.innerHTML = '<span class="dot"></span>' + (test ? 'Test photo' : 'Added');
+    $('aPhotoNote').textContent = test ? 'A test picture stands in for the candidate’s own photo.' : 'On your profile and in your email signature.';
+    photoButtons();
+  }
   function renderDetails() {
     var p = S.data.profile || {};
+    // Тестовый кандидат: каждое обязательное поле уже заполнено вымышленным значением.
+    var pre = S.data.prefill || {};
     $('aCtry').innerHTML = countries().map(function (c) { return '<option value="' + esc(c.code) + '">' + esc(c.name) + '</option>'; }).join('');
     $('aPhc').innerHTML = countries().map(function (c) { return '<option value="' + esc(c.code) + '">' + esc(c.code) + ' +' + esc(c.dial || '1') + '</option>'; }).join('');
-    $('aCtry').value = country(p.country || 'US').code;
-    fillRegions($('aCtry').value, p.state);
-    $('aPhc').value = $('aCtry').value; $('aPh').placeholder = placeholder($('aCtry').value);
-    if (p.phone) $('aPh').value = p.phone;
-    if (p.city) $('aCity').value = p.city;
+    $('aCtry').value = country(p.country || pre.country || 'US').code;
+    fillRegions($('aCtry').value, p.state || pre.state);
+    $('aPhc').value = pre.phoneCountry && !p.phone ? country(pre.phoneCountry).code : $('aCtry').value; $('aPh').placeholder = placeholder($('aCtry').value);
+    if (p.phone || pre.phone) $('aPh').value = p.phone || pre.phone;
+    if (p.city || pre.city) $('aCity').value = p.city || pre.city;
+    $('aPhotoRow').hidden = !photoRequired();
+    if (photoRequired()) {
+      $('aDetLead').textContent = 'So the desk can reach you, and colleagues and clients know who you are. Every field is required.';
+      $('aPhotoInit').textContent = window.SVICMemberPhoto ? window.SVICMemberPhoto.initials((S.data.user && S.data.user.name) || '') : '';
+      if (hasPhoto()) showPhoto(p.photoUrl, false);
+      else if (pre.photo) { S.pendingPhoto = pre.photo; showPhoto(pre.photo, true); }
+      else photoButtons();
+    }
+    gate();
+  }
+  async function onPhotoFile(e) {
+    var f = e.target.files && e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try {
+      var dataUrl = await window.SVICMemberPhoto.read(f);
+      var d = await S.api('/api/onboarding/photo', { method: 'PUT', body: { dataUrl: dataUrl } });
+      S.pendingPhoto = null;
+      S.data.profile = Object.assign({}, S.data.profile, { photoUrl: d.photoUrl });
+      showPhoto(d.photoUrl, false);
+      err('aDetErr', '');
+    } catch (x) { err('aDetErr', x.message); }
     gate();
   }
   function gate() {
@@ -107,6 +149,7 @@
     if (nanp ? digits.replace(/^1(?=\d{10}$)/, '').length !== 10 : (digits.length < 7 || digits.length > 15)) missing.push('phone');
     if (!region()) missing.push(country($('aCtry').value).regionLabel.toLowerCase().replace(' or territory', ''));
     if (String($('aCity').value || '').trim().length < 2) missing.push('city');
+    if (photoRequired() && !hasPhoto() && !S.pendingPhoto) missing.push('photo');
     $('aBtnDetails').disabled = missing.length > 0;
     $('aDetHint').hidden = missing.length === 0;
     if (missing.length) $('aDetHint').textContent = 'Add your ' + (missing.length > 1 ? missing.slice(0, -1).join(', ') + ' and ' + missing[missing.length - 1] : missing[0]) + ' to continue.';
@@ -114,6 +157,12 @@
   async function onDetails() {
     var b = $('aBtnDetails'); b.disabled = true;
     try {
+      // Тестовое фото уходит тем же путём, что настоящее, — по нажатию Continue.
+      if (photoRequired() && !hasPhoto() && S.pendingPhoto) {
+        var ph = await S.api('/api/onboarding/photo', { method: 'PUT', body: { dataUrl: S.pendingPhoto } });
+        S.pendingPhoto = null;
+        S.data.profile = Object.assign({}, S.data.profile, { photoUrl: ph.photoUrl });
+      }
       var d = await S.api('/api/onboarding/details', { method: 'PUT', body: { country: $('aCtry').value, phoneCountry: $('aPhc').value, phone: $('aPh').value, state: region(), city: $('aCity').value } });
       $('aPh').value = d.phone;
       S.data.profile = Object.assign({}, S.data.profile, d);
@@ -198,7 +247,7 @@
   function firstOpenStep() {
     var p = S.data.profile || {};
     if (a().completedAt) return 4;
-    if (!(p.phone && p.state && p.city)) return p.phone || ((S.methods && S.methods.passkeys) || []).length ? 2 : 1;
+    if (!(p.phone && p.state && p.city) || (photoRequired() && !p.photoUrl)) return p.phone || p.photoUrl || ((S.methods && S.methods.passkeys) || []).length ? 2 : 1;
     if (!docs().signed) return 3;
     return 4;
   }
@@ -219,6 +268,8 @@
       if (e.target.closest('#aBtnNext1')) return go(2);
       if (e.target.closest('#aBtnFace')) return onFace();
       if (e.target.closest('#aBtnDetails')) return onDetails();
+      if (e.target.closest('#aBtnPhoto')) return $('aPhotoFile').click();
+      if (e.target.closest('#aBtnCamera')) return $('aPhotoCam').click();
       if (e.target.closest('#aBtnSign')) return onSign(false);
       if (e.target.closest('#aBtnDocsNext')) return go(4);
       if (e.target.closest('#aBtnMailNext')) return onFinish();
@@ -227,6 +278,7 @@
       if (e.target.id === 'aCtry') { fillRegions(e.target.value, region()); $('aPhc').value = country(e.target.value).code; $('aPh').placeholder = placeholder(e.target.value); return gate(); }
       if (e.target.id === 'aPhc') { $('aPh').placeholder = placeholder(e.target.value); return gate(); }
       if (e.target.id === 'aSt') return gate();
+      if (e.target.id === 'aPhotoFile' || e.target.id === 'aPhotoCam') return onPhotoFile(e);
     });
     document.addEventListener('input', function (e) { if (e.target.id === 'aPh' || e.target.id === 'aCity' || e.target.id === 'aStText') gate(); });
     // Вернулась со страницы подписи в другой вкладке — перечитать состояние документов.

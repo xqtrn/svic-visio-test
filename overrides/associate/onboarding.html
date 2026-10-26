@@ -12,6 +12,7 @@
   <script src="/loader.js"></script>
   <script src="/ui.js" defer></script>
   <script src="/passkey-enroll.js" defer></script>
+  <script src="/member-photo.js" defer></script>
   <script src="/onboarding-associate.js" defer></script>
   <script src="/onboarding.js" defer></script>
 </head>
@@ -57,8 +58,10 @@
         </div>
         <div class="ob-row ob-photo-row">
           <div class="ob-photo" id="photo"><span id="photoInit"></span><img id="photoImg" alt="" hidden></div>
-          <div class="grow"><div class="t">Photo</div><div class="s">Shown to candidates on your booking page.</div></div>
-          <button class="btn btn-ghost btn-sm" type="button" id="btnPhoto">Upload photo</button><span class="tag ready" id="photoTag" hidden><span class="dot"></span>Added</span>
+          <div class="grow"><div class="t">Photo</div><div class="s">Shown to candidates on your booking page and in your email signature.</div></div>
+          <span class="tag ready" id="photoTag" hidden><span class="dot"></span>Added</span>
+          <div class="ob-photo-acts"><button class="btn btn-ghost btn-sm" type="button" id="btnCamera" hidden>Take a photo</button><button class="btn btn-ghost btn-sm" type="button" id="btnPhoto">Upload photo</button></div>
+          <input type="file" id="photoCam" accept="image/*" capture="user" hidden>
           <input type="file" id="photoFile" accept="image/jpeg,image/png,image/webp" hidden>
         </div>
         <p class="ob-err" id="detErr" hidden></p>
@@ -150,13 +153,22 @@
 
       <section class="ob-panel" data-astep="2">
         <h2>Your details</h2>
-        <p class="ob-lead">So the desk can reach you. Every field is required.</p>
+        <p class="ob-lead" id="aDetLead">So the desk can reach you. Every field is required.</p>
         <div class="field"><label for="aCtry">Country</label><select id="aCtry" autocomplete="country"><option value="US">United States</option></select></div>
         <div class="field"><label for="aPh">Mobile phone</label>
           <div class="ob-phone"><select id="aPhc" aria-label="Country code"><option value="US">US +1</option></select><input id="aPh" type="text" inputmode="tel" autocomplete="tel-national" placeholder="(555) 555-0100"></div><div class="hint">Any country. For the desk only.</div></div>
         <div class="ob-2col">
           <div class="field"><label for="aSt" id="aStLabel">State</label><select id="aSt" autocomplete="address-level1"><option value="">Select…</option></select><input id="aStText" type="text" autocomplete="address-level1" hidden></div>
           <div class="field"><label for="aCity">City</label><input id="aCity" type="text" autocomplete="address-level2"></div>
+        </div>
+        <!-- Фото нового участника (Артур 2026-10-25): обязательно, как у сотрудника; камера на телефоне, загрузка на компьютере -->
+        <div class="ob-row ob-photo-row" id="aPhotoRow" hidden>
+          <div class="ob-photo" id="aPhoto"><span id="aPhotoInit"></span><img id="aPhotoImg" alt="" hidden></div>
+          <div class="grow"><div class="t">Photo</div><div class="s" id="aPhotoNote">On your profile and in your email signature.</div></div>
+          <span class="tag ready" id="aPhotoTag" hidden><span class="dot"></span>Added</span>
+          <div class="ob-photo-acts"><button class="btn btn-ghost btn-sm" type="button" id="aBtnCamera" hidden>Take a photo</button><button class="btn btn-ghost btn-sm" type="button" id="aBtnPhoto">Upload photo</button></div>
+          <input type="file" id="aPhotoCam" accept="image/*" capture="user" hidden>
+          <input type="file" id="aPhotoFile" accept="image/jpeg,image/png,image/webp" hidden>
         </div>
         <p class="ob-err" id="aDetErr" hidden></p>
         <div class="ob-actions"><button class="btn btn-ghost" type="button" data-aback="1">Back</button><button class="btn btn-primary" type="button" id="aBtnDetails" disabled>Continue</button><span class="t-small" id="aDetHint">Add your phone, state and city to continue.</span></div>

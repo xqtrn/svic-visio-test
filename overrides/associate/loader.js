@@ -125,6 +125,65 @@
     }
   } catch (e) {}
 
+  /* Test candidate strip (Arthur 2026-10-25, src/services/auth/qa-test-session.js).
+   * A reviewer who opened a test candidate's link sees the platform AS that
+   * test candidate; his own session is set aside, never replaced. While the
+   * page-readable `svic_qa_test` cookie is set (the server keeps it in step
+   * with the session itself), every platform page carries one thin strip
+   * above the top bar — «Test candidate» and «Back to my account», which
+   * restores the reviewer's own session in one click (or, with none saved,
+   * closes the test session and opens sign-in). Same geometry as the
+   * presentation strip; top-level documents only. */
+  try {
+    var qaMatch = /(?:^|;\s*)svic_qa_test=([rs])(?:;|$)/.exec(String(document.cookie || ''));
+    if (window.top === window && qaMatch && !document.documentElement.classList.contains('svic-presenting')) {
+      var qaRoot = document.documentElement;
+      qaRoot.classList.add('svic-qa-testing');
+      var qaCss = document.createElement('style');
+      qaCss.id = 'svic-qatest-css';
+      qaCss.textContent =
+        // scroll-padding: anything scrolled into view (focus, anchors, a control
+        // brought up from below) stops under the strip, never behind it.
+        'html.svic-qa-testing{--present-h:28px;--topbar-h:90px;scroll-padding-top:var(--present-h)}' +
+        'html.svic-qa-testing .topbar{top:var(--present-h)}' +
+        'html.svic-qa-testing .topbar-in{height:calc(var(--topbar-h) - var(--present-h))}' +
+        '.svic-qatest{position:sticky;top:0;z-index:calc(var(--z-topbar,1000) + 1);box-sizing:border-box;height:var(--present-h,28px);' +
+          'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 26px;margin:0;' +
+          'background:var(--navy-2,#13233f);color:var(--on-navy,#cdd6e6);border-bottom:1px solid rgba(205,214,230,.14);' +
+          'font:600 12px/1 var(--sans,Inter,-apple-system,BlinkMacSystemFont,sans-serif);letter-spacing:.1em;text-transform:uppercase}' +
+        '.svic-qatest-l{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+        '.svic-qatest-l i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--warn,currentColor)}' +
+        '.svic-qatest-l span{color:var(--on-navy-muted,#8c98b0)}' +
+        '.svic-qatest-x{flex:none;display:inline-flex;align-items:center;height:20px;padding:0 10px;border:1px solid rgba(205,214,230,.42);' +
+          'border-radius:var(--r-control,4px);color:var(--on-navy,#cdd6e6);text-decoration:none;font:inherit;letter-spacing:.1em;cursor:pointer}' +
+        '.svic-qatest-x:hover{background:rgba(205,214,230,.1)}' +
+        '.svic-qatest-x:focus-visible{outline:2px solid var(--accent,#0a64bc);outline-offset:1px}' +
+        '@media (max-width:640px){.svic-qatest{padding:0 16px}.svic-qatest-l span{display:none}}' +
+        '@media print{.svic-qatest{display:none}}';
+      (document.head || qaRoot).appendChild(qaCss);
+      var qaMount = function () {
+        if (!document.body || document.getElementById('svicQaTest')) return !!document.body;
+        var strip = document.createElement('div');
+        strip.id = 'svicQaTest';
+        strip.className = 'svic-qatest';
+        strip.setAttribute('role', 'region');
+        strip.setAttribute('aria-label', 'Test candidate session');
+        strip.innerHTML = '<div class="svic-qatest-l"><i aria-hidden="true"></i>Test candidate<span>&nbsp;· you see the platform as the test candidate</span></div>' +
+          '<a class="svic-qatest-x" id="svicQaBack" href="/auth/qa-test-back" title="' +
+          (qaMatch[1] === 'r' ? 'Return to your own session' : 'Close the test session and sign in as yourself') + '">Back to my account</a>';
+        document.body.insertBefore(strip, document.body.firstChild);
+        return true;
+      };
+      if (!qaMount()) {
+        var qaObs = typeof MutationObserver === 'function' ? new MutationObserver(function () {
+          if (qaMount()) qaObs.disconnect();
+        }) : null;
+        if (qaObs) qaObs.observe(qaRoot, { childList: true });
+        document.addEventListener('DOMContentLoaded', function () { qaMount(); if (qaObs) qaObs.disconnect(); });
+      }
+    }
+  } catch (e) {}
+
   /* Candidate mode (2026-10-19/20, src/services/trade-desk/presentation.js).
    * A broker candidate holding the `candidatepreview` grant has Marketplace,
    * Matches, Order Book, Pipeline and Clients. The firm's book — Marketplace,

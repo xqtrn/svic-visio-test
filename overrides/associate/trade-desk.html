@@ -137,6 +137,39 @@
   .td-ob{ color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
   .td-edge{ color:var(--muted); background:var(--subtle); border-radius:var(--r-control); padding:0 6px; font-weight:500; font-variant-numeric:tabular-nums; white-space:nowrap; }
   .td-edge.up{ color:var(--ok); background:var(--ok-soft); }
+  /* A pair missing a price (Arthur 2026-10-25): the side to call, in amber. */
+  .td-edge.need{ color:var(--warn); background:var(--warn-soft); }
+  .td-lens{ padding:12px 8px 2px; }
+  .td-lens .seg{ display:flex; width:100%; }
+  .td-lens .seg button{ flex:1 1 0; padding-left:8px; padding-right:8px; }
+  .td-home-lens{ margin:0 0 4px; }
+  .td-home-lens .seg button{ min-width:150px; }
+  /* The call to make on a held pair, and the form for what the side said. */
+  .td-task{ border-top:1px solid var(--line); padding:20px 24px 4px; }
+  .td-task-h{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .td-task-h .t-h3{ flex:1; min-width:200px; }
+  .td-task-copy{ color:var(--muted); margin:12px 0 0; max-width:640px; }
+  .td-task .seg{ margin-top:16px; }
+  .td-form{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 16px; margin-top:20px; }
+  .td-form .field{ min-width:0; }
+  .td-form .field.wide{ grid-column:1/-1; }
+  .td-form textarea{ resize:vertical; min-height:76px; }
+  .td-form-ft{ grid-column:1/-1; display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+  .td-form-ft .hint{ flex:1; min-width:220px; color:var(--muted); margin:0; }
+  .td-form-err{ grid-column:1/-1; color:var(--bad); margin:0 0 12px; }
+  .td-form-err:empty{ display:none; }
+  .td-reports{ border-top:1px solid var(--line); }
+  .td-reports .td-qrow{ border-top:0; padding:12px 24px; }
+  .td-reports .td-qrow + .td-qrow{ border-top:1px solid var(--line); }
+  @media(max-width:900px){ .td-form{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media(max-width:640px){
+    .td-form{ grid-template-columns:1fr; }
+    .td-task{ padding:20px 16px 4px; }
+    .td-reports .td-qrow{ padding:12px 16px; }
+    .td-form-ft #rpSave{ width:100%; justify-content:center; }
+    .td-home-lens .seg{ display:flex; width:100%; }
+    .td-home-lens .seg button{ min-width:0; flex:1 1 0; }
+  }
   .td-pair-item{ align-items:flex-start; }
   .td-pair-item .td-pl.t-small{ font-size:12px; column-gap:8px; }
   .td-pair-item .td-edge{ padding:0 5px; }
@@ -269,6 +302,9 @@
   var me=null, companies=[], partners=[], opportunities=[];
   var activeCompany=null, activePartner=null, activeOpp=null, activeMatch=null;
   var matchesData=null, matchesPrint='', minePrint='', lastQueue=null, matchesError='';
+  // Which pairs the Matches list shows: priced ones, or the ones missing a price.
+  var matchLens=(function(){ try{ return (window.svicUrlState&&window.svicUrlState.read().lens)==='gaps'?'gaps':'priced'; }catch(_){ return 'priced'; } })();
+  var taskSide={};
   var tab='companies', deskPerson=null;
   // Section mode (2026-09-28): «Trade Desk» is the broker workspace; each of its
   // sections is its own page at /desk/<section>, reading the reader's own desk.
@@ -803,9 +839,9 @@
         return '<div class="td-qrow">'+inner+'</div>';
       }).join(''):'<div class="td-qempty t-small">Nothing on your clock. Take a deal from Matches to start one.</div>';
       html+=qSection('On your clock ('+ticking.length+')', cBody);
-      var avail=(board.available||[]).length;
+      var avail=(board.available||[]).length, gapN=(board.gaps||[]).length;
       html+=qSection('Available deals', '<div class="td-qrow"><span class="avatar">'+avail+'</span><div class="meta"><div class="nm">'
-        +avail+' pair'+(avail===1?'':'s')+' nobody holds</div><div class="t-small sb">Take one and reach both sides within '+(board.windowMin||60)+' minutes.</div></div>'
+        +avail+' pair'+(avail===1?'':'s')+' nobody holds'+(gapN?' · '+gapN+' missing a price':'')+'</div><div class="t-small sb">Take one and reach both sides within '+(board.windowMin||60)+' minutes.'+(gapN?' For a pair missing a price, call and record it.':'')+'</div></div>'
         +'<button class="btn btn-ghost btn-sm" type="button" id="goMatches">Open Matches</button></div>');
     }
 
@@ -907,7 +943,16 @@
     var e=-Number(m.spreadPct);
     return { pct:Math.abs(Math.round(e*10)/10), above:e>0, at:e===0 };
   }
+  function needLabel(m){
+    var miss=m&&m.priceGap&&m.priceGap.missing;
+    if(miss==='sell') return 'Price needed: seller';
+    if(miss==='buy') return 'Price needed: buyer';
+    if(miss==='both') return 'Price needed: both sides';
+    return '';
+  }
   function edgeTag(m){
+    var need=needLabel(m);
+    if(need) return '<span class="td-edge need">'+esc(need)+'</span>';
     var e=bidEdge(m);
     if(!e) return '';
     if(e.at) return '<span class="td-edge">bid at the ask</span>';
@@ -918,7 +963,7 @@
     if(a&&b) return 'Offer '+a+' \u2192 Bid '+b;
     if(a) return 'Offer '+a;
     if(b) return 'Bid '+b;
-    return 'Buy/sell pair';
+    return (m&&m.priceGap)?'No prices yet':'Buy/sell pair';
   }
   // Two lines: company + deal size; «Offer → Bid» + the bid's edge.
   function pairLines(m, nameCls){
@@ -947,14 +992,14 @@
   }
   function allMatches(){
     if(!matchesData) return [];
-    return [].concat(matchesData.mine||[], matchesData.available||[], matchesData.taken||[]);
+    return [].concat(matchesData.mine||[], matchesData.available||[], matchesData.taken||[], matchesData.gaps||[]);
   }
   function findMatch(id){
     return allMatches().find(function(m){ return String(m.id)===String(id); })||null;
   }
   function matchPrint(d){
-    return JSON.stringify([d.mine,d.available,d.taken].map(function(list){
-      return (list||[]).map(function(m){ return [m.id,m.status,m.claim&&m.claim.state,m.claim&&m.claim.sell&&m.claim.sell.at,m.claim&&m.claim.buy&&m.claim.buy.at]; });
+    return JSON.stringify([d.mine,d.available,d.taken,d.gaps].map(function(list){
+      return (list||[]).map(function(m){ return [m.id,m.status,m.claim&&m.claim.state,m.claim&&m.claim.sell&&m.claim.sell.at,m.claim&&m.claim.buy&&m.claim.buy.at,m.sell&&m.sell.price,m.buy&&m.buy.price]; });
     }));
   }
   // Never an endless spinner: no desk, a failed answer or 10 s of silence all
@@ -1020,16 +1065,41 @@
     var mine=railFilter((matchesData.mine||[]).filter(function(m){ return m.claim&&m.claim.state==='active'; }));
     var avail=railFilter(matchesData.available);
     var taken=railFilter(matchesData.taken);
+    var hasGaps=Array.isArray(matchesData.gaps);
+    var gaps=railFilter(matchesData.gaps);
     var html='';
     if(mine.length) html+=railHead('On your clock ('+mine.length+')')+mine.map(function(m){
       return matchItem(m, sideState(m), '<span class="t-small clock td-clock" data-deadline="'+esc(m.claim.deadlineAt)+'">'+clockText(m.claim.deadlineAt)+'</span>');
     }).join('');
-    html+=railHead('Available ('+avail.length+')')+(avail.length?avail.map(matchPairItem).join(''):emptyRow('No free pairs right now'));
+    if(hasGaps) html+='<div class="td-lens">'+lensSeg(avail.length, gaps.length)+'</div>';
+    if(hasGaps && matchLens==='gaps') html+=railHead('Missing price ('+gaps.length+')')+(gaps.length?gaps.map(matchPairItem).join(''):emptyRow('No pairs are missing a price right now'));
+    else html+=railHead('Available ('+avail.length+')')+(avail.length?avail.map(matchPairItem).join(''):emptyRow('No free pairs right now'));
     if(taken.length) html+=railHead('Held by others ('+taken.length+')')+taken.map(function(m){
       return matchItem(m, (m.claim?m.claim.deskName:'')+(m.claim&&m.claim.state==='active'?' · on the clock':' · secured'), '');
     }).join('');
     el.innerHTML=html;
     bindMatchRail(el);
+    bindLens(el);
+  }
+  // Priced pairs | pairs missing a price — one switch, the same in the list and on the start screen.
+  function lensSeg(nPriced, nGaps){
+    var b=function(id, label, n){
+      var on=matchLens===id;
+      return '<button type="button" role="tab" data-lens="'+id+'" class="'+(on?'on':'')+'" aria-selected="'+(on?'true':'false')+'">'+esc(label)+' ('+n+')</button>';
+    };
+    return '<div class="seg" role="tablist" aria-label="Which pairs to show">'+b('priced','Priced',nPriced)+b('gaps','Missing price',nGaps)+'</div>';
+  }
+  function bindLens(root){
+    (root||document).querySelectorAll('[data-lens]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var next=btn.getAttribute('data-lens')==='gaps'?'gaps':'priced';
+        if(next===matchLens) return;
+        matchLens=next;
+        writeQS({ lens: next==='gaps'?'gaps':'' });
+        paintList();
+        if(!activeMatch && tab==='matches') renderMatchesHome(document.getElementById('convo'), 'matches');
+      });
+    });
   }
   function paintPipelineRail(el){
     var mine=railFilter(((matchesData&&matchesData.mine)||[]));
@@ -1078,8 +1148,10 @@
     var secured=(d.mine||[]).filter(function(m){ return m.claim&&m.claim.state==='secured'; });
     var html='<div class="td-asked"><span class="eyebrow">'+(which==='pipeline'?'Pipeline':'Matches')+'</span><span class="q">'
       +(which==='pipeline'?'Your deals':'Take a deal. Reach both sides within the hour.')+'</span></div>';
+    var hasGaps=Array.isArray(d.gaps);
     html+='<div class="stats" data-open>'
       +'<div class="stat"><div class="v">'+(d.available||[]).length+'</div><div class="l">Available</div></div>'
+      +(hasGaps&&which!=='pipeline'?'<div class="stat"><div class="v">'+d.gaps.length+'</div><div class="l">Missing price</div></div>':'')
       +'<div class="stat"><div class="v">'+ticking.length+'</div><div class="l">On your clock</div></div>'
       +'<div class="stat"><div class="v">'+secured.length+'</div><div class="l">Secured</div></div>'
       +((d.taken||[]).length?'<div class="stat"><div class="v">'+d.taken.length+'</div><div class="l">Held by others</div></div>':'')
@@ -1103,9 +1175,16 @@
       });
       if(!any) html+='<div class="banner"><span>'+IC.info+'</span><div><span class="bt">No deals yet.</span> Take a pair from Matches — once you reach both sides within the hour it stays in your pipeline.</div></div>';
     }else{
-      html+=qSection('Available ('+(d.available||[]).length+')', (d.available||[]).length?(d.available||[]).slice(0,30).map(matchRow).join(''):'<div class="td-qempty t-small">No free pairs right now.</div>');
+      if(hasGaps) html+='<div class="td-home-lens">'+lensSeg((d.available||[]).length, d.gaps.length)+'</div>';
+      if(hasGaps && matchLens==='gaps'){
+        html+='<div class="banner warn" style="margin-top:20px" data-open><span>'+IC.info+'</span><div><span class="bt">These pairs are missing a price.</span> Take one, call the side without a price and write down what they say. The order is updated, the desk verifies it, and the pair is scored like any match. Largest and freshest first.</div></div>';
+        html+=qSection('Missing price ('+d.gaps.length+')', d.gaps.length?d.gaps.slice(0,30).map(matchRow).join(''):'<div class="td-qempty t-small">No pairs are missing a price right now.</div>');
+      }else{
+        html+=qSection('Available ('+(d.available||[]).length+')', (d.available||[]).length?(d.available||[]).slice(0,30).map(matchRow).join(''):'<div class="td-qempty t-small">No free pairs right now.</div>');
+      }
     }
     convo.innerHTML=html;
+    bindLens(convo);
     convo.querySelectorAll('[data-open-match]').forEach(function(b){ b.addEventListener('click',function(){ openMatch(b.getAttribute('data-open-match')); }); });
   }
   function matchRow(m){
@@ -1148,9 +1227,15 @@
       return;
     }
     setCtx(m.company||'Match');
+    // A free pair missing a price lives in the «Missing price» list: show that list beside it.
+    if(matchLens!=='gaps' && (matchesData.gaps||[]).some(function(x){ return String(x.id)===String(m.id); })){ matchLens='gaps'; paintList(); }
     renderMatch(convo, m);
   }
-  function sideCol(label, side, mine){
+  function reportWho(r){
+    var when=r&&r.at?new Date(r.at).toLocaleDateString('en-US',{ month:'short', day:'numeric', timeZone:'America/Los_Angeles' }):'';
+    return [r&&r.by, when].filter(Boolean).join(', ');
+  }
+  function sideCol(label, side, mine, rep){
     if(!side) return '<div class="col"><div class="eyebrow">'+label+'</div><div class="t-small" style="color:var(--muted);margin-top:10px">This order was removed.</div></div>';
     var kv='<dl class="kv">'
       +'<dt>From</dt><dd>'+f(side.from)+'</dd>'
@@ -1160,6 +1245,7 @@
       +'<dt>Structure</dt><dd data-open>'+f(side.structure)+'</dd>'
       +'<dt>Class</dt><dd data-open>'+f(side.shareClass)+'</dd>'
       +'<dt>Updated</dt><dd data-open>'+f(side.lastUpdate)+'</dd>'
+      +(rep?'<dt>Reported</dt><dd data-open><span class="tag pending"><span class="dot"></span>Broker call</span> '+esc(reportWho(rep))+' · desk to verify</dd>':'')
       +'</dl>';
     return '<div class="col"><div class="eyebrow">'+label+'</div>'+kv+'</div>';
   }
@@ -1200,6 +1286,107 @@
     return '<div class="td-side-row"><div class="who"><div class="nm">'+label+'</div><div class="t-small" style="color:var(--muted)">'+esc(side?(side.from||''):'Order removed')+'</div></div>'
       +tag+'<div class="acts">'+acts+'</div></div>';
   }
+  // The call to make on a held pair with a side missing its price, and the
+  // form for what that side said (Arthur 2026-10-25). Saved to the order through
+  // the desk's normal checks; the desk sees it as a broker call and verifies it.
+  var RP_STRUCTURES=['Direct trade','SPV','Double-layer SPV','Triple-layer SPV','Direct/SPV','Forward'];
+  // The classes the book keeps as typed, per side (src/services/trade-desk/price-report.js).
+  var RP_CLASSES={ sell:['Common','Preferred','Common/Preferred','Options'], buy:['Common','Preferred','Common/Preferred','Any'] };
+  function taskSides(m){
+    var miss=m&&m.priceGap&&m.priceGap.missing;
+    return miss==='both'?['sell','buy']:(miss==='sell'||miss==='buy')?[miss]:[];
+  }
+  function taskPanel(m){
+    var sides=taskSides(m);
+    if(!sides.length || deskDemo) return '';
+    var side=sides.indexOf(taskSide[m.id])!==-1?taskSide[m.id]:sides[0];
+    var who=side==='sell'?'seller':'buyer';
+    var opt=function(list){ return '<option value="">Not stated</option>'+list.map(function(v){ return '<option>'+esc(v)+'</option>'; }).join(''); };
+    var seg=sides.length>1?'<div class="seg" role="tablist" aria-label="Which side you called">'+sides.map(function(sd){
+      var on=sd===side;
+      return '<button type="button" role="tab" data-task-side="'+sd+'" class="'+(on?'on':'')+'" aria-selected="'+(on?'true':'false')+'">'+(sd==='sell'?'Seller':'Buyer')+'</button>';
+    }).join('')+'</div>':'';
+    return '<div class="td-task" id="tdTask" data-side="'+side+'">'
+      +'<div class="td-task-h"><span class="tag pending"><span class="dot"></span>Your task</span><span class="t-h3" id="tdTaskTitle">Call the '+who+' and ask for the price</span></div>'
+      +seg
+      +'<p class="t-small td-task-copy" id="tdTaskCopy" data-open>'+esc(taskKnown(m, side))+'Write down what they tell you. Only what they said — leave the rest empty.</p>'
+      +'<form class="td-form" id="tdReport" novalidate>'
+      +'<div class="field"><label for="rpPrice">Price per share</label><input type="text" id="rpPrice" inputmode="decimal" autocomplete="off" placeholder="e.g. 185.50" data-write></div>'
+      +'<div class="field"><label for="rpSize">Size</label><input type="text" id="rpSize" autocomplete="off" placeholder="e.g. 5M" data-write></div>'
+      +'<div class="field"><label for="rpValuation">Valuation, if stated</label><input type="text" id="rpValuation" autocomplete="off" placeholder="e.g. 350B" data-write></div>'
+      +'<div class="field"><label for="rpStructure">Structure</label><select id="rpStructure" data-write>'+opt(RP_STRUCTURES)+'</select></div>'
+      +'<div class="field"><label for="rpClass">Share class</label><select id="rpClass" data-write>'+opt(RP_CLASSES[side])+'</select></div>'
+      +'<div class="field wide"><label for="rpNote">What they said</label><textarea id="rpNote" rows="3" placeholder="Their words, as close as you can" data-write></textarea></div>'
+      +'<p class="t-small td-form-err" id="rpErr" role="alert"></p>'
+      +'<div class="td-form-ft"><p class="t-small hint" id="tdTaskHint" data-open>Saved to the '+who+'\u2019s order. The desk sees it as your broker call and verifies it.</p>'
+      +'<button class="btn btn-primary" type="submit" id="rpSave" data-write>Save to the deal</button></div>'
+      +'</form></div>';
+  }
+  function taskKnown(m, side){
+    var other=side==='sell'?m.buy:m.sell;
+    return other&&other.price?((side==='sell'?'The buyer bids ':'The seller asks ')+other.price+(other.volume?' for '+other.volume:'')+'. '):'';
+  }
+  function reportsList(m){
+    var reps=(m.priceGap&&m.priceGap.reports)||{};
+    var rows=['sell','buy'].filter(function(sd){ return reps[sd]; }).map(function(sd){
+      var r=reps[sd], fl=r.fields||{};
+      var terms=[fl.gross_price?fl.gross_price+' per share':'', fl.max_deal_size?'size '+fl.max_deal_size:'', fl.structure||'', fl.share_class||'', fl.implied_valuation?'valuation '+fl.implied_valuation:''].filter(Boolean).join(' · ');
+      return '<div class="td-qrow"><span class="tag pending"><span class="dot"></span>'+(sd==='sell'?'Seller':'Buyer')+'</span>'
+        +'<div class="meta"><div class="nm">'+esc(terms||'Terms recorded')+'</div><div class="t-small sb">Broker call · '+esc(reportWho(r))+' · desk to verify</div></div></div>';
+    });
+    return rows.length?'<div class="td-reports" data-open>'+rows.join('')+'</div>':'';
+  }
+  function reportDirty(){
+    var f=document.getElementById('tdReport');
+    if(!f) return false;
+    if(f.contains(document.activeElement)) return true;
+    return Array.prototype.some.call(f.querySelectorAll('input,select,textarea'), function(el){ return String(el.value||'').trim()!==''; });
+  }
+  function bindReport(m){
+    // Switching the side keeps what was typed: only the words and the class list change.
+    document.querySelectorAll('[data-task-side]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var side=btn.getAttribute('data-task-side'), who=side==='sell'?'seller':'buyer';
+        taskSide[m.id]=side;
+        var task=document.getElementById('tdTask'); if(task) task.setAttribute('data-side', side);
+        document.querySelectorAll('[data-task-side]').forEach(function(b){ var on=b===btn; b.classList.toggle('on', on); b.setAttribute('aria-selected', on?'true':'false'); });
+        var t=document.getElementById('tdTaskTitle'); if(t) t.textContent='Call the '+who+' and ask for the price';
+        var c=document.getElementById('tdTaskCopy'); if(c) c.textContent=taskKnown(m, side)+'Write down what they tell you. Only what they said \u2014 leave the rest empty.';
+        var h=document.getElementById('tdTaskHint'); if(h) h.textContent='Saved to the '+who+'\u2019s order. The desk sees it as your broker call and verifies it.';
+        var cls=document.getElementById('rpClass');
+        if(cls){ var keep=cls.value; cls.innerHTML='<option value="">Not stated</option>'+RP_CLASSES[side].map(function(v){ return '<option>'+esc(v)+'</option>'; }).join(''); cls.value=RP_CLASSES[side].indexOf(keep)!==-1?keep:''; }
+      });
+    });
+    var form=document.getElementById('tdReport');
+    if(!form) return;
+    form.addEventListener('input', function(){ var e=document.getElementById('rpErr'); if(e) e.textContent=''; });
+    form.addEventListener('submit', async function(ev){
+      ev.preventDefault();
+      var val=function(id){ return String((document.getElementById(id)||{}).value||'').trim(); };
+      var err=document.getElementById('rpErr'), save=document.getElementById('rpSave');
+      var body={ side:(document.getElementById('tdTask')||{}).getAttribute?document.getElementById('tdTask').getAttribute('data-side'):'',
+        price:val('rpPrice'), size:val('rpSize'), valuation:val('rpValuation'), structure:val('rpStructure'), shareClass:val('rpClass'), note:val('rpNote') };
+      if(err) err.textContent='';
+      if(!body.price && !body.size && !body.valuation && !body.structure && !body.shareClass){ if(err) err.textContent='Enter at least one term they gave you.'; return; }
+      if(body.note.length<3){ if(err) err.textContent='Write down what they said, in their words.'; var n=document.getElementById('rpNote'); if(n) n.focus(); return; }
+      save.disabled=true; save.textContent='Saving…';
+      try{
+        var r=await fetch(api('/matches/'+encodeURIComponent(m.id)+'/price-report'),{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+        on401(r);
+        var b=await r.json().catch(function(){ return {}; });
+        if(!r.ok) throw new Error(b.error||'Could not save. Try again.');
+        delete taskSide[m.id];
+        form.reset();
+        var adj=(b.adjusted||[]).map(function(a){ return a.label+(a.stored?(' kept as '+a.stored):' not accepted'); });
+        if(window.showToast) showToast(adj.length?('Saved. The desk\u2019s checks: '+adj.join('; ')):'Saved to the deal \u2014 the desk will verify it', !!adj.length);
+      }catch(e){
+        if(err) err.textContent=e.message||'Could not save. Try again.';
+        save.disabled=false; save.textContent='Save to the deal';
+        return;
+      }
+      openMatch(m.id,{ push:false, reload:true });
+    });
+  }
   function renderMatch(convo, m){
     var c=m.claim, mine=!!(c&&matchesData&&(matchesData.mine||[]).some(function(x){ return String(x.id)===String(m.id); }));
     var win=(matchesData&&matchesData.windowMin)||60;
@@ -1210,13 +1397,20 @@
       +'<div class="stat"><div class="v">'+(size?esc(usd(size)):'—')+'</div><div class="l">Deal size</div></div>'
       +'<div class="stat"><div class="v">'+f(m.sell&&m.sell.price)+'</div><div class="l">Seller asks</div></div>'
       +'<div class="stat"><div class="v">'+f(m.buy&&m.buy.price)+'</div><div class="l">Buyer bids</div></div>'
-      +'<div class="stat"><div class="v'+(e&&e.above?' up':'')+'">'+(e?((e.above?'+':(e.at?'':'\u2212'))+esc(e.pct)+'%'):'—')+'</div><div class="l">'+(e&&!e.above&&!e.at?'Bid below the ask':'Bid above the ask')+'</div></div>'
+      +'<div class="stat"><div class="v'+(e&&e.above?' up':'')+'">'+(e?((e.above?'+':(e.at?'':'\u2212'))+esc(e.pct)+'%'):'—')+'</div><div class="l">'+(!e?'Bid vs ask':(!e.above&&!e.at?'Bid below the ask':'Bid above the ask'))+'</div></div>'
       +'</div>';
     if(m.commissionUsd) html+='<p class="t-small td-figs-note" data-open>Commissions on this deal \u2248 '+esc(usd(m.commissionUsd))+'</p>';
     // The claim panel — the one control that matters on this screen.
+    var need=m.priceGap&&m.priceGap.missing;
+    if(need && !mine){
+      var nWho=need==='sell'?'the seller has':(need==='buy'?'the buyer has':'neither side has');
+      var known=need==='sell'?(m.buy&&m.buy.price?' The buyer bids '+m.buy.price+'.':''):(need==='buy'?(m.sell&&m.sell.price?' The seller asks '+m.sell.price+'.':''):'');
+      html+='<div class="banner warn" style="margin-bottom:16px" data-open><span>'+IC.info+'</span><div><span class="bt">'+esc(needLabel(m))+'.</span> So far '+nWho+' not named a price.'+esc(known)+' Take the deal, call and write down their terms — the order is updated for the desk to verify, and the pair is scored like any match.</div></div>';
+    }
     html+='<div class="td-claim">';
     if(!c){
-      html+='<div class="td-claim-hd"><div class="copy"><b>Nobody holds this deal.</b> Take it and it is reserved for you for '+win+' minutes — no other broker sees it. Reach the seller and the buyer within that time, and the deal stays yours until it closes; otherwise it returns to the pool.</div>'
+      html+='<div class="td-claim-hd"><div class="copy"><b>Nobody holds this deal.</b> Take it and it is reserved for you for '+win+' minutes — no other broker sees it. '
+        +(need?'Call '+(need==='buy'?'the buyer':'the seller')+' for the price and record it here, reach the other side too, and the deal stays yours until it closes; otherwise it returns to the pool.':'Reach the seller and the buyer within that time, and the deal stays yours until it closes; otherwise it returns to the pool.')+'</div>'
         +'<button class="btn btn-primary" type="button" id="tdTake">Take deal</button></div>';
     }else if(!mine){
       html+='<div class="td-claim-hd"><div class="copy"><b>'+esc(c.deskName||'Another broker')+'</b> holds this deal'
@@ -1227,11 +1421,11 @@
         +'<div class="eyebrow" style="margin-top:8px">Left to reach both sides</div></div>'
         +'<div class="copy">Reserved for you. Reach the seller and the buyer through any channel of the platform — the desk sees your message and ticks that side off. Both reached in time: the deal stays yours until it closes.</div>'
         +'<button class="btn btn-ghost btn-sm" type="button" id="tdRelease">Release</button></div>'
-        +sideRow(m,'sell','Seller')+sideRow(m,'buy','Buyer');
+        +sideRow(m,'sell','Seller')+sideRow(m,'buy','Buyer')+taskPanel(m)+reportsList(m);
     }else{
       html+='<div class="td-claim-hd"><span class="tag ready"><span class="dot"></span>Secured</span><div class="copy"><b>Both sides reached in time.</b> This deal is yours until it closes. Now the real work begins: negotiating with both sides and running the deal to closing.</div>'
         +'<button class="btn btn-ghost btn-sm" type="button" id="tdRelease">Release</button></div>'
-        +sideRow(m,'sell','Seller')+sideRow(m,'buy','Buyer');
+        +sideRow(m,'sell','Seller')+sideRow(m,'buy','Buyer')+taskPanel(m)+reportsList(m);
     }
     html+='</div>';
     if(mine && deskMode){
@@ -1241,7 +1435,9 @@
           +BOARD_STAGES.map(function(st){ return '<option value="'+st[0]+'"'+(st[0]===(m.boardStage||'')?' selected':'')+'>'+st[1]+'</option>'; }).join('')
           +'</select><a class="btn btn-ghost btn-sm" href="/desk/pipeline">Open Pipeline</a></div>';
       }
-    }else if(mine){
+    }else if(mine && m.source!=='price_gap'){
+      // The board's stage and verdict belong to board cards; a pair missing a
+      // price is the broker's own until a call makes it a match.
       var opts=((matchesData&&matchesData.columns)||[]).filter(function(col){ return col.id!=='no_match'; }).map(function(col){
         return '<option value="'+esc(col.id)+'"'+(col.id===m.status?' selected':'')+'>'+esc(col.label)+'</option>';
       }).join('');
@@ -1249,7 +1445,8 @@
         +(deskDemo?'':'<button class="btn btn-ghost btn-sm" type="button" id="tdNoMatch">No match</button>'
         +'<a class="btn btn-ghost btn-sm" href="/matches?match='+esc(m.id)+'" target="_blank" rel="noopener">Open in Matches</a>')+'</div>';
     }
-    html+='<div class="td-pair">'+sideCol('Offer · sell-side', m.sell, mine)+sideCol('Bid · buy-side', m.buy, mine)+'</div>';
+    var reps=(m.priceGap&&m.priceGap.reports)||{};
+    html+='<div class="td-pair">'+sideCol('Offer · sell-side', m.sell, mine, reps.sell)+sideCol('Bid · buy-side', m.buy, mine, reps.buy)+'</div>';
     var hist=(m.history||[]).filter(Boolean);
     if(hist.length){
       html+=qSection('Earlier on this deal', '<div class="td-hist">'+hist.map(function(h){
@@ -1261,6 +1458,7 @@
     }
     convo.innerHTML=html;
     bindMatchActions(m);
+    bindReport(m);
   }
   async function postClaim(m, action, body){
     var r=await fetch(api('/matches/'+encodeURIComponent(m.id)+'/'+action),{
@@ -1279,9 +1477,12 @@
     var take=document.getElementById('tdTake');
     if(take) take.addEventListener('click', async function(){
       take.disabled=true; take.textContent='Taking…';
-      try{ await postClaim(m,'take'); if(window.showToast) showToast('Deal taken — the clock is running'); }
+      var nextId=m.id;
+      try{ var tb=await postClaim(m,'take'); if(tb&&tb.matchId) nextId=tb.matchId; if(window.showToast) showToast('Deal taken — the clock is running'); }
       catch(e){ if(window.showToast) showToast(e.message, true); }
-      openMatch(m.id,{ push:false, reload:true });
+      // A pair missing a price gets its ledger id on the first take.
+      if(String(nextId)!==String(m.id)) openMatch(nextId,{ replace:true, reload:true });
+      else openMatch(m.id,{ push:false, reload:true });
     });
     var rel=document.getElementById('tdRelease');
     if(rel) rel.addEventListener('click', function(){
@@ -1373,6 +1574,7 @@
     }
     if(matchesPrint===before) return;
     paintList();
+    if(activeMatch && reportDirty()) return;
     if(activeMatch){ var m=findMatch(activeMatch); if(m) renderMatch(document.getElementById('convo'), m); }
     else renderMatchesHome(document.getElementById('convo'), tab==='matches'?'matches':'pipeline');
   }
