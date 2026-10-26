@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en" data-theme-auto>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E-Signature — Silicon Valley Investclub</title>
+<link rel="icon" href="/favicon.ico?v=rev3">
+<link rel="stylesheet" href="/fonts.css">
+<link rel="stylesheet" href="/app.css">
+<script src="/loader.js"></script>
+<style>
+  /* E-Signature page. The list and attention frames are .panel-card, toggles are .seg,
+     menus .menu, statuses .tag — all from app.css. What lives here: row grids, the
+     board, the one-column builder (PDF field overlay) and the wizard choices.
+     Tokens and --sp-* steps only; one surface (board cards / PDF page) per element. */
+  [hidden]{ display:none !important; }
+  .esign-head{ margin-bottom:var(--sp-6); }
+  .esign-side{ display:flex; flex-direction:column; align-items:flex-end; gap:var(--sp-2); }
+  .esign-actions{ display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:var(--sp-2); }
+  .esign-back{ display:inline-block; text-decoration:none; color:var(--muted); }
+  .esign-back:hover{ color:var(--accent); }
+  .esign-sec{ margin-bottom:var(--sp-7); }
+  .esign-sechead{ display:flex; align-items:baseline; gap:var(--sp-2); margin-bottom:var(--sp-3); }
+
+  /* rows: list and «Needs your attention» */
+  .esign-row{ display:grid; grid-template-columns:minmax(0,2.6fr) minmax(0,1fr) 150px minmax(0,1fr) 96px; gap:var(--sp-4); align-items:center; padding:var(--sp-3) var(--sp-5); border-top:1px solid var(--line-2); color:var(--ink); text-decoration:none; min-width:0; }
+  .esign-rows,.esign-signers{ overflow:hidden; }
+  .esign-rows > .esign-row:first-child{ border-top:none; }
+  a.esign-row:hover{ background:var(--subtle); }
+  .esign-attn .esign-row{ grid-template-columns:170px minmax(0,1fr) minmax(0,160px) 96px auto; }
+  .esign-th{ font-size:10.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted-2); background:var(--subtle); }
+  .esign-main{ min-width:0; }
+  .esign-main .t{ display:block; font-weight:600; overflow-wrap:anywhere; color:var(--ink); text-decoration:none; }
+  a.t:hover{ color:var(--accent); }
+  .esign-main .s,.esign-cell{ font-size:12.5px; color:var(--muted); overflow-wrap:anywhere; }
+  .esign-empty{ padding:var(--sp-5); color:var(--muted); font-size:13px; margin:0; }
+  .esign-foot{ display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3); flex-wrap:wrap; padding:var(--sp-3) var(--sp-5); border-top:1px solid var(--line-2); font-size:12.5px; color:var(--muted); }
+  .esign-foot .esign-actions{ justify-content:flex-start; }
+
+  .esign-stats{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .esign-stats .stat:nth-child(2){ border-right:1px solid var(--line); }
+  .esign-stats .stat:last-child{ border-right:none; }
+
+  .esign-toolbar{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--sp-3); margin-bottom:var(--sp-4); }
+  .esign-toolbar .search{ margin-left:auto; }
+  .esign-toolbar .seg .n{ font-variant-numeric:tabular-nums; font-weight:500; opacity:.75; margin-left:var(--sp-1); }
+  .esign-toolbar .seg button:disabled{ opacity:.4; cursor:default; }
+  .esign-filters{ display:flex; flex-wrap:wrap; gap:var(--sp-4); margin-bottom:var(--sp-4); }
+  .esign-filters .sheet-tool{ flex:1 1 160px; }
+
+  /* board — a second view of the same documents */
+  .esign-board{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:var(--sp-3); align-items:start; }
+  .esign-col{ border:1px solid var(--line); border-radius:var(--r-card); padding:var(--sp-3); min-width:0; }
+  .esign-colhead{ display:flex; justify-content:space-between; align-items:baseline; gap:var(--sp-2); margin-bottom:var(--sp-3); }
+  .esign-card{ display:block; width:100%; min-width:0; text-align:left; font:inherit; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:var(--r-control); padding:var(--sp-3); margin-bottom:var(--sp-2); cursor:pointer; overflow-wrap:anywhere; }
+  .esign-card:hover{ border-color:var(--accent); }
+  .esign-card .t{ display:block; font-weight:600; font-size:13px; line-height:1.35; }
+  .esign-card .s{ display:block; font-size:12px; color:var(--muted); margin-top:var(--sp-1); }
+  .esign-col .esign-empty{ padding:0; font-size:12px; }
+
+  /* builder — one column, four steps */
+  .esign-note{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-4); border:1px solid var(--line); border-radius:var(--r-card); background:var(--subtle); font-size:13px; margin-bottom:var(--sp-6); }
+  .esign-flow{ list-style:none; margin:0; padding:0; }
+  .esign-step{ display:grid; grid-template-columns:28px minmax(0,1fr); gap:var(--sp-4); padding-bottom:var(--sp-7); }
+  .esign-step .k{ width:28px; height:28px; border-radius:50%; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .esign-step.done .k{ background:var(--ok-soft); color:var(--ok); border-color:transparent; }
+  .esign-step.on .k{ background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
+  .esign-step h2{ font-size:20px; margin:var(--sp-1) 0 var(--sp-3); }
+  .esign-form{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:0 var(--sp-4); max-width:var(--w-read); }
+  .esign-form .wide{ grid-column:1 / -1; }
+  .esign-drop{ position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--sp-2); padding:var(--sp-7) var(--sp-5); border:1px dashed var(--line); border-radius:var(--r-card); color:var(--muted); text-align:center; cursor:pointer; max-width:var(--w-read); margin-bottom:var(--sp-4); }
+  .esign-drop:hover,.esign-drop.over,.esign-drop:focus-within{ border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  .esign-drop svg{ width:22px; height:22px; }
+  .esign-drop .t{ font-weight:600; color:var(--ink); }
+  .esign-drop .s{ font-size:12px; }
+  .esign-file{ position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; }
+  .esign-doc{ display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:var(--sp-3); align-items:center; padding:var(--sp-3) var(--sp-4); border:1px solid var(--line); border-radius:var(--r-control); max-width:var(--w-read); margin-bottom:var(--sp-2); }
+  .esign-doc .t{ font-weight:600; overflow-wrap:anywhere; }
+  .esign-doc .s{ font-size:12px; color:var(--muted); }
+  .esign-docs-add{ margin-bottom:var(--sp-4); }
+
+  .esign-signers{ border:1px solid var(--line); border-radius:var(--r-card); margin-bottom:var(--sp-3); }
+  .esign-signer{ display:grid; grid-template-columns:12px minmax(0,1.2fr) minmax(0,1.6fr) 110px 76px 140px auto; grid-template-areas:"sw nm em ro od au rm"; gap:var(--sp-3); align-items:center; padding:var(--sp-2) var(--sp-4); border-top:1px solid var(--line-2); }
+  .esign-signers > .esign-signer:first-child{ border-top:none; }
+  .esign-signer > *{ min-width:0; }
+  .esign-signer input,.esign-signer select{ width:100%; }
+  .esign-signer input[aria-invalid="true"]{ border-color:var(--bad); }
+  .esign-signer .sw{ grid-area:sw; width:12px; height:12px; border-radius:var(--r-control); }
+  .esign-signer .nm{ grid-area:nm; } .esign-signer .em{ grid-area:em; } .esign-signer .ro{ grid-area:ro; }
+  .esign-signer .od{ grid-area:od; } .esign-signer .au{ grid-area:au; display:flex; flex-direction:column; gap:var(--sp-1); }
+  .esign-signer .rm{ grid-area:rm; justify-self:end; }
+  .esign-addrow{ display:flex; flex-wrap:wrap; gap:var(--sp-2); align-items:center; }
+  .esign-find.menu{ display:block; position:relative; }
+  .esign-find .menu-list{ left:0; right:0; max-height:288px; overflow-y:auto; }
+  .esign-find input{ width:100%; }
+  .esign-findbox{ display:flex; gap:var(--sp-2); align-items:center; margin-top:var(--sp-3); max-width:var(--w-form); }
+  .esign-findbox .esign-find{ flex:1 1 auto; }
+  .esign-hit{ display:flex; flex-direction:column; min-width:0; text-align:left; }
+  .esign-hit .t{ font-weight:600; overflow-wrap:anywhere; }
+  .esign-hit .s{ font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
+  .esign-hit-empty{ padding:var(--sp-2) var(--sp-4); font-size:12.5px; color:var(--muted); }
+
+  .esign-tools{ position:sticky; top:calc(var(--topbar-h) + 2px); z-index:5; display:flex; flex-wrap:wrap; align-items:center; gap:var(--sp-3); padding:var(--sp-3) 0; background:var(--page); border-bottom:1px solid var(--line); margin-bottom:var(--sp-4); }
+  .esign-for{ display:flex; align-items:center; gap:var(--sp-2); }
+  .esign-for select{ width:auto; max-width:240px; }
+  .esign-props{ flex:1 1 100%; display:flex; flex-wrap:wrap; align-items:flex-end; gap:var(--sp-3); padding-top:var(--sp-3); border-top:1px solid var(--line-2); }
+  .esign-props .sheet-tool{ min-width:140px; }
+  .esign-props textarea{ min-height:36px; }
+  .esign-pages{ display:flex; flex-direction:column; align-items:center; }
+  .pagewrap{ position:relative; margin:0 auto var(--sp-4); background:var(--panel); border:1px solid var(--line); max-width:100%; }
+  .pagewrap canvas{ display:block; }
+  .fieldlayer{ position:absolute; inset:0; }
+  .fbox{ position:absolute; border:1.5px dashed var(--accent); background:var(--accent-soft); border-radius:3px; cursor:move; font-family:var(--sans); font-size:9.5px; font-weight:600; color:var(--accent); display:flex; align-items:center; justify-content:center; text-align:center; overflow:hidden; user-select:none; touch-action:none; }
+  .fbox.sel{ outline:2px solid var(--accent); outline-offset:1px; overflow:visible; }
+  .fbox.ro{ cursor:default; }
+  .fbox .x{ position:absolute; top:-8px; right:-8px; width:16px; height:16px; border-radius:50%; background:var(--panel); border:1px solid var(--line); color:var(--bad); font-size:11px; line-height:14px; text-align:center; cursor:pointer; }
+  .fbox .rz{ position:absolute; right:-4px; bottom:-4px; width:10px; height:10px; background:var(--panel); border:1px solid var(--accent); cursor:nwse-resize; }
+
+  /* wizard */
+  .esign-choices{ display:grid; gap:var(--sp-3); }
+  .esign-preview{ display:grid; gap:var(--sp-2); max-height:44vh; overflow:auto; margin-top:var(--sp-3); }
+  .modal-ft:has(.esign-ftcheck){ flex-wrap:wrap; }
+  .esign-ftcheck{ flex:1 1 240px; margin-right:auto; font-size:12.5px; line-height:1.4; }
+  .esign-preview canvas{ display:block; width:100%; height:auto; border:1px solid var(--line); }
+  .esign-docview{ max-height:70vh; margin:0 0 var(--sp-6); padding:var(--sp-3); }
+  #dDocOpen{ margin-left:auto; }
+  .esign-choice{ display:block; width:100%; text-align:left; font:inherit; color:var(--ink); background:none; border:1px solid var(--line); border-radius:var(--r-card); padding:var(--sp-4); cursor:pointer; }
+  .esign-choice:hover:not(:disabled){ border-color:var(--accent); }
+  .esign-choice:disabled{ cursor:default; color:var(--muted); }
+  .esign-choice .t{ display:block; font-weight:600; }
+  .esign-choice .s{ display:block; font-size:12.5px; color:var(--muted); margin-top:var(--sp-1); }
+  .esign-choice .esign-chtag{ display:block; margin-top:var(--sp-2); }
+  .esign-group{ margin:var(--sp-2) 0 var(--sp-3); }
+  .esign-tpl{ display:flex; justify-content:space-between; align-items:center; gap:var(--sp-3); flex-wrap:wrap; padding:var(--sp-3) 0; border-bottom:1px solid var(--line); }
+  .esign-tpl .s{ font-size:12.5px; color:var(--muted); }
+
+  .esign-agrq{ width:100%; }
+  .esign-agr{ grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.9fr) auto; }
+  .esign-radios{ display:flex; flex-direction:column; gap:var(--sp-2); margin-top:var(--sp-2); }
+  .esign-legal{ margin-top:var(--sp-7); max-width:var(--w-read); font-size:12px; }
+
+  @media(max-width:900px){
+    .esign-board{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .esign-row,.esign-attn .esign-row{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--sp-2) var(--sp-3); }
+    .esign-rows > .esign-row.esign-th{ display:none; }
+    .esign-row .esign-main{ flex:1 1 100%; order:-1; }
+    .esign-row .esign-act{ margin-left:auto; }
+    .esign-signer{ grid-template-columns:12px minmax(0,1.3fr) minmax(0,1fr); grid-template-areas:"sw nm nm" ". em em" ". ro od" ". au rm"; padding:var(--sp-3) var(--sp-4); }
+    .esign-signers > .esign-th{ display:none; }
+  }
+  @media(max-width:640px){
+    .esign-side{ align-items:flex-start; }
+    .esign-actions{ justify-content:flex-start; }
+    .esign-actions > .esign-primary{ order:-1; }
+    .esign-stats .stat{ padding:var(--sp-4) var(--sp-3); }
+    .esign-stats .stat .v{ font-size:22px; }
+    .esign-toolbar .seg{ flex:1 1 100%; display:flex; }
+    .esign-toolbar .seg button{ flex:1 1 auto; padding:8px; }
+    .esign-toolbar .search{ flex:1 1 100%; max-width:none; margin-left:0; }
+    .esign-board{ grid-template-columns:minmax(0,1fr); }
+    .esign-col.is-empty{ display:none; }
+    .esign-step{ grid-template-columns:24px minmax(0,1fr); gap:var(--sp-3); }
+    .esign-step .k{ width:24px; height:24px; }
+    .esign-tools{ position:static; }
+    .esign-tools .seg{ flex:1 1 100%; display:flex; }
+    .esign-tools .seg button{ flex:1 1 auto; padding:8px 4px; font-size:11.5px; }
+    .esign-findbox{ flex-wrap:wrap; }
+    .steps .step:not(.on) .esign-stepl{ display:none; }
+    /* Send-step summary: two columns clip the partner Gmail at phone width. */
+    .modal .kv{ grid-template-columns:minmax(0,1fr); gap:var(--sp-1) 0; }
+    .modal .kv dt{ white-space:normal; }
+    .modal .kv dd{ margin:0 0 var(--sp-3); overflow-wrap:anywhere; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-in">
+  <button class="tb-burger" onclick="openOffcanvas()" aria-label="Menu"></button>
+  <div class="tb-brand" onclick="location.href='/'"><img class="tb-logo" src="/brandbook-logo.svg" alt="Silicon Valley Investclub"></div>
+  <div class="tb-div"></div><div class="tb-ctx">E-Signature</div>
+  <div class="tb-spacer"></div>
+</div></header>
+
+<div class="wrap">
+  <!-- DASHBOARD -->
+  <div id="dashView">
+    <div class="hero esign-head">
+      <div><div class="eyebrow">E-Signature</div><h1>Documents</h1></div>
+      <div class="esign-actions">
+        <a class="btn btn-ghost btn-sm" href="/demos/esign-training" target="_blank" rel="noopener">Training video</a>
+        <button class="btn btn-ghost btn-sm" onclick="openTemplates()">Templates</button>
+        <button class="btn btn-ghost btn-sm" onclick="openAgreements()">Agreements on file</button>
+        <button class="btn btn-ghost btn-sm" onclick="newEnvelope()">Upload your own</button>
+        <div class="menu" data-role="serge admin" hidden>
+          <button class="btn btn-ghost btn-sm" aria-haspopup="menu" aria-expanded="false">More <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></button>
+          <div class="menu-list" role="menu">
+            <a class="menu-item" role="menuitem" href="/esign/review" data-role="serge admin">Serge's review</a>
+            <button class="menu-item" role="menuitem" onclick="openBulk()" data-role="serge admin">Bulk send</button>
+            <button class="menu-item" role="menuitem" onclick="openWebhooks()" data-role="serge admin">Webhooks</button>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm esign-primary" onclick="openWizard()">New document</button>
+      </div>
+    </div>
+
+    <section class="esign-sec esign-attn" aria-labelledby="attnHead">
+      <div class="esign-sechead"><div class="eyebrow" id="attnHead" role="heading" aria-level="2">Needs your attention</div><span class="eyebrow num" id="attnN"></span></div>
+      <div class="panel-card esign-rows" id="attnList" aria-live="polite"><p class="esign-empty">Loading…</p></div>
+    </section>
+
+    <div class="stats esign-stats" id="stats"></div>
+
+    <section aria-label="Documents">
+      <div class="esign-toolbar">
+        <div class="seg" id="scopeSeg" role="tablist" aria-label="Which documents">
+          <button type="button" role="tab" data-scope="all">All documents<span class="n" data-count="all"></span></button>
+          <button type="button" role="tab" data-scope="mine">Mine<span class="n" data-count="mine"></span></button>
+          <button type="button" role="tab" data-scope="archive">Archive<span class="n" data-count="archive"></span></button>
+        </div>
+        <div class="seg" id="modeSeg" aria-label="View">
+          <button type="button" data-mode="list">List</button>
+          <button type="button" data-mode="board">Board</button>
+        </div>
+        <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="search" id="search" placeholder="Search partner, company or title" aria-label="Search partner, company or title" oninput="debouncedDocs()"></label>
+      </div>
+      <div class="esign-filters" id="boardFilters" hidden>
+        <label class="sheet-tool"><span class="sheet-label">Owner</span><input type="text" id="boardManager" oninput="debouncedDocs()"></label>
+        <label class="sheet-tool"><span class="sheet-label">Partner</span><input type="text" id="boardPartner" oninput="debouncedDocs()"></label>
+        <label class="sheet-tool"><span class="sheet-label">Document type</span><select id="boardType" onchange="loadDocs()"><option value="">All types</option><option value="ncnda">NCNDA</option><option value="introduction">Introduction</option><option value="collaboration">Collaboration</option><option value="fsa">FSA</option><option value="buy_side_fee">Buy-side fee</option><option value="sell_side_fee">Sell-side fee</option><option value="other">Other</option></select></label>
+        <label class="sheet-tool"><span class="sheet-label">Deal</span><input type="text" id="boardDeal" oninput="debouncedDocs()"></label>
+      </div>
+      <div class="panel-card esign-rows" id="listView" aria-live="polite"><p class="esign-empty">Loading…</p></div>
+      <div class="esign-board" id="boardView" aria-live="polite" hidden></div>
+    </section>
+  </div>
+
+  <!-- BUILDER («Upload your own»): one column, four steps, saved as you go -->
+  <div id="builderView" style="display:none">
+    <div class="hero esign-head">
+      <div><a class="eyebrow esign-back" href="/esign" data-keep onclick="goDash();return false;">← Documents</a><h1 id="bHeroTitle">Untitled document</h1></div>
+      <div class="esign-side">
+        <div class="esign-actions">
+          <span class="tag draft" id="bSaved"><span class="dot"></span><span id="bSavedText">Draft</span></span>
+          <button class="btn btn-ghost btn-sm" id="bApproval" onclick="requestApproval()">Ask Serge first</button>
+          <button class="btn btn-ghost btn-sm" id="bDelete" data-keep onclick="deleteDraft()">Delete draft</button>
+          <div class="menu" data-role="serge admin" hidden>
+            <button class="btn btn-ghost btn-sm" data-keep aria-haspopup="menu" aria-expanded="false">More <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></button>
+            <div class="menu-list" role="menu"><button class="menu-item" role="menuitem" data-keep onclick="saveTemplate()">Save as template</button></div>
+          </div>
+          <button class="btn btn-primary btn-sm esign-primary" id="bSend" data-keep onclick="sendEnvelope()" disabled>Send for signature</button>
+        </div>
+        <div class="status" id="bHint"></div>
+      </div>
+    </div>
+    <div class="esign-note" id="bNote" hidden></div>
+
+    <ol class="esign-flow">
+      <li class="esign-step" id="stDoc"><span class="k">1</span><div class="esign-main">
+        <h2>Document</h2>
+        <div id="bDocs"></div>
+        <label class="esign-drop" id="bDrop" for="bFile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span class="t">Drop a PDF here or choose a file</span><span class="s">PDF only. You can add more than one.</span>
+          <input type="file" id="bFile" class="esign-file" accept="application/pdf" onchange="uploadFiles(this.files)">
+        </label>
+        <div class="esign-form">
+          <div class="field"><label for="bTitle">Document title</label><input type="text" id="bTitle" oninput="titleInput()" onchange="queueSave('details')"></div>
+          <div class="field"><label for="bType">Type</label><select id="bType" onchange="queueSave('details')"><option value="other">Other</option><option value="nda">NDA</option><option value="ncnda">NCNDA</option><option value="introduction">Introduction</option><option value="collaboration">Collaboration</option><option value="subscription">Subscription</option><option value="term_sheet">Term sheet</option></select></div>
+        </div>
+      </div></li>
+
+      <li class="esign-step" id="stWho"><span class="k">2</span><div class="esign-main">
+        <h2>Who signs</h2>
+        <div class="esign-form"><div class="field"><label for="bOrder">Signing order</label><select id="bOrder" onchange="orderChanged()"><option value="sequential">One after another, by Order</option><option value="parallel">Everyone at once</option></select></div></div>
+        <div class="esign-signers" id="bRecips"></div>
+        <div class="esign-addrow">
+          <button class="btn btn-ghost btn-sm" onclick="openFind()">+ Partner from our base</button>
+          <button class="btn btn-ghost btn-sm" onclick="addSerge()">+ Serge</button>
+          <button class="btn btn-ghost btn-sm" onclick="addRecipRow()">+ Someone else</button>
+        </div>
+        <div class="esign-findbox" id="bFindBox" hidden></div>
+      </div></li>
+
+      <li class="esign-step" id="stFields"><span class="k">3</span><div class="esign-main">
+        <h2>Place fields</h2>
+        <p class="status" id="bFieldsHint">Upload the document first; its pages appear here.</p>
+        <div id="bPlace" hidden>
+          <div class="esign-tools" id="bTools">
+            <div class="seg" id="palette" aria-label="Field type"></div>
+            <div class="menu" id="paletteMore"><button class="btn btn-ghost btn-sm" id="paletteMoreBtn" aria-haspopup="menu" aria-expanded="false">More</button><div class="menu-list" role="menu" id="paletteMoreList"></div></div>
+            <label class="esign-for"><span class="sheet-label">For</span><select id="actRid" onchange="activeRid=Number(this.value);placeHint()"></select></label>
+            <span class="status" id="bPlaceHint"></span>
+            <div class="esign-props" id="propPanel" hidden></div>
+          </div>
+          <div class="esign-pages" id="pages"></div>
+        </div>
+      </div></li>
+
+      <li class="esign-step" id="stSend"><span class="k">4</span><div class="esign-main">
+        <h2>Send</h2>
+        <div class="esign-form">
+          <div class="field wide"><label for="bSubject">Email subject</label><input type="text" id="bSubject" placeholder="Signature requested: document title" onchange="queueSave('details')"></div>
+          <div class="field wide"><label for="bMessage">Message to signers</label><textarea id="bMessage" rows="3" onchange="queueSave('details')"></textarea></div>
+          <div class="field"><label for="bRem">Reminders</label><select id="bRem" onchange="queueSave('details')"><option value="on">Every 3 days</option><option value="off">Off</option></select></div>
+          <div class="field"><label for="bExp">Expires after (days)</label><input type="number" id="bExp" min="1" inputmode="numeric" placeholder="No expiry" onchange="queueSave('details')"></div>
+          <div class="field wide" data-role="serge admin" hidden><label for="bLogo">Brand logo URL (optional)</label><input type="text" id="bLogo" placeholder="https://…/logo.png" onchange="queueSave('details')"></div>
+        </div>
+        <button class="btn btn-primary" data-keep onclick="sendEnvelope()" id="bSend2" disabled>Send for signature</button>
+      </div></li>
+    </ol>
+  </div>
+
+  <!-- DETAIL -->
+  <div id="detailView" style="display:none">
+    <div class="hero esign-head">
+      <div><a class="eyebrow esign-back" href="/esign" onclick="goDash();return false;">← Documents</a><div class="eyebrow" id="dId"></div><h1 id="dTitle"></h1><div class="status" id="dStatus"></div></div>
+      <div class="esign-actions">
+        <button class="btn btn-ghost btn-sm" id="dPdf" onclick="dl('final')">Download PDF</button>
+        <button class="btn btn-ghost btn-sm" id="dFinal" onclick="dl('final')">Download signed</button>
+        <button class="btn btn-ghost btn-sm" id="dCert" onclick="dl('certificate')">Certificate</button>
+        <button class="btn btn-ghost btn-sm" id="dIntegrity" onclick="integrity()">Verify integrity</button>
+        <button class="btn btn-ghost btn-sm" id="dRemind" onclick="remindFromDetail()">Remind</button>
+        <button class="btn btn-danger btn-sm" id="dVoid" onclick="voidEnv()">Void</button>
+      </div>
+    </div>
+    <div class="esign-note" id="dApprovalActions" hidden><span>Waiting for Serge to approve this draft.</span><button class="btn btn-primary btn-sm" onclick="decideApproval(true)">Approve</button><button class="btn btn-ghost btn-sm" onclick="decideApproval(false)">Return with comment</button></div>
+    <div class="esign-note" id="dChangesBox" hidden><div id="dChangesEvidence"></div><div class="esign-actions"><button class="btn btn-primary btn-sm" onclick="acceptChanges()">Accept changes as new version</button><button class="btn btn-ghost btn-sm" onclick="rejectChanges()">Reject with reply</button></div></div>
+    <div id="dDocBox" hidden>
+      <div class="esign-sechead"><div class="eyebrow" role="heading" aria-level="2">Document</div><span class="status" id="dDocNote"></span><a class="btn btn-link btn-sm" id="dDocOpen" target="_blank" rel="noopener">Open in a new tab</a></div>
+      <div class="panel-card esign-preview esign-docview" id="dDoc" aria-label="Document pages"></div>
+    </div>
+    <div class="eyebrow esign-sechead" role="heading" aria-level="2">Signers</div>
+    <div class="panel-card esign-rows" id="dRecips"></div>
+    <div class="eyebrow esign-sechead" role="heading" aria-level="2">Audit trail</div>
+    <div class="panel-card esign-rows" id="dEvents"></div>
+    <p class="status esign-legal">Signed under the U.S. ESIGN Act and UETA: each signer consents to electronic records and affirms intent, and every step is kept in the audit trail above.</p>
+  </div>
+</div>
+
+<script src="/offcanvas-menu.js"></script>
+<script src="/ui.js"></script>
+<script>
+// pdf.js ships only as an ES module since pdfjs-dist 4: loaded on demand, the
+// same way the data room does it.
+async function ensurePdfjs(){if(window.pdfjsLib)return window.pdfjsLib;const m=await import('/vendor/pdfjs/pdf.min.mjs');m.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.min.mjs';window.pdfjsLib=m;return m}
+const COLORS=['#0a64bc','#0f7a52','#946312','#0a1733','#a32a30','#5b9bd5','#586273','#98a2b3'];
+const FIELD_TYPES=[['signature','Signature'],['date_signed','Date'],['name','Name'],['text','Text'],['checkbox','Checkbox'],['initials','Initials'],['full_name','Full name'],['email','Email'],['title','Title'],['company','Company'],['number','Number'],['dropdown','Dropdown'],['radio','Radio'],['attachment','Attachment']];
+const PRIMARY_FIELDS=['signature','date_signed','name','text','checkbox'];
+const SIZES={signature:{w:.22,h:.06},initials:{w:.10,h:.05},date_signed:{w:.16,h:.035},name:{w:.20,h:.035},full_name:{w:.22,h:.035},email:{w:.24,h:.035},title:{w:.20,h:.035},company:{w:.22,h:.035},number:{w:.14,h:.035},text:{w:.22,h:.035},checkbox:{w:.03,h:.025},dropdown:{w:.20,h:.04},radio:{w:.24,h:.05},attachment:{w:.18,h:.05}};
+// One vocabulary for the list, the board, the attention block and the detail page.
+const STATE_LABEL={draft:'Draft',serge_approval:'With Serge',serge_signing:'Serge to sign',sent:'Sent',viewed:'Viewed',partner_changes:'Partner changes',signed:'Signed',declined:'Declined',voided:'Voided',expired:'Expired'};
+const STATE_TONE={draft:'neutral',serge_approval:'warn',serge_signing:'warn',sent:'',viewed:'',partner_changes:'warn',signed:'ok',declined:'bad',voided:'bad',expired:'bad'};
+const BOARD_COLUMNS=['draft','serge_approval','sent','viewed','partner_changes','serge_signing','signed'];
+const ATTN={partner_changes:['Partner changes','warn'],declined:['Declined','bad'],returned:['Returned by Serge','warn'],viewed_unsigned:['Viewed, unsigned',''],unopened:['Not opened',''],stale_draft:['Draft','neutral']};
+const ACTION_LABEL={review:'Review',remind:'Remind',open:'Open'};
+const TYPE_LABEL={ncnda:'NCNDA',nda:'NDA',introduction:'Introduction',collaboration:'Collaboration',other:'Other',fsa:'FSA',buy_side_fee:'Buy-side fee',sell_side_fee:'Sell-side fee',subscription:'Subscription',term_sheet:'Term sheet',staff_nda:'Staff NDA'};
+const SERGE='serge@siliconvalleyinvestclub.com';
+let env=null,docs=[],recipients=[],fields=[],activeRid=null,activeType='signature',selField=null,builderLocked=false,replaceDocId=null;
+const D={scope:'all',mode:'list',page:1,limit:50,seq:0};
+function urlWrite(patch, opts){if(window.svicUrlState) window.svicUrlState.write(patch, opts||{});}
+function urlRead(){return window.svicUrlState ? window.svicUrlState.read() : {};}
+function $(id){return document.getElementById(id)}
+function show(v){['dashView','builderView','detailView'].forEach(x=>$(x).style.display=(x===v?'':'none'));window.scrollTo(0,0)}
+function esc(s){return (window.svicEsc?svicEsc(s):String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])))}
+function fmt(ts){if(!ts)return '—';try{return new Date(ts).toLocaleString('en-US',{timeZone:'America/Los_Angeles',dateStyle:'medium',timeStyle:'short'})+' PT'}catch{return ts}}
+function fmtDate(ts){if(!ts)return '—';const d=new Date(ts);if(isNaN(d))return '—';const same=d.getFullYear()===new Date().getFullYear();return d.toLocaleDateString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',...(same?{}:{year:'numeric'})})}
+function ago(ts){const t=new Date(ts).getTime();if(!isFinite(t))return '—';const s=Math.max(0,(Date.now()-t)/1000);if(s<60)return 'just now';if(s<3600)return Math.round(s/60)+' min ago';if(s<86400)return Math.round(s/3600)+' h ago';if(s<86400*30)return Math.round(s/86400)+' d ago';return fmtDate(ts)}
+function dur(s){if(s==null)return '—';if(s<3600)return Math.max(1,Math.round(s/60))+' min';if(s<86400)return (Math.round(s/360)/10)+' h';return (Math.round(s/8640)/10)+' d'}
+function typeLabel(t){return TYPE_LABEL[t]||(t?String(t).replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()):'Other')}
+function stateTag(st){return `<span class="tag ${STATE_TONE[st]||''}"><span class="dot"></span>${esc(STATE_LABEL[st]||st||'—')}</span>`}
+function toneTag(label,tone){return `<span class="tag ${tone||''}"><span class="dot"></span>${esc(label)}</span>`}
+function nameFromEmail(e){return String(e||'').split('@')[0].split(/[._+-]+/).filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' ')}
+function cleanTitle(t){let s=String(t||'').trim().replace(/^complete with docusign:\s*/i,'');for(let i=0;i<3;i++)s=s.replace(/\.(pdf|docx|doc)\s*$/i,'').trim();return s||'Untitled document'}
+function isArchiveEnv(e){return !!(e&&e.metadata&&e.metadata.source==='docusign')}
+function isSerge(email){return String(email||'').trim().toLowerCase()===SERGE}
+function partnerLine(p){if(!p)return '';const who=p.name||nameFromEmail(p.email);return [who,p.company&&p.company!==who?p.company:''].filter(Boolean).join(' · ')}
+async function api(p,opts={}){const o=Object.assign({credentials:'include',headers:{}},opts);if(o.body&&!(o.body instanceof FormData)){o.headers['Content-Type']='application/json';o.body=JSON.stringify(o.body)}const r=await fetch(p,o);const ct=r.headers.get('content-type')||'';const d=ct.includes('json')?await r.json():await r.text();if(!r.ok)throw new Error((d&&d.error)||('HTTP '+r.status));return d}
+
+/* ---------- dashboard ---------- */
+function goDash(fromUrl){
+  if(env&&$('builderView').style.display!=='none') flushSave();
+  show('dashView');
+  if(!fromUrl) urlWrite({env:'',view:''});
+  syncDashUrl();
+  loadAttention();loadStats();loadDocs();
+}
+function syncDashUrl(){urlWrite({scope:D.scope==='all'?'':D.scope,mode:D.mode==='list'?'':D.mode,q:($('search').value||'').trim(),p:D.page>1?D.page:''})}
+async function loadAttention(){const host=$('attnList');
+  try{const d=await api('/api/esign/attention');const items=d.items||[];$('attnN').textContent=items.length?'· '+items.length:'';
+    if(!items.length){host.innerHTML='<p class="esign-empty">Nothing needs your attention.</p>';return}
+    host.innerHTML=items.map(it=>{const a=ATTN[it.kind]||[it.kind,''];const p=it.partner;
+      return `<div class="esign-row"><span>${toneTag(a[0],a[1])}</span><div class="esign-main"><a class="t" href="/esign?env=${encodeURIComponent(it.public_id)}" data-env="${esc(it.public_id)}">${esc(it.title)}</a><span class="s">${esc([partnerLine(p),p&&p.email].filter(Boolean).join(' · ')||typeLabel(it.document_type))}</span></div><span class="esign-cell">${esc(it.owner_name||'—')}</span><span class="esign-cell num">${esc(ago(it.since))}</span><span class="esign-act"><button type="button" class="btn btn-ghost btn-sm" data-act="${esc(it.action)}" data-env="${esc(it.public_id)}">${ACTION_LABEL[it.action]||'Open'}</button></span></div>`}).join('');
+  }catch(e){host.innerHTML='<p class="esign-empty">'+esc(e.message)+'</p>'}}
+async function loadStats(){try{const a=await api('/api/esign/meta/analytics');
+  $('stats').innerHTML=[['In flight',a.in_flight??0],['Signed this month',a.signed_this_month??0],['Median time to sign',a.median_sign_seconds==null?'—':dur(a.median_sign_seconds)]]
+    .map(([l,n])=>`<div class="stat"><div class="v num">${esc(n)}</div><div class="l">${l}</div></div>`).join('')}catch{}}
+let docsTimer;
+function debouncedDocs(){clearTimeout(docsTimer);docsTimer=setTimeout(()=>{D.page=1;syncDashUrl();loadDocs()},300)}
+function setScope(s){D.scope=s;D.page=1;if(s==='archive')D.mode='list';syncDashUrl();loadDocs()}
+function setMode(m){if(m==='board'&&D.scope==='archive')return;D.mode=m;syncDashUrl();loadDocs()}
+function paintToolbar(){document.querySelectorAll('#scopeSeg button').forEach(b=>{const on=b.dataset.scope===D.scope;b.classList.toggle('on',on);b.setAttribute('aria-selected',String(on))});
+  document.querySelectorAll('#modeSeg button').forEach(b=>{b.classList.toggle('on',b.dataset.mode===D.mode);b.disabled=b.dataset.mode==='board'&&D.scope==='archive'});
+  $('boardFilters').hidden=D.mode!=='board';$('listView').hidden=D.mode==='board';$('boardView').hidden=D.mode!=='board'}
+function paintCounts(c){if(!c)return;document.querySelectorAll('#scopeSeg [data-count]').forEach(s=>{const n=c[s.dataset.count];s.textContent=n==null?'':String(n)})}
+async function loadDocs(){paintToolbar();const seq=++D.seq;const q=($('search').value||'').trim();
+  const qs=new URLSearchParams({scope:D.scope,offset:String((D.page-1)*D.limit),limit:String(D.mode==='board'?1:D.limit)});if(q)qs.set('search',q);
+  try{const d=await api('/api/esign?'+qs);if(seq!==D.seq)return;paintCounts(d.counts);
+    if(D.mode==='board') return loadBoard(seq,q);
+    renderList(d,q);
+  }catch(e){if(seq===D.seq)$('listView').innerHTML='<p class="esign-empty">'+esc(e.message)+'</p>'}}
+// A manager sees every NCNDA and only her own deal agreements (the server enforces
+// it); the list says so, so a missing document is not a mystery.
+function scopeNote(){if(window.ESIGN_ROLE!=='manager')return'';return D.scope==='archive'?'NCNDAs and general agreements. Exhibits are visible to their deal owner, Arthur and Serge.':D.scope==='all'?'Every NCNDA and general agreement, and your own Exhibits.':''}
+function renderList(d,q){const host=$('listView');const rows=d.envelopes||[];const note=scopeNote();
+  if(!rows.length){const msg=q?`Nothing matches “${esc(q)}”.`:D.scope==='mine'?'You have no documents yet.':D.scope==='archive'?'No archived documents.':'No documents yet. Start with New document.';host.innerHTML=`<p class="esign-empty">${msg}${note?' '+esc(note):''}</p>`;return}
+  const from=(D.page-1)*D.limit+1,to=from+rows.length-1;
+  host.innerHTML=`<div class="esign-row esign-th" aria-hidden="true"><span>Document · partner</span><span>Type</span><span>Status</span><span>Owner</span><span>Updated</span></div>`+
+    rows.map(e=>`<a class="esign-row" href="/esign?env=${encodeURIComponent(e.public_id)}" data-env="${esc(e.public_id)}"><div class="esign-main"><span class="t">${esc(e.display_title||cleanTitle(e.title))}</span><span class="s">${esc(partnerLine(e.partner)||'—')}</span></div><span class="esign-cell">${esc(typeLabel(e.document_type))}</span><span>${stateTag(e.state)}</span><span class="esign-cell">${esc(e.owner_name||'—')}</span><span class="esign-cell num">${esc(fmtDate(e.activity_at||e.updated_at||e.created_at))}</span></a>`).join('')+
+    `<div class="esign-foot"><span><span class="num">Showing ${from}–${to} of ${d.total}</span>${note?` <span class="t-small">· ${esc(note)}</span>`:''}</span><div class="esign-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="pageBy(-1)" ${D.page>1?'':'disabled'}>Previous</button><button type="button" class="btn btn-ghost btn-sm" onclick="pageBy(1)" ${to<d.total?'':'disabled'}>Next</button></div></div>`}
+function pageBy(n){D.page=Math.max(1,D.page+n);syncDashUrl();loadDocs();$('scopeSeg').scrollIntoView({block:'start',behavior:'smooth'})}
+async function loadBoard(seq,q){const host=$('boardView');const qs=new URLSearchParams();if(D.scope==='mine')qs.set('scope','mine');
+  for(const [id,key] of [['boardManager','manager'],['boardPartner','partner'],['boardType','document_type'],['boardDeal','deal']]){const v=$(id).value.trim();if(v)qs.set(key,v)}
+  try{const data=await api('/api/esign/board?'+qs);if(seq!==D.seq)return;const needle=String(q||'').toLowerCase();
+    const rows=data.envelopes.filter(e=>!needle||[e.display_title,e.title,e.owner_name,e.partner&&e.partner.name,e.partner&&e.partner.email,e.partner&&e.partner.company].some(v=>String(v||'').toLowerCase().includes(needle)));
+    host.innerHTML=BOARD_COLUMNS.map(key=>{const col=rows.filter(e=>e.workflow_column===key);
+      return `<section class="esign-col${col.length?'':' is-empty'}"><div class="esign-colhead"><span class="eyebrow">${STATE_LABEL[key]}</span><span class="eyebrow num">${col.length}</span></div>${col.length?col.slice(0,100).map(e=>`<button type="button" class="esign-card" data-env="${esc(e.public_id)}"><span class="t">${esc(e.display_title||cleanTitle(e.title))}</span>${e.partner?`<span class="s">${esc(partnerLine(e.partner))}</span>`:''}<span class="s">${esc([e.owner_name,ago(e.updated_at||e.created_at)].filter(Boolean).join(' · '))}</span></button>`).join('')+(col.length>100?`<p class="esign-empty">+${col.length-100} more — use List</p>`:''):'<p class="esign-empty">None</p>'}</section>`}).join('');
+  }catch(e){host.textContent=e.message}}
+async function attnAction(act,pid,btn){if(act!=='remind')return openEnv(pid);btn.disabled=true;
+  try{const r=await api('/api/esign/'+encodeURIComponent(pid)+'/remind',{method:'POST',body:{}});showToast('Reminder sent to '+r.reminded.join(', ')+'.');loadAttention()}catch(e){btn.disabled=false;showToast(e.message,true)}}
+$('dashView').addEventListener('click',e=>{const seg=e.target.closest('#scopeSeg button,#modeSeg button');if(seg){if(seg.dataset.scope)setScope(seg.dataset.scope);else setMode(seg.dataset.mode);return}
+  const act=e.target.closest('[data-act]');if(act){e.preventDefault();attnAction(act.dataset.act,act.dataset.env,act);return}
+  const t=e.target.closest('[data-env]');if(!t||e.metaKey||e.ctrlKey||e.shiftKey||e.button===1)return;e.preventDefault();openEnv(t.dataset.env)});
+async function newEnvelope(){try{const r=await api('/api/esign',{method:'POST',body:{title:'Untitled document',documentType:'other',signingOrder:'sequential'}});openEnv(r.envelope.public_id)}catch(e){showToast(e.message,true)}}
+async function openEnv(pid, fromUrl){
+  if(env&&$('builderView').style.display!=='none') await flushSave();
+  let full;try{full=await api('/api/esign/'+encodeURIComponent(pid))}catch(e){showToast(e.message,true);return}
+  env=full.envelope;docs=full.documents.filter(d=>d.role==='source');recipients=full.recipients;fields=full.fields.map(normField);selField=null;activeRid=null;
+  if(!fromUrl) urlWrite({env:pid,view:''},{push:true});
+  if(env.status==='draft'&&!isArchiveEnv(env))renderBuilder();else renderDetail(full)}
+function normField(f){return {...f,x:Number(f.x),y:Number(f.y),w:Number(f.w),h:Number(f.h),page:Number(f.page),document_id:Number(f.document_id),recipient_id:f.recipient_id==null?null:Number(f.recipient_id)}}
+
+/* ---------- builder: one flow, saved as you go ---------- */
+function needsSerge(){return !(env.metadata&&env.metadata.standard_template)&&!(env.metadata&&env.metadata.kind==='staff_nda')}
+function validRecip(r){return !!String(r.name||'').trim()&&/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(String(r.email||'').trim())}
+function savedSigners(){return recipients.filter(r=>r.id&&validRecip(r)&&(r.role||'signer')==='signer')}
+function renderBuilder(){show('builderView');
+  const standard=!!(env.metadata&&env.metadata.standard_template);
+  builderLocked=standard||env.approval_status==='approved'||env.approval_status==='requested';
+  $('bHeroTitle').textContent=cleanTitle(env.title);
+  $('bTitle').value=env.title==='Untitled document'?'':env.title;$('bSubject').value=env.email_subject||'';$('bMessage').value=env.message||'';
+  const typeSel=$('bType');if(env.document_type&&![...typeSel.options].some(o=>o.value===env.document_type))typeSel.insertAdjacentHTML('beforeend',`<option value="${esc(env.document_type)}">${esc(typeLabel(env.document_type))}</option>`);typeSel.value=env.document_type||'other';
+  $('bOrder').value=env.signing_order||'parallel';$('bRem').value=env.reminder_enabled===false?'off':'on';$('bExp').value=env.expires_days||'';$('bLogo').value=env.brand_logo_url||'';
+  renderNote();
+  $('builderView').querySelectorAll('input,textarea,select').forEach(el=>{el.disabled=builderLocked});
+  $('builderView').querySelectorAll('button').forEach(el=>{if(!el.hasAttribute('data-keep')&&!el.closest('#bNote'))el.disabled=builderLocked});
+  $('bDelete').hidden=!!env.is_template||env.status!=='draft'||!!env.sent_at;
+  const ap=$('bApproval');ap.hidden=standard;ap.disabled=env.approval_status==='requested'||env.approval_status==='approved';
+  ap.textContent=env.approval_status==='requested'?'With Serge':env.approval_status==='approved'?'Approved by Serge':'Ask Serge first';
+  $('bDrop').hidden=builderLocked||docs.length>0;$('bTools').hidden=builderLocked;
+  setSaved('idle');renderDocs();renderRecipRows();renderPalette();renderPlace();updateSendState();
+}
+function renderNote(){const n=$('bNote');const approver=['admin','serge'].includes(window.ESIGN_ROLE);
+  if(env.metadata&&env.metadata.standard_template){n.hidden=false;n.innerHTML='<span>Standard template: the text, signers and fields are locked. Review and send.</span>';return}
+  if(env.approval_status==='requested'){n.hidden=false;n.innerHTML='<span>Waiting for Serge to approve this draft. Editing is locked until he decides.</span>'+(approver?'<button class="btn btn-primary btn-sm" onclick="decideApproval(true)">Approve</button><button class="btn btn-ghost btn-sm" onclick="decideApproval(false)">Return with comment</button>':'');return}
+  if(env.approval_status==='approved'){n.hidden=false;n.innerHTML='<span>Serge approved this draft. Send it as it is; any edit would need his approval again.</span>';return}
+  if(env.approval_status==='returned'){n.hidden=false;n.innerHTML='<span><strong>Serge returned this draft:</strong> '+esc(env.approval_comment||'no comment')+'</span>';return}
+  n.hidden=true;n.innerHTML=''}
+function setSaved(state,msg){const t=$('bSaved'),x=$('bSavedText');t.className='tag';t.title='';
+  if(env.approval_status==='requested'){t.classList.add('warn');x.textContent='With Serge';return}
+  if(env.approval_status==='approved'){t.classList.add('ok');x.textContent='Approved by Serge';return}
+  if(env.metadata&&env.metadata.standard_template){t.classList.add('neutral');x.textContent='Standard template';return}
+  const hm=ts=>new Date(ts).toLocaleTimeString('en-US',{timeZone:'America/Los_Angeles',hour:'2-digit',minute:'2-digit',hour12:false})+' PT';
+  if(state==='pending'){t.classList.add('neutral');x.textContent='Draft · saving…';return}
+  if(state==='error'){t.classList.add('bad');x.textContent='Not saved';t.title=msg||'';return}
+  t.classList.add('neutral');x.textContent='Draft · saved '+hm(state==='ok'?Date.now():(env.updated_at||env.created_at))}
+// Autosave: details, signers and fields queue here; one chain, in order.
+let saveTimer=null,saveChain=Promise.resolve(true);const dirty={details:false,recipients:false,fields:false};
+function queueSave(kind,delay){if(builderLocked||!env||env.status!=='draft')return;dirty[kind]=true;setSaved('pending');clearTimeout(saveTimer);saveTimer=setTimeout(flushSave,delay==null?700:delay)}
+function flushSave(){clearTimeout(saveTimer);saveChain=saveChain.then(doSave,doSave);return saveChain}
+async function doSave(){if(!env||env.status!=='draft'||builderLocked)return true;if(!dirty.details&&!dirty.recipients&&!dirty.fields)return true;const target=env;let step='';
+  try{
+    if(dirty.details){step='details';dirty.details=false;await putDetails(target)}
+    if(dirty.recipients){step='recipients';dirty.recipients=false;await putRecipients(target)}
+    if(dirty.fields){step='fields';dirty.fields=false;await putFields(target)}
+    if(env===target)setSaved('ok');return true;
+  }catch(e){dirty[step]=true;if(env===target){setSaved('error',e.message);showToast('Not saved: '+e.message,true)}return false}}
+async function putDetails(target){const body={title:$('bTitle').value.trim()||'Untitled document',emailSubject:$('bSubject').value,message:$('bMessage').value,documentType:$('bType').value,signingOrder:$('bOrder').value,reminderEnabled:$('bRem').value==='on',reminderDays:3,expiresDays:$('bExp').value||null,brandLogoUrl:$('bLogo').value};
+  const r=await api('/api/esign/'+target.public_id+'/details',{method:'PUT',body});Object.assign(target,r.envelope||{})}
+async function putRecipients(target){if(recipients.some(r=>r.id&&!validRecip(r))){dirty.recipients=true;return} // a saved signer mid-edit is not dropped
+  const valid=recipients.filter(validRecip).sort((a,b)=>(a.routing_order||0)-(b.routing_order||0));const before=valid.map(r=>r.id||null);
+  const r=await api('/api/esign/'+target.public_id+'/recipients',{method:'PUT',body:{recipients:valid.map((x,i)=>({name:x.name.trim(),email:x.email.trim(),role:x.role||'signer',role_label:x.role_label||null,routing_order:x.routing_order||i+1,auth_method:x.auth_method||'none',access_code:x.access_code||'',color:x.color}))}});
+  if(env!==target)return;const map=new Map();
+  r.recipients.forEach((nr,i)=>{if(!valid[i])return;if(before[i]!=null)map.set(before[i],nr.id);Object.assign(valid[i],{id:nr.id,color:nr.color,access_code:nr.access_code})});
+  fields.forEach(f=>{if(map.has(f.recipient_id))f.recipient_id=map.get(f.recipient_id)});
+  if(map.has(activeRid))activeRid=map.get(activeRid);
+  const ids=new Set(valid.map(x=>x.id));fields=fields.filter(f=>ids.has(f.recipient_id));
+  dirty.fields=true; // recipients were replaced, so their fields go back too
+  renderRecipSelect();redrawFields();updateSendState()}
+async function putFields(target){const keep=fields.filter(f=>f.recipient_id&&recipients.some(r=>r.id===f.recipient_id)&&docs.some(d=>d.id===f.document_id));
+  await api('/api/esign/'+target.public_id+'/fields',{method:'PUT',body:{fields:keep}})}
+function titleInput(){$('bHeroTitle').textContent=$('bTitle').value.trim()||'Untitled document'}
+function orderChanged(){renderRecipRows();queueSave('details')}
+function sendBlockers(){const out=[];if(!env)return ['Open a document first.'];
+  if(!docs.length)out.push('Upload the document.');
+  const bad=recipients.find(r=>(String(r.name||'').trim()||String(r.email||'').trim())&&!validRecip(r));if(bad)out.push(`Check the name and email of ${String(bad.name||'').trim()||'a signer'}.`);
+  const signers=savedSigners();
+  if(!signers.length)out.push('Add at least one signer.');
+  if(needsSerge()){const s=signers.find(r=>isSerge(r.email));if(!s)out.push('Add Serge: he signs for SVIC.');else if(!fields.some(f=>f.recipient_id===s.id&&f.field_type==='signature'))out.push('Place Serge’s signature field.')}
+  const bare=signers.find(s=>!fields.some(f=>f.recipient_id===s.id));if(bare&&docs.length)out.push(`Place a field for ${bare.name}.`);
+  return out}
+function updateSendState(){if(!env)return;const why=sendBlockers();['bSend','bSend2'].forEach(id=>{$(id).disabled=why.length>0});$('bHint').textContent=why.length?'To send: '+why[0]:'Ready to send.';
+  $('stDoc').className='esign-step'+(docs.length?' done':' on');
+  const who=savedSigners().length>0&&!recipients.some(r=>(r.name||r.email)&&!validRecip(r));
+  $('stWho').className='esign-step'+(who?' done':docs.length?' on':'');
+  $('stFields').className='esign-step'+(docs.length&&who&&!why.some(w=>/field/.test(w))?' done':docs.length&&who?' on':'');
+  $('stSend').className='esign-step'+(!why.length?' on':'')}
+
+function renderDocs(){const host=$('bDocs');
+  host.innerHTML=docs.map(d=>`<div class="esign-doc"><span class="tag ok">PDF</span><div class="esign-main"><span class="t">${esc(d.filename||d.title||'Document')}</span><span class="s num">${d.page_count?d.page_count+(d.page_count===1?' page':' pages'):'—'} · ${kb(d.file_size)}</span></div><div class="esign-actions">${builderLocked?'':`<button type="button" class="btn btn-ghost btn-sm" onclick="replaceDoc(${Number(d.id)})">Replace</button>${docs.length>1?`<button type="button" class="btn btn-ghost btn-sm" onclick="removeDoc(${Number(d.id)})">Remove</button>`:''}`}</div></div>`).join('')+
+    (docs.length&&!builderLocked?`<div class="esign-docs-add"><button type="button" class="btn btn-link btn-sm" onclick="replaceDocId=null;$('bFile').click()">+ Add another PDF</button></div>`:'');
+  $('bDrop').hidden=builderLocked||docs.length>0}
+function kb(n){n=Number(n)||0;return n>=1048576?(Math.round(n/104857.6)/10)+' MB':Math.max(1,Math.round(n/1024))+' KB'}
+function replaceDoc(id){const go=()=>{replaceDocId=id;$('bFile').click()};
+  if(fields.some(f=>f.document_id===id))confirmModal('Replace this file? Fields placed on it will be removed.',go,{ok:'Replace'});else go()}
+function removeDoc(id){confirmModal('Remove this file and its fields?',async()=>{try{await flushSave();await api('/api/esign/'+env.public_id+'/document/'+id,{method:'DELETE'});docs=docs.filter(d=>d.id!==id);fields=fields.filter(f=>f.document_id!==id);renderDocs();renderPlace();updateSendState()}catch(e){showToast(e.message,true)}},{danger:true,ok:'Remove'})}
+async function uploadFiles(files){const f=[...(files||[])].find(x=>x.type==='application/pdf'||/\.pdf$/i.test(x.name));$('bFile').value='';
+  if(!f){showToast('Choose a PDF file.',true);return}
+  const fd=new FormData();fd.append('file',f);setSaved('pending');const old=replaceDocId;replaceDocId=null;
+  try{await flushSave();const r=await api('/api/esign/'+env.public_id+'/document',{method:'POST',body:fd});docs.push(r.document);
+    if(old!=null){await api('/api/esign/'+env.public_id+'/document/'+old,{method:'DELETE'});docs=docs.filter(d=>d.id!==old);fields=fields.filter(x=>x.document_id!==old)}
+    if(!$('bTitle').value.trim()){$('bTitle').value=f.name.replace(/\.pdf$/i,'');titleInput();queueSave('details',0)}
+    setSaved('ok');renderDocs();renderPlace();updateSendState();
+  }catch(e){setSaved('error',e.message);showToast(e.message,true)}}
+(function wireDrop(){const z=$('bDrop');['dragenter','dragover'].forEach(t=>z.addEventListener(t,e=>{e.preventDefault();z.classList.add('over')}));
+  ['dragleave','drop'].forEach(t=>z.addEventListener(t,e=>{e.preventDefault();z.classList.remove('over')}));z.addEventListener('drop',e=>{if(!builderLocked)uploadFiles(e.dataTransfer.files)})})();
+
+function renderRecipRows(){const c=$('bRecips');const seq=$('bOrder').value==='sequential';const n=recipients.length;
+  if(!n){c.innerHTML='<p class="esign-empty">Nobody yet. Add the partner from our base, then Serge.</p>';updateSendState();return}
+  c.innerHTML=`<div class="esign-signer esign-th" aria-hidden="true"><span class="sw"></span><span class="nm">Name</span><span class="em">Email</span><span class="ro">Role</span><span class="od">Order</span><span class="au">Verification</span><span class="rm"></span></div>`+recipients.map((r,i)=>{const col=r.color||COLORS[i%COLORS.length];const dis=builderLocked?' disabled':'';
+    return `<div class="esign-signer"><span class="sw" style="background:${esc(col)}"></span>
+      <input class="nm" type="text" aria-label="Name" placeholder="Full name" value="${esc(r.name||'')}" oninput="rEdit(${i},'name',this.value)" onchange="rCommit(${i},this)"${dis}>
+      <input class="em" type="email" aria-label="Email" placeholder="email@company.com" value="${esc(r.email||'')}" oninput="rEdit(${i},'email',this.value)" onchange="rCommit(${i},this)"${dis}>
+      <select class="ro" aria-label="Role" onchange="rEdit(${i},'role',this.value);queueSave('recipients')"${dis}><option value="signer"${(r.role||'signer')==='signer'?' selected':''}>Signer</option><option value="approver"${r.role==='approver'?' selected':''}>Approver</option><option value="cc"${r.role==='cc'?' selected':''}>Copy</option></select>
+      <select class="od" aria-label="Order" onchange="rEdit(${i},'routing_order',Number(this.value));queueSave('recipients')"${seq&&!builderLocked?'':' disabled'}>${Array.from({length:n},(_,k)=>`<option value="${k+1}"${Number(r.routing_order||i+1)===k+1?' selected':''}>${k+1}</option>`).join('')}</select>
+      <span class="au"><select aria-label="Verification" onchange="rEdit(${i},'auth_method',this.value);renderRecipRows();queueSave('recipients')"${dis}><option value="none"${(!r.auth_method||r.auth_method==='none')?' selected':''}>Link only</option><option value="email_otp"${r.auth_method==='email_otp'?' selected':''}>Email code</option><option value="access_code"${r.auth_method==='access_code'?' selected':''}>Access code</option></select>${r.auth_method==='access_code'?`<input type="text" aria-label="Access code" placeholder="Code (blank = auto)" value="${esc(r.access_code||'')}" oninput="rEdit(${i},'access_code',this.value)" onchange="queueSave('recipients')"${dis}>`:''}</span>
+      <span class="rm">${builderLocked?'':`<button type="button" class="btn btn-ghost btn-sm" onclick="removeRecip(${i})">Remove</button>`}</span></div>`}).join('');
+  updateSendState()}
+function rEdit(i,k,v){recipients[i][k]=v;if(k==='name'||k==='email')updateSendState()}
+function rCommit(i,el){const r=recipients[i];el.setAttribute('aria-invalid',String(el.type==='email'?!!el.value.trim()&&!validRecip({name:'x',email:el.value}):!!r.id&&!el.value.trim()));if(validRecip(r))queueSave('recipients')}
+function renumber(){recipients.sort((a,b)=>(a.routing_order||0)-(b.routing_order||0)).forEach((r,i)=>{r.routing_order=i+1})}
+function removeRecip(i){const r=recipients.splice(i,1)[0];if(r&&r.id){fields=fields.filter(f=>f.recipient_id!==r.id);if(activeRid===r.id)activeRid=null}renumber();renderRecipRows();renderRecipSelect();redrawFields();if(r&&r.id)queueSave('recipients',0)}
+function addRecipRow(){recipients.push({name:'',email:'',role:'signer',auth_method:'none',routing_order:recipients.length+1,color:COLORS[recipients.length%COLORS.length]});renderRecipRows();const rows=$('bRecips').querySelectorAll('.esign-signer:not(.esign-th) input.nm');if(rows.length)rows[rows.length-1].focus()}
+// Serge signs every document that is not a standard template: one click adds him last.
+function addSerge(){if(recipients.some(r=>isSerge(r.email))){showToast('Serge is already a signer.');return}
+  recipients=recipients.filter(r=>r.name||r.email);recipients.push({name:'Serge Glebko',email:SERGE,role:'signer',role_label:'SVIC LTD',auth_method:'none',routing_order:recipients.length+1,color:COLORS[recipients.length%COLORS.length]});
+  renumber();renderRecipRows();queueSave('recipients',0);showToast('Serge added. Place his signature field on the document.')}
+function addPartner(p){if(recipients.some(r=>String(r.email||'').toLowerCase()===String(p.email||'').toLowerCase())){showToast((p.name||p.email)+' is already here.');return}
+  recipients=recipients.filter(r=>r.name||r.email);const s=recipients.find(r=>isSerge(r.email));
+  recipients.push({name:p.name||nameFromEmail(p.email),email:p.email,role:'signer',auth_method:'none',routing_order:s?(s.routing_order||recipients.length)-.5:recipients.length+1,color:COLORS[recipients.length%COLORS.length]});
+  renumber();renderRecipRows();closeFind();queueSave('recipients',0)}
+function openFind(){const box=$('bFindBox');box.hidden=false;box.innerHTML=finderHtml('bFind','Name, email or company')+'<button type="button" class="btn btn-link btn-sm" onclick="closeFind()">Cancel</button>';FINDERS.bFind={onPick:addPartner};$('bFindQ').focus()}
+function closeFind(){const box=$('bFindBox');box.hidden=true;box.innerHTML=''}
+function renderRecipSelect(){const sel=$('actRid');const saved=recipients.filter(r=>r.id);
+  if(!saved.length){sel.innerHTML='<option value="">Add who signs first</option>';activeRid=null;placeHint();return}
+  if(!saved.some(r=>r.id===activeRid))activeRid=(saved.find(r=>!isSerge(r.email))||saved[0]).id;
+  sel.innerHTML=saved.map(r=>`<option value="${r.id}"${r.id===activeRid?' selected':''}>${esc(r.name)}</option>`).join('');placeHint()}
+function renderPalette(){const lbl=t=>(FIELD_TYPES.find(x=>x[0]===t)||['',t])[1];
+  $('palette').innerHTML=PRIMARY_FIELDS.map(t=>`<button type="button" class="${t===activeType?'on':''}" aria-pressed="${t===activeType}" onclick="pickType('${t}')">${lbl(t)}</button>`).join('');
+  const extra=!PRIMARY_FIELDS.includes(activeType);const b=$('paletteMoreBtn');b.textContent=extra?lbl(activeType):'More';b.classList.toggle('btn-primary',extra);b.classList.toggle('btn-ghost',!extra);
+  $('paletteMoreList').innerHTML=FIELD_TYPES.filter(([t])=>!PRIMARY_FIELDS.includes(t)).map(([t,l])=>`<button type="button" class="menu-item" role="menuitem" onclick="pickType('${t}')">${l}</button>`).join('');placeHint()}
+function pickType(t){activeType=t;renderPalette()}
+function placeHint(){const r=recipients.find(x=>x.id===activeRid);const l=(FIELD_TYPES.find(x=>x[0]===activeType)||['',''])[1];
+  $('bPlaceHint').textContent=r?`Click on a page to place ${l} for ${r.name}.`:'Add who signs, then place their fields.'}
+function renderPlace(){const has=docs.length>0;$('bPlace').hidden=!has;
+  $('bFieldsHint').textContent=builderLocked?'Fields are set by the template.':'Upload the document first; its pages appear here.';$('bFieldsHint').hidden=has&&!builderLocked;
+  renderRecipSelect();renderProps();if(has)renderPages();else $('pages').innerHTML=''}
+let pageLayers=[],pagesWidth=0,pagesSeq=0;
+async function renderPages(){const host=$('pages');const seq=++pagesSeq;host.innerHTML='';pageLayers=[];try{await ensurePdfjs()}catch(e){host.innerHTML='<div class="status">PDF preview unavailable. Reload the page to try again.</div>';return}
+  pagesWidth=host.clientWidth||640;const maxW=Math.max(260,Math.min(760,pagesWidth-2));
+  for(const d of docs){try{const pdf=await pdfjsLib.getDocument({url:'/api/esign/'+env.public_id+'/document/'+d.id,withCredentials:true}).promise;
+    for(let p=1;p<=pdf.numPages;p++){if(seq!==pagesSeq)return;const page=await pdf.getPage(p);const v0=page.getViewport({scale:1});const v=page.getViewport({scale:Math.min(maxW/v0.width,1.3)});
+      const wrap=document.createElement('div');wrap.className='pagewrap';wrap.style.width=v.width+'px';wrap.style.height=v.height+'px';wrap.dataset.doc=d.id;wrap.dataset.page=p;
+      const cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;wrap.appendChild(cv);
+      const layer=document.createElement('div');layer.className='fieldlayer';wrap.appendChild(layer);
+      wrap.addEventListener('click',e=>{if(e.target===wrap||e.target===cv||e.target===layer)placeField(wrap,layer,e)});
+      host.appendChild(wrap);const entry={docId:Number(d.id),page:p,layer,v:{width:v.width,height:v.height}};pageLayers.push(entry);drawFields(entry);await page.render({canvasContext:cv.getContext('2d'),viewport:v}).promise}
+  }catch(err){const e=document.createElement('div');e.className='status';e.textContent='Could not render '+(d.filename||'the document')+'.';host.appendChild(e)}}}
+let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if($('builderView').style.display!=='none'&&docs.length&&Math.abs(($('pages').clientWidth||0)-pagesWidth)>40)renderPages()},250)});
+function redrawFields(){pageLayers.forEach(drawFields)}
+function placeField(wrap,layer,e){if(builderLocked)return;if(!activeRid||!recipients.find(r=>r.id===activeRid)){showToast('Add who signs first.',true);return}
+  const rect=wrap.getBoundingClientRect();const nx=(e.clientX-rect.left)/rect.width,ny=(e.clientY-rect.top)/rect.height;const sz=SIZES[activeType]||{w:.18,h:.035};
+  const f={document_id:Number(wrap.dataset.doc),recipient_id:activeRid,field_type:activeType,page:Number(wrap.dataset.page),x:Math.max(0,Math.min(1-sz.w,nx-sz.w/2)),y:Math.max(0,Math.min(1-sz.h,ny-sz.h/2)),w:sz.w,h:sz.h,required:true,options:(activeType==='dropdown'||activeType==='radio')?['Option 1','Option 2']:[]};
+  fields.push(f);selField=f;redrawFields();renderProps();queueSave('fields');updateSendState()}
+function drawFields(entry){const {docId,page,layer,v}=entry;layer.innerHTML='';
+  fields.filter(f=>f.document_id===docId&&f.page===page).forEach(f=>{const ri=recipients.findIndex(r=>r.id===f.recipient_id);const col=(recipients[ri]&&recipients[ri].color)||COLORS[(ri<0?0:ri)%COLORS.length];
+    const b=document.createElement('div');b.className='fbox'+(f===selField?' sel':'')+(builderLocked?' ro':'');b.style.left=(f.x*v.width)+'px';b.style.top=(f.y*v.height)+'px';b.style.width=(f.w*v.width)+'px';b.style.height=(f.h*v.height)+'px';b.style.borderColor=col;b.style.color=col;
+    b.textContent=f.label||(FIELD_TYPES.find(t=>t[0]===f.field_type)||['',f.field_type])[1];b.title=(recipients[ri]?recipients[ri].name+' · ':'')+b.textContent;
+    if(!builderLocked){const x=document.createElement('div');x.className='x';x.textContent='×';x.setAttribute('role','button');x.setAttribute('aria-label','Remove field');x.onclick=ev=>{ev.stopPropagation();deleteField(f)};b.appendChild(x);
+      const rz=document.createElement('div');rz.className='rz';b.appendChild(rz);dragMove(b,f,v,rz)}
+    b.onclick=ev=>{ev.stopPropagation();selField=f;redrawFields();renderProps()};layer.appendChild(b)})}
+function deleteField(f){fields=fields.filter(z=>z!==f);if(selField===f)selField=null;redrawFields();renderProps();queueSave('fields');updateSendState()}
+function dragMove(b,f,v,rz){
+  function track(e,apply){e.preventDefault();e.stopPropagation();const el=e.currentTarget;el.setPointerCapture&&el.setPointerCapture(e.pointerId);const sx=e.clientX,sy=e.clientY,o={x:f.x,y:f.y,w:f.w,h:f.h};let moved=false;
+    const mv=ev=>{moved=true;apply(o,(ev.clientX-sx)/v.width,(ev.clientY-sy)/v.height)};
+    const up=()=>{el.removeEventListener('pointermove',mv);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up);if(moved)queueSave('fields')};
+    el.addEventListener('pointermove',mv);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up)}
+  b.addEventListener('pointerdown',e=>{if(e.target!==b)return;track(e,(o,dx,dy)=>{f.x=Math.max(0,Math.min(1-f.w,o.x+dx));f.y=Math.max(0,Math.min(1-f.h,o.y+dy));b.style.left=(f.x*v.width)+'px';b.style.top=(f.y*v.height)+'px'})});
+  rz.addEventListener('pointerdown',e=>track(e,(o,dx,dy)=>{f.w=Math.max(.02,Math.min(1-f.x,o.w+dx));f.h=Math.max(.015,Math.min(1-f.y,o.h+dy));b.style.width=(f.w*v.width)+'px';b.style.height=(f.h*v.height)+'px'}));
+}
+// Field properties: an inline strip under the toolbar while a field is selected; edits apply at once.
+function renderProps(){const p=$('propPanel');if(!selField||builderLocked){p.hidden=true;p.innerHTML='';return}
+  const f=selField;const isOpt=f.field_type==='dropdown'||f.field_type==='radio';const isText=['text','name','full_name','email','title','company','number'].includes(f.field_type);
+  const tool=(label,inner)=>`<label class="sheet-tool"><span class="sheet-label">${label}</span>${inner}</label>`;
+  p.hidden=false;p.innerHTML=`<span class="eyebrow">${esc((FIELD_TYPES.find(t=>t[0]===f.field_type)||['',''])[1])} field</span>`+
+    tool('For',`<select id="pRid" onchange="applyProps()">${recipients.filter(r=>r.id).map(r=>`<option value="${r.id}"${r.id===f.recipient_id?' selected':''}>${esc(r.name)}</option>`).join('')}</select>`)+
+    tool('Label',`<input type="text" id="pLabel" value="${esc(f.label||'')}" onchange="applyProps()">`)+
+    (isText?tool('Placeholder',`<input type="text" id="pPh" value="${esc(f.placeholder||'')}" onchange="applyProps()">`)+tool('Default value',`<input type="text" id="pDef" value="${esc(f.default_value||'')}" onchange="applyProps()">`)+tool('Validation',`<select id="pVal" onchange="applyProps()"><option value="">None</option><option value="email"${f.validation==='email'?' selected':''}>Email</option><option value="number"${f.validation==='number'?' selected':''}>Number</option></select>`):'')+
+    (isOpt?tool('Options, one per line',`<textarea id="pOpts" rows="2" onchange="applyProps()">${esc((f.options||[]).join('\n'))}</textarea>`):'')+
+    `<label class="chk"><input type="checkbox" id="pReq" ${f.required?'checked':''} onchange="applyProps()"><span>Required</span></label>`+
+    (isText?`<label class="chk"><input type="checkbox" id="pRo" ${f.read_only?'checked':''} onchange="applyProps()"><span>Read-only (prefilled)</span></label>`:'')+
+    `<button type="button" class="btn btn-ghost btn-sm" onclick="deleteField(selField)">Delete field</button><button type="button" class="btn btn-ghost btn-sm" onclick="selField=null;redrawFields();renderProps()">Done</button>`}
+function applyProps(){const f=selField;if(!f)return;f.recipient_id=Number($('pRid').value);f.required=$('pReq').checked;f.label=$('pLabel').value;if($('pPh'))f.placeholder=$('pPh').value;if($('pDef'))f.default_value=$('pDef').value;if($('pVal'))f.validation=$('pVal').value;if($('pRo'))f.read_only=$('pRo').checked;if($('pOpts'))f.options=$('pOpts').value.split('\n').map(s=>s.trim()).filter(Boolean);redrawFields();queueSave('fields');updateSendState()}
+async function sendEnvelope(){['bSend','bSend2'].forEach(id=>{$(id).disabled=true});
+  try{if(!(await flushSave()))throw new Error('Changes are not saved yet. Fix the item marked above and try again.');
+    const why=sendBlockers();if(why.length)throw new Error(why[0]);
+    if(!(await checkBeforeSend(env.public_id))){updateSendState();return}
+    await api('/api/esign/'+env.public_id+'/send',{method:'POST',body:{checked:true,signerUsBased:'no'}});showToast('Sent. Signers have been emailed.');env=null;goDash()}
+  catch(e){showToast(e.message,true);updateSendState()}}
+// The sender answers for the document (Arthur 2026-10-07): read it, then confirm.
+function checkBeforeSend(pid){return new Promise(res=>{
+  showModal(`<div class="modal-hd"><h2>Check before sending</h2></div><div class="modal-bd"><p class="status"><a href="/api/esign/${esc(pid)}/preview" target="_blank" rel="noopener">Open the filled document</a> and read it through: the partner receives exactly this.</p>
+    <div class="field esign-group"><label for="ckLocation">Is the signer US-based?</label><select id="ckLocation" onchange="checkLocationGate()"><option value="">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select><p class="status" id="ckFinalis" hidden>US-based signers must go through Finalis. Start the process on Finalis or contact Serge Glebko, who requested this change. This document cannot be sent here.</p></div>
+    <label class="chk esign-group"><input type="checkbox" id="ckSend" onchange="checkLocationGate()"><span>I checked every term in this document. I am responsible for what the partner receives.</span></label></div>
+    <div class="modal-ft"><button class="btn btn-ghost" id="ckNo">Cancel</button><button class="btn btn-primary" id="ckGo" disabled>Send for signature</button></div>`);
+  $('ckNo').onclick=()=>{closeModal();res(false)};$('ckGo').onclick=()=>{closeModal();res(true)}})}
+function checkLocationGate(){$('ckFinalis').hidden=$('ckLocation').value!=='yes';$('ckGo').disabled=$('ckLocation').value!=='no'||!$('ckSend').checked}
+async function requestApproval(){try{if(!(await flushSave()))return;await api('/api/esign/'+env.public_id+'/request-approval',{method:'POST',body:{reason:'Nonstandard document'}});showToast('Sent to Serge for approval.');openEnv(env.public_id,true)}catch(e){showToast(e.message,true)}}
+async function decideApproval(approved){if(!approved){showModal('<div class="modal-hd"><h2>Return with comment</h2></div><div class="modal-bd"><div class="field"><label for="approvalComment">Comment</label><textarea id="approvalComment" rows="4"></textarea></div></div><div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitApprovalReturn()">Return</button></div>');return}try{await api('/api/esign/'+env.public_id+'/decision',{method:'POST',body:{approved:true,comment:''}});showToast('Approved.');openEnv(env.public_id,true)}catch(e){showToast(e.message,true)}}
+async function submitApprovalReturn(){const comment=$('approvalComment').value.trim();if(!comment)return showToast('Comment required.',true);try{await api('/api/esign/'+env.public_id+'/decision',{method:'POST',body:{approved:false,comment}});closeModal();showToast('Returned with comment.');openEnv(env.public_id,true)}catch(e){showToast(e.message,true)}}
+async function acceptChanges(){try{const r=await api('/api/esign/'+env.public_id+'/accept-changes',{method:'POST',body:{}});showToast('New draft created. Upload the revised PDF and send it; Serge signs it at the end.');openEnv(r.envelope.public_id)}catch(e){showToast(e.message,true)}}
+function rejectChanges(){showModal('<div class="modal-hd"><h2>Reply to partner</h2></div><div class="modal-bd"><div class="field"><label for="changesReply">Reply</label><textarea id="changesReply" rows="4"></textarea></div></div><div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitChangesReply()">Send reply</button></div>')}
+async function submitChangesReply(){const response=$('changesReply').value.trim();if(!response)return showToast('Reply required.',true);try{await api('/api/esign/'+env.public_id+'/reject-changes',{method:'POST',body:{response}});closeModal();showToast('Reply sent to the partner.');openEnv(env.public_id,true)}catch(e){showToast(e.message,true)}}
+// A draft started by accident: delete it outright (never sent, nobody else saw it).
+function deleteDraft(){if(!env)return;confirmModal('Delete this draft? It was never sent, so nobody else sees it. This cannot be undone.',async()=>{try{await api('/api/esign/'+encodeURIComponent(env.public_id),{method:'DELETE'});showToast('Draft deleted.');goDash()}catch(e){showToast(e.message,true)}},{danger:true,ok:'Delete draft',title:'Delete draft'})}
+async function saveTemplate(){try{if(!(await flushSave()))return;await api('/api/esign/'+env.public_id+'/save-template',{method:'POST',body:{name:env.title}});showToast('Saved as template.')}catch(e){showToast(e.message,true)}}
+
+/* ---------- detail ---------- */
+const EVENT_LABEL={created:'Created',sent:'Sent',delivered:'Email delivered',delivery_failed:'Email not delivered',viewed:'Opened',consent_given:'Consent given',identity_verified:'Identity verified',otp_sent:'Code sent',otp_verified:'Code verified',otp_burned:'Code locked after attempts',signed:'Signed',completed:'Completed',declined:'Declined',voided:'Voided',reminder_sent:'Reminder sent',delegated:'Reassigned',downloaded:'Downloaded',approval_requested:'Sent to Serge for approval',approval_granted:'Approved by Serge',approval_returned:'Returned by Serge',approval_invalidated:'Approval reset after an edit',partner_changes_requested:'Partner proposed changes',changes_rejected:'Changes declined',revision_started:'Replaced by a revised draft',automatic_signature_unavailable:'Automatic signature unavailable',archive_imported:'Imported from DocuSign',template_approved:'Template approved',template_changes_requested:'Template changes requested',standard_template_proposed:'Template proposed'};
+const DOCUSIGN_ACTION={'sent invitations':'Invitations sent','viewed in session':'Viewed','registered':'Created','printable copy delivered':'Copy delivered'};
+function eventLabel(t){t=String(t||'');if(/^docusign:/i.test(t)){const a=t.slice(9).trim();const h=DOCUSIGN_ACTION[a.toLowerCase()]||(a.charAt(0).toUpperCase()+a.slice(1).toLowerCase());return 'DocuSign · '+h}
+  return EVENT_LABEL[t]||t.replace(/_/g,' ').replace(/^./,c=>c.toUpperCase())}
+function actorLabel(a,recips){a=String(a||'').trim();if(!a||a==='system'||/^onboarding:/i.test(a)||/^docusign-archive-import$/i.test(a))return 'Platform';if(/^docusign$/i.test(a))return 'DocuSign';
+  if(a.includes('@')){const r=recips.find(x=>String(x.email||'').toLowerCase()===a.toLowerCase());return r&&r.name&&!r.name.includes('@')?r.name:nameFromEmail(a)}
+  if(/^serge:/i.test(a))return 'Serge';return a}
+const AUTH_LABEL={none:'Link only',email_otp:'Email code',sms_otp:'SMS code',access_code:'Access code'};
+const RECIP_STATE={created:['Not sent yet','neutral'],sent:['Sent',''],delivered:['Sent',''],viewed:['Opened',''],signed:['Signed','ok'],completed:['Signed','ok'],declined:['Declined','bad'],delegated:['Reassigned','warn']};
+function renderDetail(full){show('detailView');env=full.envelope;const archive=isArchiveEnv(env);const st=archive?({completed:'signed',declined:'declined',voided:'voided'}[env.status]||'sent'):(env.status==='voided'?'voided':env.status==='expired'?'expired':(env.workflow_column||env.status));
+  $('dId').textContent=archive?'DocuSign archive':typeLabel(env.document_type);$('dTitle').textContent=cleanTitle(env.title);
+  $('dStatus').innerHTML=`${stateTag(st)} <span>${archive?'':esc(typeLabel(env.document_type))+' · '}created ${esc(fmt(env.created_at))}${env.voided_reason?' · '+esc(env.voided_reason):''}</span>`;
+  const done=env.status==='completed';
+  $('dPdf').hidden=!archive;$('dFinal').hidden=archive||!done;$('dCert').hidden=archive||!done;$('dIntegrity').hidden=archive||!done;
+  $('dVoid').hidden=archive||['completed','voided','expired'].includes(env.status);$('dRemind').hidden=archive||!['sent','in_progress'].includes(env.status);
+  $('dApprovalActions').hidden=!(env.approval_status==='requested'&&['admin','serge'].includes(window.ESIGN_ROLE));
+  const changes=full.events.filter(e=>e.event_type==='partner_changes_requested');
+  $('dChangesBox').hidden=env.status!=='changes_requested';
+  $('dChangesEvidence').innerHTML=changes.map(e=>`<div><strong>${esc(actorLabel(e.actor,full.recipients))}</strong>: ${esc((e.detail&&e.detail.comment)||'File attached')}</div>`).join('')+
+    (full.attachments||[]).map(a=>`<div><a href="/api/esign/${encodeURIComponent(env.public_id)}/attachment/${Number(a.id)}">${esc(a.filename)}</a></div>`).join('');
+  $('dRecips').innerHTML=full.recipients.length?`<div class="esign-row esign-th" aria-hidden="true"><span>Signer</span><span>Verification</span><span>Status</span><span>Signed</span><span>IP</span></div>`+full.recipients.map(r=>{const signedR=['signed','completed'].includes(r.status);const rs=(env.status==='voided'&&!signedR)?['Voided','bad']:(archive&&!signedR&&r.status!=='declined')?['Not signed','neutral']:(RECIP_STATE[r.status]||[r.status,'']);
+    return `<div class="esign-row"><div class="esign-main"><span class="t">${esc(r.name)}</span><span class="s">${esc(r.email||'—')}${r.role&&r.role!=='signer'?' · '+esc(r.role==='cc'?'copy':r.role):''}</span></div><span class="esign-cell">${esc(archive?'—':(AUTH_LABEL[r.auth_method||'none']||r.auth_method))}${r.auth_method==='access_code'&&r.access_code?' ('+esc(r.access_code)+')':''}</span><span>${toneTag(rs[0],rs[1])}</span><span class="esign-cell num">${esc(r.signed_at?fmt(r.signed_at):'—')}</span><span class="esign-cell num">${esc(r.ip||'—')}</span></div>`}).join(''):'<p class="esign-empty">No signers.</p>';
+  renderDetailDoc(env);
+  $('dEvents').innerHTML=full.events.length?`<div class="esign-row esign-th" aria-hidden="true"><span>Event</span><span>By</span><span></span><span>Time (PT)</span><span>IP</span></div>`+full.events.map(e=>`<div class="esign-row"><div class="esign-main"><span class="t">${esc(eventLabel(e.event_type))}</span></div><span class="esign-cell">${esc(actorLabel(e.actor,full.recipients))}</span><span></span><span class="esign-cell num">${esc(fmt(e.created_at))}</span><span class="esign-cell num">${esc(e.ip||'')}</span></div>`).join(''):'<p class="esign-empty">No events.</p>';
+}
+// Every document that went out can be read again (Daria 2026-10-26): the signed
+// copy once it exists, otherwise the pages exactly as the partner received them.
+let docSeq=0;
+async function renderDetailDoc(e){const box=$('dDocBox'),host=$('dDoc');const seq=++docSeq;const url=e.content_url||null;box.hidden=!url;if(!url){host.innerHTML='';return}
+  const signed=e.status==='completed'||isArchiveEnv(e);
+  $('dDocNote').textContent=signed?'Signed copy':'As sent. Signatures appear here once everyone signs.';$('dDocOpen').href=url;
+  host.innerHTML='<div class="status">Loading the document…</div>';
+  try{await ensurePdfjs();const pdf=await pdfjsLib.getDocument({url,withCredentials:true}).promise;if(seq!==docSeq)return;host.innerHTML='';
+    const w=Math.max(240,(host.clientWidth||640)-2*12);const dpr=Math.min(window.devicePixelRatio||1,2);
+    for(let p=1;p<=pdf.numPages;p++){if(seq!==docSeq)return;const page=await pdf.getPage(p);const v0=page.getViewport({scale:1});const v=page.getViewport({scale:w/v0.width*dpr});
+      const cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;cv.setAttribute('role','img');cv.setAttribute('aria-label','Page '+p);host.appendChild(cv);
+      await page.render({canvasContext:cv.getContext('2d'),viewport:v}).promise}}
+  catch(_){if(seq===docSeq)host.innerHTML='<div class="status">The document did not load here. <a href="'+esc(url)+'" target="_blank" rel="noopener">Open it in a new tab</a></div>'}}
+function dl(role){window.open('/api/esign/'+encodeURIComponent(env.public_id)+'/'+role,'_blank')}
+async function remindFromDetail(){try{const r=await api('/api/esign/'+encodeURIComponent(env.public_id)+'/remind',{method:'POST',body:{}});showToast('Reminder sent to '+r.reminded.join(', ')+'.')}catch(e){showToast(e.message,true)}}
+// Void = the document is off: the deal fell through, it went out by mistake, or a
+// new version replaces it. Signing links stop working, the card leaves the board,
+// the list keeps it as Voided with the reason (Daria 2026-10-05).
+const VOID_REASONS=['Deal fell through','Sent by mistake','Replaced by a new version'];
+function voidEnv(){showModal(`<div class="modal-hd"><h2>Void this document</h2><button class="modal-x" onclick="closeModal()" aria-label="Close">${window.ICON?ICON.x:'&times;'}</button></div><div class="modal-bd"><p class="status">Use it when the deal fell through or the document is no longer needed. Signing links stop working, the document leaves the board and stays in the list as Voided.</p><div class="esign-group" role="radiogroup" aria-labelledby="voidReasonH"><div class="eyebrow" id="voidReasonH">Reason</div><div class="esign-radios">${VOID_REASONS.map((r,i)=>`<label class="chk"><input type="radio" name="voidReason" value="${esc(r)}"${i?'':' checked'}><span>${esc(r)}</span></label>`).join('')}</div></div></div><div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-danger" id="voidGo" onclick="voidGo()">Void</button></div>`)}
+async function voidGo(){const b=$('voidGo');b.disabled=true;const reason=(document.querySelector('input[name=voidReason]:checked')||{}).value||'Voided';try{await api('/api/esign/'+env.public_id+'/void',{method:'POST',body:{reason}});closeModal();showToast('Voided: '+reason+'.');openEnv(env.public_id,true)}catch(e){b.disabled=false;showToast(e.message,true)}}
+async function integrity(){try{const r=await api('/api/esign/'+env.public_id+'/integrity');const all=r.checks.length&&r.checks.every(c=>c.ok);showToast(all?('Integrity verified: '+r.checks.length+' sealed file(s) match.'):'Integrity check failed or nothing sealed yet.',!all)}catch(e){showToast(e.message,true)}}
+
+/* ---------- templates / bulk / webhooks (showModal) ---------- */
+let useTplFull=null;
+function tplState(t){if(t.template_approved_at)return toneTag('Approved','ok');if(t.metadata&&t.metadata.standard_template)return toneTag('Waiting for Serge','warn');return toneTag('Custom','neutral')}
+async function openTemplates(fromUrl){
+  if(!fromUrl) urlWrite({view:'templates'},{push:true});
+  showModal('<div class="modal-hd"><h2>Templates</h2><button class="modal-x" onclick="closeEsignView()" aria-label="Close">'+(window.ICON?ICON.x:'&times;')+'</button></div><div class="modal-bd" id="tplList">Loading…</div>');
+  const admin=['admin','serge'].includes(window.ESIGN_ROLE);
+  try{const d=await api('/api/esign/templates/list');$('tplList').innerHTML=d.templates.length?d.templates.map(t=>{const waiting=t.metadata&&t.metadata.standard_template&&!t.template_approved_at;const n=Number(t.recipient_count)||0;
+    const ki=t.metadata&&t.metadata.standard_template&&KIND_INFO[t.metadata.standard_kind];
+    return `<div class="esign-tpl"><div><span class="strong">${esc(ki?ki[0]:(t.template_name||t.title))}</span>${ki?`<div class="s">${esc(ki[1])}</div>`:''}<div class="s">${n} ${n===1?'signer':'signers'}</div><div>${tplState(t)}</div></div><div class="esign-actions">${waiting&&admin?'<a class="btn btn-ghost btn-sm" href="/esign/review">Open review</a>':''}${(t.metadata&&t.metadata.standard_template)||!admin?'':`<button class="btn btn-ghost btn-sm" onclick="markStandard('${esc(t.public_id)}')">Mark standard</button>`}${waiting&&window.ESIGN_ROLE==='serge'?`<button class="btn btn-ghost btn-sm" onclick="approveTemplate('${esc(t.public_id)}')">Approve</button>`:''}<button class="btn btn-primary btn-sm" onclick="openUse('${esc(t.public_id)}')" ${waiting?'disabled':''}>Use</button></div></div>`}).join(''):'<div class="empty"><span class="serif">No templates</span>Build a document and choose More, then Save as template.</div>'}catch(e){$('tplList').innerHTML='<div class="status error">'+esc(e.message)+'</div>'}
+}
+let standardTemplateId=null;
+function markStandard(id){standardTemplateId=id;showModal('<div class="modal-hd"><h2>Mark standard template</h2></div><div class="modal-bd"><div class="field"><label for="standardKind">Type</label><select id="standardKind"><option value="ncnda">NCNDA</option><option value="introduction">Introduction</option><option value="introduction_sell_side">Introduction — Sell Side</option><option value="collaboration">Collaboration + Exhibit A</option><option value="fsa">FSA</option><option value="buy_side_fee">Buy-side fee</option><option value="sell_side_fee">Sell-side fee</option></select></div><div class="field"><label for="standardSource">Completed DocuSign envelope ID or Telegram Word file reference</label><input type="text" id="standardSource" placeholder="e.g. telegram:132"></div></div><div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitStandardTemplate()">Send PDF to Serge</button></div>')}
+async function submitStandardTemplate(){const kind=$('standardKind').value,archiveEnvelopeId=$('standardSource').value.trim();if(!archiveEnvelopeId)return showToast('Source envelope required.',true);try{await api('/api/esign/templates/'+standardTemplateId+'/mark-standard',{method:'POST',body:{kind,archiveEnvelopeId}});closeModal();showToast('PDF sent to Serge for review.');openTemplates(true)}catch(e){showToast(e.message,true)}}
+async function approveTemplate(id){try{await api('/api/esign/templates/'+id+'/approve',{method:'POST',body:{}});showToast('Template approved.');openTemplates(true)}catch(e){showToast(e.message,true)}}
+// One set of examples for the New document wizard and the Templates → Use form.
+// The terms come from the template's field labels, so every standard agreement
+// gets the same guidance without tying it to a particular template version.
+const ESIGN_FIELD_EXAMPLES={
+  'partner name':'e.g. Jane Doe',
+  'partner email':'e.g. jane@company.com',
+  'partner company':'e.g. Unicorns Exchange LLC',
+  'issuer':'e.g. Moonshot AI',
+  'deal':'e.g. Moonshot $10M',
+  'description of securities':'e.g. Series D Preferred shares',
+  'expected volume (shares)':'e.g. $3-4M, 100,000 shares or $250K deal value',
+  'anticipated price per share ($)':'e.g. 51.02 per share or valuation $12B',
+  'fee (%)':'e.g. 2.5',
+  'partner share of fee (%)':'e.g. 50',
+  'trade between (first party)':'e.g. Buyer Fund LLC',
+  'trade between (second party)':'e.g. Unicorns Exchange LLC',
+  'fee side (buy/sell)':'e.g. Buy side',
+  'notes and other terms':'e.g. Closing subject to due diligence',
+  'fee value':'e.g. 2.5',
+  'exhibit letter':'e.g. O (Agreements on file shows the next one)',
+  'expected volume':'e.g. $3-4M',
+  'anticipated price per share or valuation':'e.g. $51.02 per share or $12B',
+  'mfn introduced (seller/buyer)':'seller or buyer',
+  "partner's introduced (buyer/seller)":'buyer or seller',
+  'share of the fee (%)':'e.g. 50%',
+  'payment terms':'MFN WILL PAY PARTNER UP TO 7 BUSINESS DAYS FROM COLLECTING THE FEES FROM THE BUYER',
+};
+function esignExample(label, explicit){return explicit||ESIGN_FIELD_EXAMPLES[String(label||'').replace(/^deal:\s*/i,'').trim().toLowerCase()]||'Enter as it should appear in the document'}
+function esignExampleAttr(label, explicit){return ` placeholder="${esc(esignExample(label, explicit))}"`}
+function esignLongTerm(label){return /payment terms/i.test(String(label||''))}
+function esignTermControl(label, value, cls, field){
+  const ph=esignExampleAttr(label, field&&(field.placeholder||field.default_value));
+  const lab=String(label||'').replace(/^deal:\s*/i,'');
+  const v=value||(field&&field.default_value)||'';
+  if(esignLongTerm(label)) return `<textarea class="${cls}" data-label="${esc(label)}" rows="3" aria-label="${esc(lab)}"${ph}>${esc(v)}</textarea>`;
+  return `<input type="text" class="${cls}" data-label="${esc(label)}" value="${esc(v)}" aria-label="${esc(lab)}"${ph}${numericTerm(label)&&!PRICE_RE.test(label)&&!/volume/i.test(label)?' inputmode="decimal"':''}>`;
+}
+function esignDealTermFields(fields, cls, values){
+  const seen=new Set();
+  return (fields||[]).filter(f=>{const l=String(f.label||'').trim();if(!/^deal:/i.test(l)||seen.has(l))return false;seen.add(l);return true;})
+    .map(f=>{const l=String(f.label).trim();const req=f.required!==false;return `<div class="field"><label>${esc(l.replace(/^deal:\s*/i,''))}${req?'':' (optional)'}</label>${esignTermControl(l,(values&&values[l])||'',cls,f)}${esignPriceHint(l)}</div>`});
+}
+// The approved document prints «$» and «%» itself. Description of securities
+// and Expected volume are typed in full. A single deal value or valuation on
+// a share-count form still goes into Notes with TBD in the numeric blank.
+function esignPriceHint(label){const l=String(label).toLowerCase();
+  if(/payment terms/.test(l))return '<div class="hint">Current variant: MFN WILL PAY…. Type who pays and for what — there are many variations.</div>';
+  if(/price per share \(\$\)/.test(l))return '<div class="hint">Enter a share price, or “valuation $12B” if the share price is unknown. The valuation appears in the document’s Notes.</div>';
+  if(/expected volume/.test(l))return / \(shares\)/.test(l)
+    ?'<div class="hint">The whole field is printed as typed, including a range such as $3-4M. A share count, or a single deal value such as $250K, still works: the deal value appears in the document’s Notes.</div>'
+    :'<div class="hint">The whole field is printed as typed, including a range such as $3-4M.</div>';
+  if(/\(%\)/.test(l))return '<div class="hint">The document prints “%”.</div>';
+  if(/description of securities/.test(l))return '<div class="hint">The whole field is printed as typed, including “shares”.</div>';return ''}
+const TERM_NUM=/^\d{1,3}(,\d{3})*(\.\d+)?$|^\d+(\.\d+)?$/;
+const TERM_DOLLARS=/^\$\s*(?:\d{1,3}(?:,\d{3})*|\d+)(?:\.\d+)?\s*[KMBT]?$/i;
+// The server (workflow.prepareDeskTerms) moves monetary alternatives to Notes.
+function cleanTerm(label,v){const l=String(label).toLowerCase();v=String(v||'').trim();if(!v)return {v};const tbd=/^(tbd|tba|n\/a)$/i.test(v);
+  if(/\(%\)/.test(l)){v=v.replace(/%/g,'').trim();return tbd||TERM_NUM.test(v)?{v:tbd?'TBD':v}:{err:l.replace(/^deal:\s*/,'')+': a number only, e.g. 2'}}
+  if(/price per share \(\$\)/.test(l)){const amount=v.replace(/^valuation\s*:?\s*/i,'');if(TERM_DOLLARS.test(amount)&&(/^valuation\s*:?/i.test(v)||/[KMBT]\s*$/i.test(amount)))return {v};v=v.replace(/^\$\s*/,'').replace(/\s*(per|\/)\s*share$/i,'').trim();return tbd||TERM_NUM.test(v)?{v:tbd?'TBD':v}:{err:'Enter a share price, TBD, or valuation $12B.'}}
+  if(/expected volume/i.test(l)){if(/\(shares\)/.test(l)){if(TERM_DOLLARS.test(v))return {v};const orig=v;v=v.replace(/\s*shares?$/i,'').trim();if(tbd||TERM_NUM.test(v))return {v:tbd?'TBD':v};return {v:orig}}return {v}}
+  return {v}}
+async function openUse(pid){const full=await api('/api/esign/templates/'+pid);useTplFull=full;
+  const standard=!!full.envelope.metadata?.standard_template;
+  const partnerFields=standard?`<div class="field"><label for="usePartnerCompany">Partner company (optional)</label><input type="text" id="usePartnerCompany"${esignExampleAttr('partner company')}><div class="hint">Names the document in your list. The partner enters the signing company, the representative and the address in the document.</div></div><div class="field"><label for="useIssuer">Portfolio company</label><input type="text" id="useIssuer"${esignExampleAttr('issuer')}></div><div class="field"><label for="useDeal">Deal</label><input type="text" id="useDeal"${esignExampleAttr('deal')}></div>`+esignDealTermFields(full.fields||[],'use-deal-term',{}).join('')+(['fsa','buy_side_fee','sell_side_fee'].includes(full.envelope.metadata.standard_kind)?`<div class="field"><label for="useFeeMode">Fee type</label><select id="useFeeMode"><option value="percent">Percent</option><option value="per_share">Amount per share</option></select></div><div class="field"><label for="useFeeValue">Fee value</label><input id="useFeeValue" type="number" min="0" step="any" inputmode="decimal"${esignExampleAttr('fee value')}><div class="hint">Percent: enter 2.5 for 2.5%. Amount per share: enter the dollar amount.</div></div>`:''):'';
+  const body='<div class="field"><label for="useTitleInp">Document title</label><input type="text" id="useTitleInp" value="'+esc(full.envelope.title)+'"></div>'+full.recipients.filter(r=>!standard||r.id!==Number(full.envelope.metadata.svic_recipient_id)).map(r=>`<div class="esign-group" data-rid="${Number(r.id)}"><div class="eyebrow esign-group">${esc(r.role_label||r.name)}</div><div class="field"><input type="text"${esignExampleAttr('partner name')} aria-label="Full name" class="um-name"></div><div class="field"><input type="email"${esignExampleAttr('partner email')} aria-label="Email" class="um-email"></div></div>`).join('')+partnerFields;
+  showModal('<div class="modal-hd"><h2>Use template</h2><button class="modal-x" onclick="closeEsignView()" aria-label="Close">'+(window.ICON?ICON.x:'&times;')+'</button></div><div class="modal-bd" id="useBody">'+body+'</div><div class="modal-ft"><button class="btn btn-ghost" onclick="closeEsignView()">Cancel</button><button class="btn btn-primary" onclick="doUseTemplate()">Create draft</button></div>');
+}
+async function doUseTemplate(){const mappings=[];document.querySelectorAll('#useBody [data-rid]').forEach(d=>{mappings.push({template_recipient_id:Number(d.dataset.rid),name:d.querySelector('.um-name').value,email:d.querySelector('.um-email').value})});
+  const first=mappings[0]||{};const variables={partner_name:first.name,partner_email:first.email,partner_company:$('usePartnerCompany')?.value||'',issuer:$('useIssuer')?.value||'',deal:$('useDeal')?.value||'',fee_mode:$('useFeeMode')?.value||'',fee_value:$('useFeeValue')?.value||'',fields:Object.fromEntries([...document.querySelectorAll('#useBody .use-deal-term')].map(i=>[i.dataset.label,i.value.trim()]))};
+  try{const r=await api('/api/esign/templates/'+useTplFull.envelope.public_id+'/use',{method:'POST',body:{title:$('useTitleInp').value,mappings,variables}});closeModal();openEnv(r.envelope.public_id)}catch(e){showToast(e.message,true)}}
+async function openBulk(fromUrl){
+  if(!fromUrl) urlWrite({view:'bulk'},{push:true});
+  let opts='<option value="">No templates</option>';try{const d=await api('/api/esign/templates/list');if(d.templates.length)opts=d.templates.map(t=>`<option value="${esc(t.public_id)}">${esc(t.template_name||t.title)}</option>`).join('')}catch{}
+  showModal('<div class="modal-hd"><h2>Bulk send</h2><button class="modal-x" onclick="closeEsignView()" aria-label="Close">'+(window.ICON?ICON.x:'&times;')+'</button></div><div class="modal-bd"><div class="field"><label for="bulkTpl">Template</label><select id="bulkTpl">'+opts+'</select></div><div class="field"><label for="bulkRows">Recipients, one per line: Name, email@company.com</label><textarea id="bulkRows" rows="6"></textarea></div><div class="field"><label for="bulkLocation">Are any signers US-based?</label><select id="bulkLocation" onchange="$(\'bulkFinalis\').hidden=this.value!==\'yes\'"><option value="">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select><p class="status" id="bulkFinalis" hidden>US-based signers must go through Finalis. Start the process on Finalis or contact Serge Glebko.</p></div></div><div class="modal-ft"><button class="btn btn-ghost" onclick="closeEsignView()">Cancel</button><button class="btn btn-primary" onclick="doBulk()">Send to all</button></div>');
+}
+async function doBulk(){const tid=$('bulkTpl').value;if(!tid){showToast('Create a template first.',true);return}
+  if($('bulkLocation').value!=='no'){showToast($('bulkLocation').value==='yes'?'Use Finalis or contact Serge Glebko for US-based signers.':'Answer the US-based signer question.',true);return}
+  const rows=$('bulkRows').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const i=l.lastIndexOf(',');return{name:l.slice(0,i).trim(),email:l.slice(i+1).trim()}}).filter(r=>r.name&&r.email);
+  if(!rows.length){showToast('Add at least one Name, email line.',true);return}
+  try{const r=await api('/api/esign/templates/'+tid+'/bulk',{method:'POST',body:{rows,signerUsBased:'no'}});closeModal();showToast(`Sent ${r.sent}/${r.total}.`);goDash()}catch(e){showToast(e.message,true)}}
+async function openWebhooks(fromUrl){
+  if(!fromUrl) urlWrite({view:'webhooks'},{push:true});
+  showModal('<div class="modal-hd"><h2>Webhooks</h2><button class="modal-x" onclick="closeEsignView()" aria-label="Close">'+(window.ICON?ICON.x:'&times;')+'</button></div><div class="modal-bd"><div id="whList">Loading…</div><hr class="divider"><div class="field"><label for="whUrl">Endpoint URL</label><input type="text" id="whUrl" placeholder="https://…"></div><div class="field"><label for="whEvents">Events, comma-separated</label><input type="text" id="whEvents" value="completed,declined,sent"></div></div><div class="modal-ft"><button class="btn btn-ghost" onclick="closeEsignView()">Close</button><button class="btn btn-primary" onclick="addWebhook()">Add webhook</button></div>');
+  loadWebhooks();
+}
+function closeEsignView(){ urlWrite({view:''}); closeModal(); }
+async function loadWebhooks(){try{const d=await api('/api/esign/webhooks/list');$('whList').innerHTML=d.webhooks.length?d.webhooks.map(w=>`<div class="esign-tpl"><div><span class="strong">${esc(w.url)}</span><div class="s">${esc((w.events||[]).join(', '))}</div></div><button class="btn btn-link btn-sm" onclick="delWebhook(${Number(w.id)})">Delete</button></div>`).join(''):'<div class="status">No webhooks.</div>'}catch(e){$('whList').innerHTML='<div class="status error">'+esc(e.message)+'</div>'}}
+async function addWebhook(){const url=$('whUrl').value.trim();const events=$('whEvents').value.split(',').map(s=>s.trim()).filter(Boolean);if(!url){showToast('Enter a URL.',true);return}try{await api('/api/esign/webhooks',{method:'POST',body:{url,events}});$('whUrl').value='';showToast('Added.');loadWebhooks()}catch(e){showToast(e.message,true)}}
+async function delWebhook(id){try{await api('/api/esign/webhooks/'+id,{method:'DELETE'});loadWebhooks()}catch(e){showToast(e.message,true)}}
+
+/* ---------- partner search: a dropdown under the box, prefix matches first ---------- */
+const FINDERS={};let findTimer;
+function finderHtml(id,placeholder){return `<div class="menu esign-find" id="${id}"><input type="search" id="${id}Q" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder)}" autocomplete="off" oninput="findPartners('${id}',this.value)"><div class="menu-list" role="listbox" id="${id}Hits"></div></div>`}
+function findPartners(id,q){clearTimeout(findTimer);findTimer=setTimeout(async()=>{const box=$(id),host=$(id+'Hits');if(!box||!host)return;q=String(q||'').trim();if(q.length<2){box.classList.remove('open');host.innerHTML='';return}
+  try{const d=await api('/api/esign/partners/search?q='+encodeURIComponent(q));FINDERS[id].hits=d.partners;
+    host.innerHTML=d.partners.length?d.partners.map((p,i)=>`<button type="button" class="menu-item" role="option" onclick="pickPartner('${id}',${i})"><span class="esign-hit"><span class="t">${esc(p.name||p.email)}</span><span class="s">${esc(p.email)}${p.company?' · '+esc(p.company):''}</span></span></button>`).join(''):'<div class="esign-hit-empty">No match. Type the details instead.</div>';
+    box.classList.add('open')}catch(e){host.innerHTML='<div class="esign-hit-empty">'+esc(e.message)+'</div>';box.classList.add('open')}},250)}
+function pickPartner(id,i){const f=FINDERS[id];const p=f&&f.hits&&f.hits[i];if(!p)return;const box=$(id);if(box)box.classList.remove('open');f.onPick(p)}
+
+/* ---------- New document: four steps ---------- */
+// Document → partner (from our base) → deal terms → review and send. Standard
+// documents go straight to the partner; anything else takes the builder.
+const KIND_INFO={ncnda:['NCNDA','Mutual non-disclosure and non-circumvention'],introduction:['Introduction agreement — Buy Side','Buyer pays SVIC a fee on introduced trades'],introduction_sell_side:['Introduction agreement — Sell Side','Seller pays SVIC a fee on introduced trades'],collaboration:['Collaboration agreement','Fee split with a partner on a deal, Exhibit A'],collaboration_exhibit:['Exhibit to Collaboration agreement','Next Exhibit for a partner who already signed our Collaboration agreement'],mfn_exhibit:['Exhibit to Collaboration Agreement — MFN','Next Exhibit for Unicorns Exchange (Miller Finance)']};
+let W=null;
+const PRICE_RE=/price per share/i;
+function numericTerm(l){return /fee|volume|price|amount|shares|valuation|\(%\)|\(\$\)/i.test(String(l||''))&&!/description|type|class/i.test(String(l||''))}
+// Agreements on file: who already signed a Collaboration agreement, the
+// Exhibits under it and the next letter (Daria 2026-10-07).
+let AGR=[];let AGR_TPL={};
+async function openAgreements(){
+  showModal(`<div class="modal-hd"><h2>Agreements on file</h2><button class="modal-x" onclick="closeModal()" aria-label="Close">${window.ICON?ICON.x:'&times;'}</button></div><div class="modal-bd"><p class="status">Partners who already signed a Collaboration agreement with SVIC. For a new deal with them, send only the next Exhibit. Draft PDF is the blank form for Upload your own.</p><input type="search" id="agrQ" class="esign-agrq" placeholder="Partner, company or email" aria-label="Search agreements" oninput="paintAgreements()"><div class="esign-rows esign-group" id="agrList"><p class="esign-empty">Loading…</p></div></div>`);
+  try{
+    AGR=(await api('/api/esign/agreements-on-file')).agreements||[];
+    AGR_TPL={};
+    const d=await api('/api/esign/templates/list');
+    (d.templates||[]).forEach(t=>{const k=t.metadata&&t.metadata.standard_kind;if(k==='collaboration_exhibit'||k==='mfn_exhibit')AGR_TPL[k]=t.public_id});
+    paintAgreements();
+  }catch(e){$('agrList').innerHTML='<p class="esign-empty">'+esc(e.message)+'</p>'}}
+function paintAgreements(){const q=($('agrQ').value||'').trim().toLowerCase();
+  const rows=AGR.filter(a=>!q||(a.counterparty+' '+a.contacts.map(c=>c.name+' '+c.email).join(' ')).toLowerCase().includes(q));
+  $('agrList').innerHTML=rows.length?rows.map(a=>{const c=a.contacts[0]||{};const last=a.last_exhibit?`Last: Exhibit ${a.last_exhibit.letter} · ${fmtDate(a.last_exhibit.signed)}`:'No later Exhibits yet';
+    const kind=a.form==='mfn'?'mfn_exhibit':'collaboration_exhibit';
+    const draft=AGR_TPL[kind]?`<a class="btn btn-ghost btn-sm" href="/api/esign/templates/${esc(AGR_TPL[kind])}/draft.pdf" target="_blank" rel="noopener">Draft PDF</a>`:'';
+    return `<div class="esign-row esign-agr"><div class="esign-main"><span class="t">${esc(a.counterparty)}</span><span class="s">${esc([c.name,c.email].filter(Boolean).join(' · '))}</span></div><span class="esign-cell">${a.form==='mfn'?'Their form (MFN)':'SVIC form'} · signed ${esc(fmtDate(a.agreement_signed))}</span><span class="esign-cell">${esc(last)}</span><span class="esign-cell">${a.agreement_id?`<a class="btn btn-ghost btn-sm" href="/esign?env=${encodeURIComponent(a.agreement_id)}">Agreement</a>`:''}${draft}<button type="button" class="btn btn-ghost btn-sm" onclick="exhibitFor(${AGR.indexOf(a)})">New Exhibit ${esc(a.next_letter||'')}</button></span></div>`}).join(''):'<p class="esign-empty">Nothing matches.</p>'}
+function exhibitFor(i){const a=AGR[i];const c=a.contacts[0]||{};closeModal();openWizard({kind:a.form==='mfn'?'mfn_exhibit':'collaboration_exhibit',letter:a.next_letter,partner:{name:c.name||'',email:c.email||'',company:a.counterparty&&!/\./.test(a.counterparty)?a.counterparty:''}})}
+// The partner's own paper: our builder, Serge signs, the partner gets the sealed copy as Copy.
+async function partnerPaper(){
+  try{
+    const r=await api('/api/esign',{method:'POST',body:{title:"The partner's own agreement",documentType:'other',signingOrder:'parallel'}});
+    await openEnv(r.envelope.public_id);
+    addSerge();
+    showToast('Upload their PDF. Add the partner as Copy. Place Serge’s signature, then Send — it reaches Serge’s queue and the partner gets the sealed copy.');
+  }catch(e){showToast(e.message,true)}}
+async function openWizard(pre){
+  W={step:1,tpl:null,full:null,partner:{name:'',email:'',company:''},signerUsBased:'',issuer:'',deal:'',terms:{}};
+  if(pre&&pre.partner)W.partner={...W.partner,...pre.partner};
+  try{const d=await api('/api/esign/templates/list');W.list=d.templates.filter(t=>t.metadata&&t.metadata.standard_template).sort((a,b)=>Object.keys(KIND_INFO).indexOf(a.metadata.standard_kind)-Object.keys(KIND_INFO).indexOf(b.metadata.standard_kind))}catch(e){showToast(e.message,true);return}
+  const want=pre&&pre.kind&&W.list.find(t=>t.metadata.standard_kind===pre.kind&&t.template_approved_at);
+  if(want){await wPick(want.public_id);W.partner={...W.partner,...(pre.partner||{})};if(pre.letter)W.terms['deal: Exhibit letter']=pre.letter;W.step=2;renderWizard();return}
+  if(pre&&pre.kind)showToast('This Exhibit template is waiting for Serge\u2019s approval. Until then, send the Exhibit with Upload your own.',true);
+  renderWizard();
+}
+function wStepsBar(){return '<div class="steps esign-group">'+['Document','Partner','Deal','Send'].map((l,i)=>`<div class="step ${i+1<W.step?'done':i+1===W.step?'on':''}"><span class="n">${i+1}</span><span class="esign-stepl">${l}</span></div>`).join('')+'</div>'}
+function wTerms(){return [...new Set((W.full?.fields||[]).map(f=>String(f.label||'').trim()).filter(l=>/^deal:/i.test(l)))]}
+function wNeedsIssuer(){return (W.full?.fields||[]).some(f=>String(f.label||'').trim().toLowerCase()==='issuer')}
+function renderWizard(){
+  let body='',next='';
+  if(W.step===1){
+    const cards=W.list.map(t=>{const k=KIND_INFO[t.metadata.standard_kind]||[t.title,''];const ok=!!t.template_approved_at;
+      return `<button type="button" class="esign-choice" ${ok?'':'disabled'} onclick="wPick('${esc(t.public_id)}')"><span class="t">${esc(k[0])}</span><span class="s">${esc(k[1])}</span>${ok?'':`<span class="esign-chtag">${toneTag('Waiting for Serge','warn')}</span>`}</button>`}).join('');
+    const none=W.list.length&&!W.list.some(t=>t.template_approved_at);
+    body=`<div class="esign-choices">${cards}<button type="button" class="esign-choice" onclick="closeModal();partnerPaper()"><span class="t">The partner's own agreement</span><span class="s">The partner sent their own document to sign. Upload it, add Serge to sign and the partner as Copy: Serge's queue gets it, the partner gets the sealed copy.</span></button><button type="button" class="esign-choice" onclick="closeModal();newEnvelope()"><span class="t">Other document</span><span class="s">Upload your own PDF and add Serge as a signer — for example the next Exhibit to a partner's existing Collaboration agreement. It goes out right away; Serge signs it himself.</span></button></div>${none?'<p class="status esign-group">The standard agreements unlock once Serge approves them. Until then, send any agreement as Other document.</p>':''}`;
+  } else if(W.step===2){
+    const p=W.partner;
+    body=`<div class="field"><label for="wFindQ">Find partner</label>${finderHtml('wFind','Name, email or company')}</div>
+      <div class="field"><label for="wName">Full name</label><input type="text" id="wName" value="${esc(p.name)}"${esignExampleAttr('partner name')}></div>
+      <div class="field"><label for="wEmail">Email</label><input id="wEmail" type="email" value="${esc(p.email)}"${esignExampleAttr('partner email')}></div>
+      <div class="field"><label for="wCompany">Company (optional)</label><input type="text" id="wCompany" value="${esc(p.company)}"${esignExampleAttr('partner company')}><div class="hint">Names the document in your list. The partner enters the signing company, the representative and the address in the document.</div></div>
+      <div class="field"><label for="wLocation">Is the signer US-based?</label><select id="wLocation" onchange="W.signerUsBased=this.value;$('wFinalis').hidden=this.value!=='yes';$('wNext').disabled=this.value!=='no';if(this.value==='yes')$('wFinalis').scrollIntoView({block:'nearest'})"><option value="">Choose an answer</option><option value="yes"${W.signerUsBased==='yes'?' selected':''}>Yes</option><option value="no"${W.signerUsBased==='no'?' selected':''}>No</option></select><p class="status" id="wFinalis"${W.signerUsBased==='yes'?'':' hidden'}>US-based signers must go through Finalis. Start the process on Finalis or contact Serge Glebko, who requested this change. You cannot continue here.</p></div>`;
+    next='wPartnerNext()';
+  } else if(W.step===3){
+    const deal=(wNeedsIssuer()?`<div class="field"><label for="wIssuer">Portfolio company</label><input type="text" id="wIssuer" value="${esc(W.issuer)}"${esignExampleAttr('issuer')}></div>`:'')+
+      `<div class="field"><label for="wDeal">Deal${wNeedsIssuer()?'':' (optional)'}</label><input type="text" id="wDeal" value="${esc(W.deal)}"${esignExampleAttr('deal')}><div class="hint">The name the document carries on the board.</div></div>`;
+    const ex=esignDealTermFields(W.full.fields||[],'w-term',W.terms).join('');
+    body=`<div class="eyebrow esign-group">Deal</div>${deal}${ex?`<div class="eyebrow esign-group">Exhibit A terms</div>${ex}`:''}`;
+    next='wDealNext()';
+  } else {
+    const k=KIND_INFO[W.tpl.metadata.standard_kind]||[W.tpl.title];
+    const rows=[['Document',k[0]],['Partner',`${W.partner.name} · ${W.partner.email}`]];if(W.partner.company)rows.push(['List name',W.partner.company]);
+    if(W.issuer) rows.push(['Portfolio company',W.issuer]); if(W.deal) rows.push(['Deal',W.deal]);
+    wTerms().forEach(l=>{if(W.terms[l]) rows.push([l.replace(/^deal:\s*/i,''),W.terms[l]])});
+    body=`<p class="status">This is exactly what ${esc(W.partner.name)} will receive. Framed boxes are what the partner fills in: the signing company, the representative and the address.</p>
+      <div class="esign-preview" id="wPreview" aria-label="Document preview"><div class="status">Loading the document…</div></div>
+      <dl class="kv esign-group">${rows.map(([a,b])=>`<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl>
+      <p class="status esign-group">The partner gets an email from legal@siliconvalleyinvestclub.com with you in copy, and their replies come to you. Serge receives the document for signature at the same time. Both sides receive the sealed PDF once both have signed.</p>`;
+    next='wSend()';
+  }
+  const back=W.step>1?`<button class="btn btn-ghost" onclick="wBack()">Back</button>`:`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>`;
+  // The confirmation sits next to Send, always in sight however long the document is.
+  const check=W.step===4?`<label class="chk esign-ftcheck"><input type="checkbox" id="wChecked" onchange="$('wNext').disabled=!this.checked"><span>I checked every term in this document. I am responsible for what the partner receives.</span></label>`:'';
+  const fwd=next?`<button class="btn btn-primary" id="wNext" onclick="${next}"${W.step===4||W.step===2&&W.signerUsBased!=='no'?' disabled':''}>${W.step===4?'Send for signature':'Continue'}</button>`:'';
+  showModal(`<div class="modal-hd"><h2>New document</h2><button class="modal-x" onclick="closeModal()" aria-label="Close">${window.ICON?ICON.x:'&times;'}</button></div><div class="modal-bd">${wStepsBar()}${body}</div><div class="modal-ft">${check}${back}${fwd}</div>`);
+  if(W.step===2){FINDERS.wFind={onPick:wUse};setTimeout(()=>$('wFindQ')&&$('wFindQ').focus(),30)}
+  if(W.step===4) wRenderPreview();
+}
+// The filled document as the partner will see it, drawn page by page.
+async function wRenderPreview(){const host=$('wPreview');if(!host||!W.envId)return;const id=W.envId;
+  try{await ensurePdfjs();const pdf=await pdfjsLib.getDocument({url:'/api/esign/'+id+'/preview',withCredentials:true}).promise;if(W.envId!==id)return;host.innerHTML='';
+    const w=Math.max(240,(host.clientWidth||560)-18);const dpr=Math.min(window.devicePixelRatio||1,2);
+    for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p);const v0=page.getViewport({scale:1});const v=page.getViewport({scale:w/v0.width*dpr});
+      const cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;cv.setAttribute('role','img');cv.setAttribute('aria-label','Page '+p);host.appendChild(cv);
+      await page.render({canvasContext:cv.getContext('2d'),viewport:v}).promise}}
+  catch(e){host.innerHTML='<div class="status">The preview did not load. <a href="/api/esign/'+esc(id)+'/preview" target="_blank" rel="noopener">Open the document</a></div>'}}
+function wTitle(){const k=KIND_INFO[W.tpl.metadata.standard_kind]||[W.tpl.title];
+  const letter=String(W.terms['deal: Exhibit letter']||'').trim().toUpperCase();const kind=W.tpl.metadata.standard_kind;
+  return /_exhibit$/.test(kind)&&letter?`Exhibit ${letter} to Collaboration Agreement${kind==='mfn_exhibit'?' MFN':''} — ${W.partner.company||W.partner.name}`:`${k[0]} — ${W.partner.company||W.partner.name}`}
+function wDropDraft(){if(!W.envId)return;const id=W.envId;W.envId=null;api('/api/esign/'+id,{method:'DELETE'}).catch(()=>{})}
+function wBack(){if(W.step===4)wDropDraft();if(W.step===2)W.partner={name:$('wName').value.trim(),email:$('wEmail').value.trim(),company:$('wCompany').value.trim()};W.step--;renderWizard()}
+async function wPick(pid){try{W.full=await api('/api/esign/templates/'+pid);W.tpl=W.full.envelope;W.terms={};W.step=2;renderWizard()}catch(e){showToast(e.message,true)}}
+function wUse(p){$('wName').value=p.name||'';$('wEmail').value=p.email||'';$('wCompany').value=p.company||'';$('wFindQ').value=''}
+function wPartnerNext(){const p={name:$('wName').value.trim(),email:$('wEmail').value.trim(),company:$('wCompany').value.trim()};
+  if($('wLocation').value!=='no')return showToast($('wLocation').value==='yes'?'Use Finalis or contact Serge Glebko for US-based signers.':'Answer the US-based signer question.',true);
+  if(!p.name||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email) ) return showToast('Name and a valid email are required.',true);
+  W.partner=p;W.step=3;renderWizard()}
+function wDealNext(){W.issuer=$('wIssuer')?$('wIssuer').value.trim():'';W.deal=$('wDeal').value.trim();
+  let bad='';document.querySelectorAll('.w-term').forEach(i=>{const r=cleanTerm(i.dataset.label,i.value);if(r.err&&!bad)bad=r.err;else if(!r.err){i.value=r.v;}W.terms[i.dataset.label]=r.err?i.value.trim():r.v});
+  if(bad) return showToast(bad,true);
+  if(wNeedsIssuer()&&!W.issuer) return showToast('Portfolio company is required.',true);
+  const missing=wTerms().filter(l=>(W.full.fields||[]).some(f=>String(f.label||'').trim()===l&&f.required)&&!W.terms[l]);
+  if(missing.length) return showToast(missing[0].replace(/^deal:\s*/i,'')+' is required.',true);
+  wPrepare()}
+// The draft is made before the last step, so the sender reads the real document.
+async function wPrepare(){const btn=$('wNext');if(btn){btn.disabled=true;btn.textContent='Preparing…'}
+  try{wDropDraft();const svicId=Number(W.tpl.metadata.svic_recipient_id);const partnerRole=(W.full.recipients||[]).find(r=>r.id!==svicId);
+    const r=await api('/api/esign/templates/'+W.tpl.public_id+'/use',{method:'POST',body:{title:wTitle(),
+      mappings:[{template_recipient_id:partnerRole.id,name:W.partner.name,email:W.partner.email}],
+      variables:{partner_name:W.partner.name,partner_email:W.partner.email,partner_company:W.partner.company,issuer:W.issuer,deal:W.deal,fields:W.terms}}});
+    W.envId=r.envelope.public_id;W.step=4;renderWizard()}
+  catch(e){if(btn){btn.disabled=false;btn.textContent='Continue'}showToast(e.message,true)}}
+async function wSend(){if(!$('wChecked')||!$('wChecked').checked)return showToast('Confirm that you checked the document.',true);
+  const btn=$('wNext');btn.disabled=true;btn.textContent='Sending…';
+  try{await api('/api/esign/'+W.envId+'/send',{method:'POST',body:{checked:true,signerUsBased:W.signerUsBased}});W.envId=null;
+    closeModal();showToast('Sent to '+W.partner.name+'. Serge receives it at the same time.');goDash();
+  }catch(e){btn.disabled=false;btn.textContent='Send for signature';showToast(e.message,true)}}
+async function applyRole(){try{const me=await api('/api/esign/me');window.ESIGN_ROLE=me.role;document.querySelectorAll('[data-role]').forEach(el=>{el.hidden=!el.dataset.role.split(' ').includes(me.role)});if(env&&$('builderView').style.display!=='none')renderNote();if(me.role==='manager'&&$('listView')&&!$('listView').hidden&&D.mode!=='board')loadDocs()}catch{}}
+applyRole();
+
+(function bootEsign(){
+  const u=urlRead();
+  if(['mine','archive'].includes(u.scope)) D.scope=u.scope;
+  if(u.mode==='board'&&D.scope!=='archive') D.mode='board';
+  if(Number(u.p)>1) D.page=Math.floor(Number(u.p));
+  if(u.q) $('search').value=u.q;
+  if(u.env){ openEnv(u.env, true); return; }
+  goDash(true);
+  if(u.view==='templates') openTemplates(true);
+  else if(u.view==='bulk') openBulk(true);
+  else if(u.view==='webhooks') openWebhooks(true);
+})();
+window.addEventListener('popstate',function(){
+  const u=urlRead();
+  if(u.env) openEnv(u.env, true);
+  else {
+    goDash(true);
+    if(u.view==='templates') openTemplates(true);
+    else if(u.view==='bulk') openBulk(true);
+    else if(u.view==='webhooks') openWebhooks(true);
+    else closeModal();
+  }
+});
+</script>
+</body>
+</html>

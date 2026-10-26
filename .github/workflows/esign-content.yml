@@ -1,0 +1,29 @@
+name: esign-content
+# E-Signature «Document» on a sent document's page (platform 2026-10-26) in a real
+# browser before it ships: branch page from overrides/esign, live shared files, sample /api answers only.
+on:
+  workflow_dispatch:
+    inputs:
+      engine: { description: 'webkit | chromium', default: 'webkit' }
+      tag: { description: 'Artifact tag', default: 'run' }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: ${{ inputs.engine }}
+          playwright-version: '1.49.0'
+      - run: rm -rf out && timeout 600 node esign-content.mjs
+        env:
+          ENGINE: ${{ inputs.engine }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: esign-content-${{ inputs.engine }}-${{ inputs.tag }}
+          path: out/
