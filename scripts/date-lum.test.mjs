@@ -8,7 +8,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verify, switches, darkAt, planList, copyCandidates, mergeResults, coverageGap, RATE,
   settleYtInfo, refreshMap, ENGINE, DEAD_YT, YT_INFO_CLIENTS, YT_DL_ATTEMPTS,
-  YT_JS_RUNTIME, ytDlpArgs, YT_WORKING_CLIENTS, mp4FileTruncated } from './date-lum.mjs';
+  YT_JS_RUNTIME, ytDlpArgs, YT_WORKING_CLIENTS, mp4FileTruncated,
+  COVERS_URL, coversFromManifest, fetchCovers } from './date-lum.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -340,4 +341,43 @@ test('Замок бага: карточка #8e87966e-460f-46ff-8333-1270d09c3b0
   const list = planList(covers, map, new Set(['clips3/JlChTvX4U4E.mp4']), now);
   assert.deepEqual(list.map((x) => x.id).sort(), ['JlChTvX4U4E', 'WaX6PX0gRvY']);
   assert.deepEqual(list.find((x) => x.id === 'JlChTvX4U4E').copies, ['clips3/JlChTvX4U4E.mp4']);
+});
+
+// Замок бага: карточка #478750d0-05d3-4222-8bd1-660905dc1a55
+// 26.10 план прочитал /__covers.json (кэш края на 6 часов, снимок 08:56) —
+// восьми роликов июня там не было, в работу ушло 0. Сторож с другого узла
+// прочитал живой манифест: те же восемь «not-yet», дата белая с тенью.
+const JUNE_NOT_YET = ['8FHBz-aoP-o', 'h_BXOsgle1o', 'pfsoziehm6s', 'pfpKJnk89cI',
+  '6HM9HqJ7H7c', '8euajiHy2PI', 'oIGvcm_ZPjU', 'Gr0PJ5Df6GY'];
+
+test('Замок бага: карточка #478750d0 — план читает живой манифест, шестичасовой кэш __covers.json ролики прячет', async () => {
+  assert.equal(COVERS_URL, 'https://siliconvalleyinvestclub.com/api/site/video-manifest');
+  assert.doesNotMatch(COVERS_URL, /__covers\.json/);
+  const stale = [{ v: 'keepvideo01', d: '2026-10-01' }];
+  const live = {
+    covers: stale.concat(JUNE_NOT_YET.map((v) => ({ v, d: '2026-06-15', u: '/2026/06/15/' + v + '/' }))),
+    built_at: '2026-10-26T14:16:17.776Z',
+  };
+  assert.throws(() => coversFromManifest({ tv: [], built_at: 'x' }), /covers/);
+  assert.throws(() => coversFromManifest(null), /covers/);
+  assert.deepEqual(coversFromManifest(stale), stale);
+  const map = { engine: ENGINE, tracks: { keepvideo01: { d0: 0, s: [] } }, fails: {} };
+  const noCopies = new Set();
+  assert.deepEqual(planList(coversFromManifest(stale), map, noCopies).map((x) => x.id), []);
+  assert.deepEqual(planList(coversFromManifest(live), map, noCopies).map((x) => x.id).sort(), JUNE_NOT_YET.slice().sort());
+  const gap = coverageGap(coversFromManifest(live), { ...map, since: '2026-10-11T16:58:21.299Z' }, Date.parse('2026-10-26T14:16:00Z'));
+  assert.equal(gap.miss.length, JUNE_NOT_YET.length);
+  assert.deepEqual(gap.miss.map((m) => m.reason), Array(JUNE_NOT_YET.length).fill('not-yet'));
+  let called = '';
+  const list = await fetchCovers(async (url) => {
+    called = url;
+    return { ok: true, status: 200, json: async () => live };
+  });
+  assert.match(called, /^https:\/\/siliconvalleyinvestclub\.com\/api\/site\/video-manifest\?date-lum=\d+$/);
+  assert.equal(list.length, live.covers.length);
+  await assert.rejects(fetchCovers(async () => ({ ok: false, status: 502 })), /502/);
+  await assert.rejects(fetchCovers(async () => ({ ok: true, status: 200, json: async () => ({ covers: [] }) })), /пуст/);
+  const yml = readFileSync(join(ROOT, '.github/workflows/date-lum.yml'), 'utf8');
+  assert.equal((yml.match(/date-lum\.mjs fetch-covers/g) || []).length, 2);
+  assert.doesNotMatch(yml, /__covers\.json/);
 });

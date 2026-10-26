@@ -39,7 +39,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          curl -sfL https://siliconvalleyinvestclub.com/__covers.json -o covers.json
+          node scripts/date-lum.mjs fetch-covers covers.json
           curl -sfL "https://github.com/$GITHUB_REPOSITORY/releases/download/date-lum/date-lum.json" -o date-lum.json || echo '{}' > date-lum.json
           : > assets.txt
           for TAG in clips3 clips2 clips; do
@@ -128,5 +128,5 @@ jobs:
         env:
           SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
         run: |
-          curl -sfL https://siliconvalleyinvestclub.com/__covers.json -o covers.json
+          node scripts/date-lum.mjs fetch-covers covers.json
           node scripts/date-lum.mjs watch covers.json date-lum.json

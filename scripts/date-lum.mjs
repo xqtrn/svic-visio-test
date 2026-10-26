@@ -39,7 +39,14 @@
 // date-lum.json в релизе date-lum; край сайта отдаёт строку ролика по
 // /svic-lum/<id>.json (testnew-edge/worker.mjs в svic-platform).
 //
+// СПИСОК РОЛИКОВ — живой /api/site/video-manifest (память источника 30 с),
+// не публичный /__covers.json. Край держит тот ответ 6 часов: 26.10 план
+// прочитал снимок 08:56 без восьми роликов июня и назначил 0 работы, а сторож
+// с другого узла увидел живой манифест и открыл карточку «not-yet»
+// (8FHBz-aoP-o и ещё семь). Шкалы не было — дата на карточке белая с тенью.
+//
 // CLI (workflow .github/workflows/date-lum.yml):
+//   fetch-covers <out.json>                                           → живой манифест .covers
 //   plan  <covers.json> <map.json> <assets.txt> <shards> <outdir>  → shards.json + plan-<k>.tsv
 //   run   <plan.tsv> <outdir> [budget-sec]                           → <outdir>/<id>.json
 //   merge <map.json> <results-dir>                                    → map.json на месте + отчёт
@@ -227,6 +234,26 @@ export function darkAt(tr, t){
 
 // ─── план ───────────────────────────────────────────────────────────────
 export const isYt = (v) => /^[A-Za-z0-9_-]{11}$/.test(String(v || ''));
+
+// Живой реестр роликов сайта. /__covers.json — тот же список плюс кэш края
+// на 6 часов: план и сторож одного прогона читали разные снимки
+// (карточка 478750d0).
+export const COVERS_URL = 'https://siliconvalleyinvestclub.com/api/site/video-manifest';
+
+export function coversFromManifest(payload){
+  const list = Array.isArray(payload) ? payload : (payload && payload.covers);
+  if (!Array.isArray(list)) throw new Error('манифест роликов без списка covers');
+  return list;
+}
+
+export async function fetchCovers(fetchImpl = fetch){
+  const url = COVERS_URL + '?date-lum=' + Date.now();
+  const res = await fetchImpl(url, { cache: 'no-store', redirect: 'follow' });
+  if (!res || !res.ok) throw new Error('манифест роликов ' + (res && res.status));
+  const list = coversFromManifest(await res.json());
+  if (!list.length) throw new Error('живой манифест роликов пуст');
+  return list;
+}
 export const RETRY_DAYS = 3;           // неудача (сеть, бот-стена, сверка) — повтор через 3 дня
 export const UNAVAILABLE_DAYS = 30;    // ролика на YouTube нет — карточка играет наш файл, шкала не нужна
 export const RELEASES = ['clips3', 'clips2', 'clips']; // тома склада копий, новые первыми
@@ -516,6 +543,14 @@ export function coverageGap(covers, map, now = Date.now()){
 async function main(){
   const [cmd, ...a] = process.argv.slice(2);
   const readJson = (f, d) => { try { return JSON.parse(readFileSync(f, 'utf8')); } catch (e) { return d; } };
+  if (cmd === 'fetch-covers'){
+    const [out] = a;
+    if (!out){ console.error('usage: date-lum.mjs fetch-covers <out.json>'); process.exit(2); }
+    const list = await fetchCovers();
+    writeFileSync(out, JSON.stringify(list));
+    console.log(`роликов в живом манифесте: ${list.length}`);
+    return;
+  }
   if (cmd === 'plan'){
     const [coversF, mapF, assetsF, nS, outdir] = a;
     const covers = readJson(coversF, []);
