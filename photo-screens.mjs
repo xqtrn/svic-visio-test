@@ -9,6 +9,9 @@ import { webkit, chromium } from 'playwright';
 import fs from 'fs';
 
 const ENGINE = process.env.ENGINE === 'webkit' ? 'webkit' : 'chromium';
+// STRIP=1 (2026-10-25, test candidate session): the branch loader.js draws the «Test candidate ·
+// Back to my account» strip from the svic_qa_test cookie; the run sets that cookie and checks it.
+const STRIP = process.env.STRIP === '1';
 const OUT = 'out';
 const DIR = 'overrides/photo';
 fs.mkdirSync(OUT, { recursive: true });
@@ -23,9 +26,6 @@ const report = { engine: ENGINE, steps: [], errors: [], puts: [], strip: STRIP }
 if (STRIP) await ctx.addCookies([{ name: 'svic_qa_test', value: 'r', domain: 'platform.siliconvalleyinvestclub.com', path: '/', secure: true, sameSite: 'Lax' }]);
 const PLATFORM = 'platform.siliconvalleyinvestclub.com';
 const PORTAL = 'portal.siliconvalleyinvestclub.com';
-// STRIP=1 (2026-10-25, test candidate session): the branch loader.js draws the «Test candidate ·
-// Back to my account» strip from the svic_qa_test cookie; the run sets that cookie and checks it.
-const STRIP = process.env.STRIP === '1';
 const OWN = new Set(['my-photo.html', 'my-photo.js', 'member-photo.js', 'onboarding.css', 'onboarding.html', 'onboarding.js', 'onboarding-associate.js', 'auth-guard.js', ...(STRIP ? ['loader.js'] : [])]);
 const type = (f) => f.endsWith('.css') ? 'text/css' : f.endsWith('.js') ? 'application/javascript' : f.endsWith('.png') ? 'image/png' : 'text/html; charset=utf-8';
 const file = (f) => ({ status: 200, contentType: type(f), body: fs.readFileSync(`${DIR}/${f}`) });
