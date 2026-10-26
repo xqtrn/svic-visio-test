@@ -127,7 +127,9 @@ const state = (sel) => page.evaluate((s) => {
     const el = [...document.querySelectorAll(s)].find((e) => e.getClientRects().length > 0) || null;
     if (!el) out.hit = 'missing';
     else {
-      const r = el.getBoundingClientRect();
+      let r = el.getBoundingClientRect();
+      // Off screen is not «covered»: bring it into view the way a thumb scroll would.
+      if (r.top < 0 || r.bottom > window.innerHeight) { el.scrollIntoView({ block: 'center' }); r = el.getBoundingClientRect(); }
       const x = r.left + Math.min(r.width / 2, 40), y = r.top + r.height / 2;
       const top = document.elementFromPoint(x, y);
       out.hit = !!top && (top === el || el.contains(top));
