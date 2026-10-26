@@ -105,7 +105,7 @@
     tag.hidden = false;
     tag.className = 'tag ' + (test ? 'pending' : 'ready');
     tag.innerHTML = '<span class="dot"></span>' + (test ? 'Test photo' : 'Added');
-    $('aPhotoNote').textContent = test ? 'A test picture stands in for the candidate’s photo. A real candidate takes or uploads their own.' : 'On your profile and in your email signature.';
+    $('aPhotoNote').textContent = test ? 'A test picture stands in for the candidate’s own photo.' : 'On your profile and in your email signature.';
     photoButtons();
   }
   function renderDetails() {

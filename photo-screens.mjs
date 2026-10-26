@@ -19,10 +19,14 @@ const profile = ENGINE === 'webkit'
   : { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1.25 };
 const browser = await (ENGINE === 'webkit' ? webkit : chromium).launch();
 const ctx = await browser.newContext({ ...profile, locale: 'en-US' });
-const report = { engine: ENGINE, steps: [], errors: [], puts: [] };
+const report = { engine: ENGINE, steps: [], errors: [], puts: [], strip: STRIP };
+if (STRIP) await ctx.addCookies([{ name: 'svic_qa_test', value: 'r', domain: 'platform.siliconvalleyinvestclub.com', path: '/', secure: true, sameSite: 'Lax' }]);
 const PLATFORM = 'platform.siliconvalleyinvestclub.com';
 const PORTAL = 'portal.siliconvalleyinvestclub.com';
-const OWN = new Set(['my-photo.html', 'my-photo.js', 'member-photo.js', 'onboarding.css', 'onboarding.html', 'onboarding.js', 'onboarding-associate.js', 'auth-guard.js']);
+// STRIP=1 (2026-10-25, test candidate session): the branch loader.js draws the «Test candidate ·
+// Back to my account» strip from the svic_qa_test cookie; the run sets that cookie and checks it.
+const STRIP = process.env.STRIP === '1';
+const OWN = new Set(['my-photo.html', 'my-photo.js', 'member-photo.js', 'onboarding.css', 'onboarding.html', 'onboarding.js', 'onboarding-associate.js', 'auth-guard.js', ...(STRIP ? ['loader.js'] : [])]);
 const type = (f) => f.endsWith('.css') ? 'text/css' : f.endsWith('.js') ? 'application/javascript' : f.endsWith('.png') ? 'image/png' : 'text/html; charset=utf-8';
 const file = (f) => ({ status: 200, contentType: type(f), body: fs.readFileSync(`${DIR}/${f}`) });
 const json = (o, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(o) });
@@ -103,7 +107,13 @@ async function shot(name, extra = {}) {
   await page.screenshot({ path: `${OUT}/${base}-full.png`, fullPage: true }).catch(() => {});
   const probe = await page.evaluate(() => ({ url: location.host + location.pathname, scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth })).catch(() => ({}));
   const spacing = await page.evaluate(PROBE).catch((e) => ({ error: String(e).slice(0, 120) }));
-  const step = { n, name, file: `${base}.png`, ...probe, overflow: probe.scrollWidth > probe.innerWidth + 1, spacing, ...extra };
+  const strip = STRIP && page.url().includes('platform.') ? await page.evaluate(() => {
+    const el = document.getElementById('svicQaTest'); if (!el) return null;
+    const r = el.getBoundingClientRect(); const a = document.getElementById('svicQaBack');
+    return { text: el.innerText.replace(/\s+/g, ' ').trim(), top: Math.round(r.top), height: Math.round(r.height), width: Math.round(r.width), back: a && a.getAttribute('href') };
+  }).catch(() => null) : undefined;
+  if (STRIP && page.url().includes('platform.') && !strip) report.errors.push({ step: 'strip-missing', url: page.url() });
+  const step = { n, name, file: `${base}.png`, ...probe, overflow: probe.scrollWidth > probe.innerWidth + 1, spacing, strip, ...extra };
   report.steps.push(step);
   console.log('[shot]', JSON.stringify(step));
 }
@@ -131,6 +141,17 @@ try {
   await page.click('#aBtnDetails');
   await page.waitForSelector('.ob-panel.on[data-astep="3"]', { timeout: 10000 });
   await shot('associate-after-continue');
+
+  // 2b. STRIP: «Back to my account» goes to the server's restore address (answered here: the
+  // stand has no session).
+  if (STRIP) {
+    await page.route(/\/auth\/qa-test-back$/, (route) => route.fulfill({ status: 302, headers: { location: '/login?back=ok' } }));
+    await page.goto(`https://${PLATFORM}/onboarding`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#svicQaBack');
+    await shot('strip-on-onboarding');
+    await Promise.all([page.waitForURL(/\/login\?back=ok/, { timeout: 15000 }), page.click('#svicQaBack')]);
+    report.backClick = new URL(page.url()).pathname + new URL(page.url()).search;
+  }
 
   // 3. partner portal: the photo step before any section
   await page.goto(`https://${PORTAL}/market`, { waitUntil: 'domcontentloaded' });

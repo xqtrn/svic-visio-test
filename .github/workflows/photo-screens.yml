@@ -6,6 +6,7 @@ on:
     inputs:
       engine: { description: 'webkit | chromium', default: 'webkit' }
       tag: { description: 'Artifact tag', default: 'run' }
+      strip: { description: '1 = branch loader.js with the test candidate strip cookie set', default: '0' }
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -22,6 +23,7 @@ jobs:
       - run: rm -rf out && timeout 600 node photo-screens.mjs
         env:
           ENGINE: ${{ inputs.engine }}
+          STRIP: ${{ inputs.strip }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
