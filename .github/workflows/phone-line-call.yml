@@ -1,0 +1,35 @@
+name: phone-line-call
+# An associate's phone line, live, on a QA TEST CANDIDATE only: the test candidate signs in
+# by his test link (secret AJ_WELCOME_A, set for the run and deleted right after), places one
+# outgoing call to one of OUR OWN pool numbers and answers one incoming call to his line.
+on:
+  workflow_dispatch:
+    inputs:
+      dial_to: { description: 'One of our own +1650 pool numbers (never a person)', required: true }
+      talk_seconds: { description: 'Seconds to keep each call up', default: '45' }
+      wait_incoming_seconds: { description: 'Seconds to wait for the incoming call', default: '300' }
+      tag: { description: 'Artifact tag', default: 'run' }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: chromium
+          playwright-version: '1.49.0'
+      - run: rm -rf out && timeout 900 node phone-line-call.mjs
+        env:
+          AJ_WELCOME: ${{ secrets.AJ_WELCOME_A }}
+          DIAL_TO: ${{ inputs.dial_to }}
+          TALK_SECONDS: ${{ inputs.talk_seconds }}
+          WAIT_INCOMING_SECONDS: ${{ inputs.wait_incoming_seconds }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phone-line-call-${{ inputs.tag }}
+          path: out/
