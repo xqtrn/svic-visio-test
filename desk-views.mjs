@@ -6,7 +6,8 @@
 //
 // SOURCE=fixture (default): every /api/ call is answered from
 //   overrides/desk/fixture.json (production companies and terms, cast partners);
-//   PAGE=branch serves overrides/desk/trade-desk.html, PAGE=live the live page.
+//   PAGE=branch serves overrides/desk/trade-desk.html, PAGE=main the baseline
+//   overrides/desk/trade-desk-main.html (the page before the change).
 // SOURCE=live: the live platform with the session in DESK_COOKIES (a secret set
 //   for the run and deleted right after; QA users only). Nothing is written:
 //   the walk only opens and closes pages.
@@ -16,13 +17,14 @@ import fs from 'fs';
 
 const ENGINE = process.env.ENGINE === 'chromium' ? 'chromium' : 'webkit';
 const SOURCE = process.env.SOURCE === 'live' ? 'live' : 'fixture';
-const PAGE_SRC = process.env.PAGE === 'live' ? 'live' : 'branch';
+const PAGE_SRC = process.env.PAGE === 'main' ? 'main' : 'branch';
 const CANDIDATE = process.env.CANDIDATE === '1';
 const BASE = 'https://platform.siliconvalleyinvestclub.com';
 const OUT = 'out';
 fs.mkdirSync(OUT, { recursive: true });
 const PROBE = fs.readFileSync('overrides/ds-spacing-probe.browser.js', 'utf8');
-const PAGE = fs.readFileSync('overrides/desk/trade-desk.html', 'utf8');
+// branch = the page under review; main = the page live before it (the baseline).
+const PAGE = fs.readFileSync(PAGE_SRC === 'main' ? 'overrides/desk/trade-desk-main.html' : 'overrides/desk/trade-desk.html', 'utf8');
 const FX = JSON.parse(fs.readFileSync('overrides/desk/fixture.json', 'utf8'));
 const timed = (o) => JSON.parse(JSON.stringify(o).replace(/"__NOW([+-]\d+)?__"/g, (_, d) => JSON.stringify(new Date(Date.now() + (d ? Number(d) * 60000 : 0)).toISOString())));
 const profile = ENGINE === 'webkit'
@@ -66,7 +68,6 @@ if (SOURCE === 'live') {
   await ctx.route((url) => url.hostname === 'platform.siliconvalleyinvestclub.com', async (route, req) => {
     const u = new URL(req.url());
     if (req.resourceType() === 'document' && /^\/desk\//.test(u.pathname)) {
-      if (PAGE_SRC === 'live') return route.fallback();
       return route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: PAGE });
     }
     if (!u.pathname.startsWith('/api/')) return route.fallback();

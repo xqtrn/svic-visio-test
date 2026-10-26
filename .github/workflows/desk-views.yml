@@ -7,7 +7,7 @@ on:
     inputs:
       engine: { description: 'webkit | chromium', default: 'webkit' }
       source: { description: 'fixture | live', default: 'fixture' }
-      page: { description: 'branch | live (fixture source only)', default: 'branch' }
+      page: { description: 'branch | main (baseline) — fixture source only', default: 'branch' }
       candidate: { description: '1 = candidate preview (fixture source)', default: '0' }
       slot: { description: 'a | b — which QA session secret (DESK_COOKIES_A / _B), live source', default: 'a' }
       tag: { description: 'Artifact tag', default: 'run' }

@@ -200,6 +200,7 @@
      page's own content, toggled on mobile by #railToggle. */
   #railToggle{ display:inline-flex; align-items:center; gap:6px; }
   .td-head{ display:none; position:static; }
+  @media(min-width:641px){ .td-phone-only{ display:none; } }
   @media(max-width:900px){ .td-cards{ grid-template-columns:1fr; } }
   /* Phone: the list and the open page are two views, one at a time, both in the
      page's flow (onboarding QA on a real iPhone, 2026-10-23 and 10-25: the rail
@@ -1236,6 +1237,9 @@
       });
       if(!any) html+='<div class="banner"><span>'+IC.info+'</span><div><span class="bt">No deals yet.</span> Take a pair from Matches — once you reach both sides within the hour it stays in your pipeline.</div></div>';
     }else{
+      // On a phone the start screen is the list, so the pairs on his clock lead it
+      // (on a desktop they lead the rail beside it).
+      if(ticking.length) html+='<div class="td-phone-only">'+qSection('On your clock ('+ticking.length+')', ticking.map(matchRow).join(''))+'</div>';
       if(hasGaps) html+='<div class="td-home-lens">'+lensSeg((d.available||[]).length, d.gaps.length)+'</div>';
       if(hasGaps && matchLens==='gaps'){
         html+='<div class="banner warn" style="margin-top:20px" data-open><span>'+IC.info+'</span><div><span class="bt">These pairs are missing a price.</span> Take one, call the side without a price and write down what they say. The order is updated, the desk verifies it, and the pair is scored like any match. Largest and freshest first.</div></div>';
