@@ -111,7 +111,7 @@ async function shot(name, { targets = [], extra = {}, settle = 700 } = {}) {
 }
 async function step(name, fn, { soft = false } = {}) {
   try { await fn(); } catch (e) {
-    report.errors.push({ step: name, error: safeUrl(String(e)).slice(0, 400) });
+    report.errors.push({ step: name, error: safeUrl(String(e)).slice(0, 1600) });
     console.log('[error]', name, safeUrl(String(e)).slice(0, 400));
     await shot(`${name}-error`).catch(() => {});
     if (!soft) throw e;
