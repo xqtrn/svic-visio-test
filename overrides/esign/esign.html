@@ -122,7 +122,8 @@
   .modal-ft:has(.esign-ftcheck){ flex-wrap:wrap; }
   .esign-ftcheck{ flex:1 1 240px; margin-right:auto; font-size:12.5px; line-height:1.4; }
   .esign-preview canvas{ display:block; width:100%; height:auto; border:1px solid var(--line); }
-  .esign-docview{ max-height:70vh; margin:0 0 var(--sp-6); padding:var(--sp-3); }
+  .esign-docnote{ margin:0; }
+  .esign-docview{ max-height:70vh; margin:var(--sp-3) 0 var(--sp-6); padding:var(--sp-3); }
   #dDocOpen{ margin-left:auto; }
   .esign-choice{ display:block; width:100%; text-align:left; font:inherit; color:var(--ink); background:none; border:1px solid var(--line); border-radius:var(--r-card); padding:var(--sp-4); cursor:pointer; }
   .esign-choice:hover:not(:disabled){ border-color:var(--accent); }
@@ -326,7 +327,8 @@
     <div class="esign-note" id="dApprovalActions" hidden><span>Waiting for Serge to approve this draft.</span><button class="btn btn-primary btn-sm" onclick="decideApproval(true)">Approve</button><button class="btn btn-ghost btn-sm" onclick="decideApproval(false)">Return with comment</button></div>
     <div class="esign-note" id="dChangesBox" hidden><div id="dChangesEvidence"></div><div class="esign-actions"><button class="btn btn-primary btn-sm" onclick="acceptChanges()">Accept changes as new version</button><button class="btn btn-ghost btn-sm" onclick="rejectChanges()">Reject with reply</button></div></div>
     <div id="dDocBox" hidden>
-      <div class="esign-sechead"><div class="eyebrow" role="heading" aria-level="2">Document</div><span class="status" id="dDocNote"></span><a class="btn btn-link btn-sm" id="dDocOpen" target="_blank" rel="noopener">Open in a new tab</a></div>
+      <div class="esign-sechead"><div class="eyebrow" role="heading" aria-level="2">Document</div><a class="btn btn-link btn-sm" id="dDocOpen" target="_blank" rel="noopener">Open in a new tab</a></div>
+      <p class="status esign-docnote" id="dDocNote"></p>
       <div class="panel-card esign-preview esign-docview" id="dDoc" aria-label="Document pages"></div>
     </div>
     <div class="eyebrow esign-sechead" role="heading" aria-level="2">Signers</div>

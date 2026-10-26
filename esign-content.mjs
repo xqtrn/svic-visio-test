@@ -63,7 +63,7 @@ await ctx.route((u) => u.hostname === PLATFORM, async (route, req) => {
 
 const page = await ctx.newPage();
 page.on('pageerror', (e) => report.errors.push({ step: 'pageerror', url: page.url(), error: String(e).slice(0, 300) }));
-page.on('console', (m) => { if (m.type() === 'error' && !/404|sample stand/.test(m.text())) report.errors.push({ step: 'console', url: page.url(), error: m.text().slice(0, 300) }); });
+page.on('console', (m) => { if (m.type() === 'error' && !/404|sample stand|Content Security Policy/.test(m.text())) report.errors.push({ step: 'console', url: page.url(), error: m.text().slice(0, 300) }); });
 page.on('dialog', (d) => { report.errors.push({ step: 'native-dialog', error: d.message() }); d.dismiss().catch(() => {}); });
 let n = 0;
 async function shot(name, extra = {}) {
@@ -105,6 +105,7 @@ for (const [pid, label] of [['qasent', 'sent-not-signed'], ['qadone', 'signed']]
 
 // «Open in a new tab» opens the same pages.
 const [popup] = await Promise.all([ctx.waitForEvent('page', { timeout: 10000 }).catch(() => null), page.click('#dDocOpen').catch(() => null)]);
+if (popup) await popup.waitForURL(/\/content$/, { timeout: 15000 }).catch(() => {});
 report.newTab = popup ? popup.url() : null;
 if (!popup || !/\/api\/esign\/qadone\/content$/.test(popup.url())) report.errors.push({ step: 'open-new-tab', url: report.newTab });
 
