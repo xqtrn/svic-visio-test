@@ -107,7 +107,9 @@ for (const [pid, label] of [['qasent', 'sent-not-signed'], ['qadone', 'signed']]
 const [popup] = await Promise.all([ctx.waitForEvent('page', { timeout: 10000 }).catch(() => null), page.click('#dDocOpen').catch(() => null)]);
 if (popup) await popup.waitForURL(/\/content$/, { timeout: 15000 }).catch(() => {});
 report.newTab = popup ? popup.url() : null;
-if (!popup || !/\/api\/esign\/qadone\/content$/.test(popup.url())) report.errors.push({ step: 'open-new-tab', url: report.newTab });
+// The new tab shows the PDF (its address is not always readable once a PDF viewer owns it):
+// proof is the tab itself plus the third request to the content address.
+if (!popup || report.contentHits.length !== 3 || report.contentHits[2] !== 'qadone') report.errors.push({ step: 'open-new-tab', url: report.newTab, hits: report.contentHits });
 
 fs.writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 2));
 console.log('[report]', JSON.stringify({ engine: ENGINE, steps: report.steps.length, errors: report.errors, contentHits: report.contentHits, newTab: report.newTab }));
