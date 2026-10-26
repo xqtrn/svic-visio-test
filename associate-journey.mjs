@@ -132,15 +132,19 @@ try {
       // branch front end (OVERRIDE) is the one on screen.
       if (process.env.OVERRIDE === '1') await page.goto(BASE + '/onboarding', { waitUntil: 'domcontentloaded' });
     });
+    // Since 2026-10-25 (test link session fix): an unfinished setup is where the photo is
+    // taken, so the gate leads to /onboarding, not /my-photo; every test page carries the
+    // «Test candidate · Back to my account» strip.
     if (NOTYPE) await step('photo-gate', async () => {
       await page.goto(BASE + '/mailbox', { waitUntil: 'domcontentloaded', timeout: 60000 });
-      await page.waitForURL(/\/my-photo/, { timeout: 30000 });
-      await page.waitForSelector('#mpPick', { timeout: 30000 });
-      await shot('gate-my-photo', { targets: ['#mpPick', '#mpCamera', '#mpNext'], extra: { gate: new URL(page.url()).pathname + new URL(page.url()).search } });
+      await page.waitForURL(/\/onboarding/, { timeout: 30000 });
+      await page.waitForSelector('#svicQaBack', { timeout: 30000 });
+      report.gatePage = new URL(page.url()).pathname;
+      report.strip = await page.evaluate(() => { const el = document.getElementById('svicQaTest'); return el ? el.innerText.replace(/\s+/g, ' ').trim() : null; });
+      await shot('gate-onboarding-with-strip', { targets: ['#svicQaBack'], extra: { gate: report.gatePage, strip: report.strip } });
       const probe = await api('/api/marketplace/book');
-      report.gateApi = probe.status;
-      if (probe.status !== 428) throw new Error('API before the photo answered ' + probe.status + ', expected 428');
-      await page.goto(BASE + '/onboarding', { waitUntil: 'domcontentloaded', timeout: 60000 });
+      report.gateApi = probe.status; report.gateApiPage = probe.body && probe.body.photoPage;
+      if (probe.status !== 428 || report.gateApiPage !== '/onboarding') throw new Error('API before the photo answered ' + probe.status + ' ' + report.gateApiPage + ', expected 428 /onboarding');
     });
     await step('account', async () => {
       await page.waitForSelector('.ob-panel.on[data-astep="1"], .ob-panel.on[data-astep="2"]', { timeout: 30000 });
@@ -278,6 +282,13 @@ try {
     if (await burger.isVisible().catch(() => false)) { await burger.click(); await shot('menu-open', { settle: 1200 }); }
   }, { soft: true });
   report.path = (await api('/api/my-path').catch(() => ({}))).body || null;
+  if (NOTYPE) await step('back-to-my-account', async () => {
+    await go('/my-path', '#svicQaBack', 'strip-before-back', { targets: ['#svicQaBack'] });
+    await Promise.all([page.waitForURL(/\/login/, { timeout: 30000 }), page.click('#svicQaBack')]);
+    report.afterBack = { url: new URL(page.url()).pathname, me: (await api('/api/auth/me')).status, strip: await visible('#svicQaTest') };
+    await shot('after-back', { extra: report.afterBack });
+    if (report.afterBack.me !== 401 || report.afterBack.strip) throw new Error('back did not close the test session: ' + JSON.stringify(report.afterBack));
+  }, { soft: true });
 } catch (e) {
   report.fatal = safeUrl(String(e)).slice(0, 400);
 } finally {

@@ -150,7 +150,7 @@
           'background:var(--navy-2,#13233f);color:var(--on-navy,#cdd6e6);border-bottom:1px solid rgba(205,214,230,.14);' +
           'font:600 12px/1 var(--sans,Inter,-apple-system,BlinkMacSystemFont,sans-serif);letter-spacing:.1em;text-transform:uppercase}' +
         '.svic-qatest-l{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-        '.svic-qatest-l i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--warn,#b7791f)}' +
+        '.svic-qatest-l i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--warn,currentColor)}' +
         '.svic-qatest-l span{color:var(--on-navy-muted,#8c98b0)}' +
         '.svic-qatest-x{flex:none;display:inline-flex;align-items:center;height:20px;padding:0 10px;border:1px solid rgba(205,214,230,.42);' +
           'border-radius:var(--r-control,4px);color:var(--on-navy,#cdd6e6);text-decoration:none;font:inherit;letter-spacing:.1em;cursor:pointer}' +
