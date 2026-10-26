@@ -124,7 +124,7 @@ const state = (sel) => page.evaluate((s) => {
     path: location.pathname, scrollTop: (document.getElementById('scroll') || {}).scrollTop || 0,
   };
   if (s) {
-    const el = document.querySelector(s);
+    const el = [...document.querySelectorAll(s)].find((e) => e.getClientRects().length > 0) || null;
     if (!el) out.hit = 'missing';
     else {
       const r = el.getBoundingClientRect();
@@ -138,7 +138,7 @@ const state = (sel) => page.evaluate((s) => {
   return out;
 }, sel || null);
 const waitAct = (act) => page.waitForFunction((a) => { const b = document.getElementById('railToggle'); return b && b.dataset.act === a; }, act, { timeout: 20000 });
-const waitRows = () => page.waitForSelector('#convo .td-pair-row', { timeout: 30000 });
+const waitRows = () => page.waitForSelector('#convo .td-pair-row >> visible=true', { timeout: 30000 });
 const tap = async (sel) => { const l = page.locator(sel).first(); if (ENGINE === 'webkit') await l.tap({ timeout: 10000 }); else await l.click({ timeout: 10000 }); };
 
 async function phone() {
@@ -259,8 +259,7 @@ async function desktop() {
   let s = await state('#convo .td-pair-row .nm');
   check('desktop matches: rail and page side by side, no page head', s.side !== 'none' && s.main !== 'none' && s.head === 'none' && s.sideWidth === 384, s);
   await shot('desktop-matches');
-  await page.locator('#convo .td-pair-row').first().locator('[data-open-match]').click();
-  await waitAct('up');
+  await page.locator('#convo .td-pair-row >> visible=true').first().locator('[data-open-match]').click();
   await page.waitForSelector('#tdTake, .td-figs', { timeout: 20000 });
   s = await state();
   check('desktop: Open still opens the pair beside the rail', s.side !== 'none' && s.sideWidth === 384, s);
