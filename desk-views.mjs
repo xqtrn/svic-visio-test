@@ -189,16 +189,17 @@ async function phone() {
     check('Back keeps the place in the list', Math.abs(after - before) < 40, { before, after });
   }
 
-  // 5. «Missing price» on the start screen.
+  // 5. «Missing price» on the start screen (rows under the switch, not the held pairs above it).
+  const GAP_ROW = '#convo .td-home-lens ~ .td-q .td-pair-row .nm';
   if (await page.locator('#convo [data-lens="gaps"]').count()) {
     await tap('#convo [data-lens="gaps"]');
     await page.waitForFunction(() => /Missing price/.test((document.querySelector('#convo') || {}).textContent || '') && document.querySelector('#convo [data-lens="gaps"].on'), null, { timeout: 15000 });
     await page.evaluate(() => { const sc = document.getElementById('scroll'); if (sc) sc.scrollTop = 0; });
-    s = await state('#convo .td-pair-row .nm');
+    s = await state(GAP_ROW);
     check('missing price list: first pair is what a finger hits', s.hit === true, s);
     await shot('missing-price-list', { full: true });
     if (s.hit !== 'missing') {
-      await tap('#convo .td-pair-row .nm');
+      await tap(GAP_ROW);
       await waitAct('up');
       await page.waitForSelector('#tdTake, .td-figs', { timeout: 20000 });
       await shot('missing-price-match');
