@@ -172,8 +172,11 @@
     @media (max-width: 900px) { .relGrid { grid-template-columns: 1fr; } }
     @media (max-width: 600px) {
       .relPanel { padding: 16px 14px; }
-      .relList li { flex-wrap: wrap; }
-      .relMeta { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+      /* name and the remove cross share the first line; tags and actions take the second */
+      .relList li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 10px; }
+      .relWho { grid-column: 1; grid-row: 1; }
+      .relRm { grid-column: 2; grid-row: 1; }
+      .relMeta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; flex-wrap: wrap; }
     }
     @media (max-width: 900px) { .lanes3 { grid-template-columns: 1fr; } .hero { grid-template-columns: 1fr; gap: 14px; } }
     @media (max-width: 600px) {
@@ -903,10 +906,11 @@
           ? '<span class="tag neutral" title="Only a company not pitched to them before">Other companies only</span>'
           : '<span class="tag neutral">Until ' + esc(it.resumes_at) + '</span>');
       }
-      acts.push('<button type="button" class="iconbtn" data-rel-remove="' + it.id + '" title="Take off this list" aria-label="Take off this list">' + REL_X() + '</button>');
+      const remove = '<button type="button" class="iconbtn relRm" data-rel-remove="' + it.id + '" title="Take off this list" aria-label="Take off this list">' + REL_X() + '</button>';
       const added = 'Added ' + esc(it.added_at) + (it.added_by ? ' by ' + esc(it.added_by) : '');
-      return '<li><div class="relWho"><b>' + esc(who) + '</b><span>' + esc(sub) + '</span><span title="' + added + '">' + added + '</span></div>'
-        + '<div class="relMeta">' + tags.join('') + acts.join('') + '</div></li>';
+      const meta = tags.length || acts.length ? '<div class="relMeta">' + tags.join('') + acts.join('') + '</div>' : '';
+      return '<li><div class="relWho"><b>' + esc(who) + '</b><span>' + esc(sub) + '</span><span>' + added + '</span></div>'
+        + meta + remove + '</li>';
     }
     function relPanelHtml(tier) {
       const meta = (REL.tiers && REL.tiers[tier]) || { title: tier };
