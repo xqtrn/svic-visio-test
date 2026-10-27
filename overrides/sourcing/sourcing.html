@@ -874,6 +874,8 @@
       stop: 'Asked us not to write. This address never gets an email from the mailing.',
     };
     let REL = null;
+    // The kit's glyph when ui.js has loaded, the same stroke otherwise — a missing kit must not blank the lists.
+    const REL_X = () => (window.ICON && window.ICON.x) || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     async function loadRelationships() {
       const grid = document.getElementById('relGrid');
       let d;
@@ -881,8 +883,6 @@
       catch (e) { d = { error: 'Could not load the lists' }; }
       if (!d || d.error) { grid.innerHTML = '<div class="relPanel"><p class="muted">' + esc((d && d.error) || 'Could not load the lists') + '</p></div>'; return; }
       REL = d;
-      // ui.js is deferred: the icon set exists once the document has parsed.
-      if (document.readyState === 'loading') await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
       document.getElementById('relDue').textContent = d.due ? (d.due + ' check-in' + (d.due === 1 ? '' : 's') + ' due') : 'No check-ins due';
       grid.innerHTML = REL_ORDER.map(relPanelHtml).join('');
     }
@@ -903,7 +903,7 @@
           ? '<span class="tag neutral" title="Only a company not pitched to them before">Other companies only</span>'
           : '<span class="tag neutral">Until ' + esc(it.resumes_at) + '</span>');
       }
-      acts.push('<button type="button" class="iconbtn" data-rel-remove="' + it.id + '" title="Take off this list" aria-label="Take off this list">' + ICON.x + '</button>');
+      acts.push('<button type="button" class="iconbtn" data-rel-remove="' + it.id + '" title="Take off this list" aria-label="Take off this list">' + REL_X() + '</button>');
       const added = 'Added ' + esc(it.added_at) + (it.added_by ? ' by ' + esc(it.added_by) : '');
       return '<li><div class="relWho"><b>' + esc(who) + '</b><span>' + esc(sub) + '</span><span title="' + added + '">' + added + '</span></div>'
         + '<div class="relMeta">' + tags.join('') + acts.join('') + '</div></li>';
