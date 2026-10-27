@@ -34,6 +34,19 @@ const profile = phone
 
 const browser = await (phone ? webkit : chromium).launch();
 const ctx = await browser.newContext({ ...profile, timezoneId: 'America/New_York', locale: 'en-US', colorScheme: 'light' });
+// A real candidate never sees the «Test candidate · Back to my account» strip: it is
+// drawn by loader.js from the page-readable svic_qa_test cookie. Hide that one cookie
+// from the page's scripts (the session itself is untouched), so every frame shows the
+// platform exactly as a candidate sees it.
+if (process.env.KEEP_QA_STRIP !== '1') await ctx.addInitScript(() => {
+  const d = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
+  if (!d || !d.get) return;
+  Object.defineProperty(document, 'cookie', {
+    configurable: true,
+    get() { return String(d.get.call(document)).split(/;\s*/).filter((c) => !/^svic_qa_test=/.test(c)).join('; '); },
+    set(v) { d.set.call(document, v); },
+  });
+});
 const page = await ctx.newPage();
 page.on('pageerror', (e) => report.errors.push({ step: 'pageerror', url: safeUrl(page.url()), error: safeUrl(String(e)).slice(0, 300) }));
 page.on('dialog', (d) => { report.errors.push({ step: 'native-dialog', error: d.message() }); d.dismiss().catch(() => {}); });
@@ -129,8 +142,10 @@ try {
       await page.waitForTimeout(2500);
       await shot('mail-letter', { targets: ['.msg-subj', '.msg-body', '.att, .attachment'] });
     }
-    await page.goto(BASE + mailHref + '#settings/signatures', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+    // Settings open from the hash once the mailbox app is up (a cold load with the hash stays on the inbox).
+    await page.evaluate(() => { location.hash = '#settings/signatures'; });
+    await page.waitForTimeout(2500);
+    if (!(await visible('[data-settings-group="signature"]'))) { await page.evaluate(() => { location.hash = ''; location.hash = '#settings/signatures'; }); await page.waitForTimeout(2500); }
     await shot('mail-signature', { targets: ['[data-settings-group="signature"]', '#settingsPanel', '.sig-preview'], settle: 3000 });
   });
   await step('scheduling', async () => {
