@@ -138,6 +138,35 @@ try {
   await step('orientation', async () => {
     await go('/training/orientation', 'main', 'orientation', { targets: ['#orFrame', '#orSkip', '#orGo', '#yourPath', '#pathNext'], settle: 2500 });
   });
+  // VERIFY (ONLY=verify): the live orientation page on the QA candidate — the video is
+  // published (HEAD 200), plays inside the page, the first Play is saved, «Mark as watched»
+  // saves watched and the strip changes its button. Writes only the QA candidate's own row.
+  await step('verify', async () => {
+    const v = {};
+    await page.goto(BASE + '/training/orientation?after=setup', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    v.head = await page.evaluate(async () => (await fetch('/training/orientation/video', { method: 'HEAD', credentials: 'include' })).status);
+    v.before = await page.evaluate(async () => { const d = await (await fetch('/api/nav', { credentials: 'include' })).json(); return { next: d.path && d.path.next && d.path.next.label, o: d.path && d.path.orientation, menu: [...(d.menu.pinned || []), ...(d.menu.groups || []).flatMap((g) => g.items)].some((i) => i.id === 'orientation') }; });
+    const frame = await (await page.waitForSelector('#orFrame', { timeout: 30000 })).contentFrame();
+    await frame.waitForFunction(() => window.__demo && window.__demo.TOTAL > 0, null, { timeout: 90000 });
+    v.total = await frame.evaluate(() => window.__demo.TOTAL);
+    v.chapters = await page.evaluate(() => document.querySelectorAll('#orChList li').length);
+    await shot('verify-loaded', { targets: ['#orFrame', '#orSkip', '#orTag'], settle: 1500 });
+    const start = await frame.$('#ruStart');
+    if (start && await start.isVisible()) await start.click(); else await frame.evaluate(() => window.__demo.play());
+    await page.waitForTimeout(9000);
+    v.t = await frame.evaluate(() => window.__demo.t);
+    v.tag = await page.textContent('#orTagText');
+    await shot('verify-playing', { targets: ['#orTag', '#orMark'], settle: 500 });
+    v.afterPlay = await page.evaluate(async () => (await (await fetch('/api/nav', { credentials: 'include' })).json()).path.orientation);
+    if (await visible('#orMark')) { await page.click('#orMark'); await page.waitForTimeout(3500); }
+    v.afterMark = await page.evaluate(async () => { const d = await (await fetch('/api/nav', { credentials: 'include' })).json(); return { next: d.path.next.label, o: d.path.orientation }; });
+    v.stripNow = await page.evaluate(() => (document.getElementById('pathNext') || {}).textContent || null);
+    v.goVisible = await visible('#orGo');
+    v.goHref = await page.evaluate(() => document.getElementById('orGo').getAttribute('href'));
+    await shot('verify-watched', { targets: ['#orTag', '#orGo', '#pathNext'], settle: 500 });
+    report.verify = v;
+    console.log('[verify]', JSON.stringify(v));
+  });
   await step('my-path', async () => {
     await go('/my-path', '#ppGrid .path-card h3', 'my-path', { targets: ['#yourPath', '#pathNext', '#ppSetup', '#ppFinalis', '#ppExams', '#ppDesk', '#ppGo', '.path-strip-steps'], settle: 1500 });
     // the Finalis and the exams cards, scrolled to as the narration reaches them
