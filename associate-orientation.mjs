@@ -147,7 +147,8 @@ try {
     v.head = await page.evaluate(async () => (await fetch('/training/orientation/video', { method: 'HEAD', credentials: 'include' })).status);
     v.before = await page.evaluate(async () => { const d = await (await fetch('/api/nav', { credentials: 'include' })).json(); return { next: d.path && d.path.next && d.path.next.label, o: d.path && d.path.orientation, menu: [...(d.menu.pinned || []), ...(d.menu.groups || []).flatMap((g) => g.items)].some((i) => i.id === 'orientation') }; });
     const frame = await (await page.waitForSelector('#orFrame', { timeout: 30000 })).contentFrame();
-    await frame.waitForFunction(() => window.__demo && window.__demo.TOTAL > 0, null, { timeout: 90000 });
+    // the player page's CSP forbids eval (waitForFunction): poll with evaluate instead
+    for (let i = 0; i < 180; i++) { if (await frame.evaluate(() => !!(window.__demo && window.__demo.TOTAL > 0)).catch(() => false)) break; await page.waitForTimeout(500); }
     v.total = await frame.evaluate(() => window.__demo.TOTAL);
     v.chapters = await page.evaluate(() => document.querySelectorAll('#orChList li').length);
     await shot('verify-loaded', { targets: ['#orFrame', '#orSkip', '#orTag'], settle: 1500 });
