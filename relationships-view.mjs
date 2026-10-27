@@ -101,10 +101,10 @@ await page.goto(`https://${PLATFORM}/sourcing#partners`, { waitUntil: 'domconten
 await page.waitForFunction(() => document.querySelectorAll('#pBody tr').length > 5, null, { timeout: 20000 }).catch(() => {});
 const board = await page.evaluate(() => {
   const txt = document.getElementById('pBody').innerText;
-  return { rows: document.querySelectorAll('#pBody tr').length, whatsapp: (txt.match(/firm on WhatsApp/g) || []).length, stop: /stop list/.test(txt), link: !!document.querySelector('a[href="#relationships"]') };
+  return { rows: document.querySelectorAll('#pBody tr').length, whatsapp: (txt.match(/firm on whatsapp/gi) || []).length, stop: /stop list/i.test(txt), link: !!document.querySelector('a[href="#relationships"]') };
 });
 await shot('partner-board-top', { board });
-await page.evaluate(() => { const rows = [...document.querySelectorAll('#pBody tr')]; const hit = rows.find((r) => /firm on WhatsApp/.test(r.innerText)); if (hit) hit.scrollIntoView({ block: 'center' }); });
+await page.evaluate(() => { const rows = [...document.querySelectorAll('#pBody tr')]; const hit = rows.find((r) => /firm on whatsapp/i.test(r.innerText)); if (hit) hit.scrollIntoView({ block: 'center' }); });
 await shot('partner-board-locked');
 if (!board.whatsapp || !board.stop || !board.link) report.errors.push({ step: 'board-labels', board });
 if (!report.posts.some((p) => p.tier === 'stop') || !report.posts.some((p) => /checkin$/.test(p.path || ''))) report.errors.push({ step: 'posts', posts: report.posts });

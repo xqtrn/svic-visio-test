@@ -163,7 +163,7 @@
     .relWho { flex: 1 1 auto; min-width: 0; }
     .relWho b { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
     .relWho span { display: block; color: var(--muted); font-size: 11.5px; overflow-wrap: anywhere; }
-    .relMeta { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+    .relMeta { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
     .relMeta .tag { font-size: 10px; padding: 2px 7px; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .relAdd { margin-top: auto; display: grid; gap: 8px; }
     .relAdd textarea { min-height: 64px; resize: vertical; font-size: 12.5px; }
@@ -881,6 +881,8 @@
       catch (e) { d = { error: 'Could not load the lists' }; }
       if (!d || d.error) { grid.innerHTML = '<div class="relPanel"><p class="muted">' + esc((d && d.error) || 'Could not load the lists') + '</p></div>'; return; }
       REL = d;
+      // ui.js is deferred: the icon set exists once the document has parsed.
+      if (document.readyState === 'loading') await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
       document.getElementById('relDue').textContent = d.due ? (d.due + ' check-in' + (d.due === 1 ? '' : 's') + ' due') : 'No check-ins due';
       grid.innerHTML = REL_ORDER.map(relPanelHtml).join('');
     }
@@ -893,15 +895,15 @@
         tags.push(it.due
           ? '<span class="tag pending" title="Last touch ' + esc(it.last_touch) + '"><span class="dot"></span>Check-in due</span>'
           : '<span class="tag neutral" title="Last touch ' + esc(it.last_touch) + '">Next ' + esc(it.due_at) + '</span>');
-        acts.push('<button type="button" class="iconbtn" data-rel-copy="' + it.id + '" title="Copy the check-in message" aria-label="Copy the check-in message">' + (window.ICON ? ICON.copy : 'Copy') + '</button>');
-        acts.push('<button type="button" class="iconbtn" data-rel-checkin="' + it.id + '" title="Mark as checked in today" aria-label="Mark as checked in today">' + (window.ICON ? ICON.check : 'Done') + '</button>');
+        acts.push('<button type="button" class="btn btn-ghost btn-sm" data-rel-copy="' + it.id + '" title="Copy the check-in message to paste into ' + (it.channel === 'whatsapp' ? 'WhatsApp' : 'an email') + '">Copy message</button>');
+        acts.push('<button type="button" class="btn btn-ghost btn-sm" data-rel-checkin="' + it.id + '" title="Mark as checked in today — the next reminder moves forward">Checked in</button>');
       }
       if (tier === 'paused') {
         tags.push(it.resumed
           ? '<span class="tag neutral" title="Only a company not pitched to them before">Other companies only</span>'
           : '<span class="tag neutral">Until ' + esc(it.resumes_at) + '</span>');
       }
-      acts.push('<button type="button" class="iconbtn" data-rel-remove="' + it.id + '" title="Take off this list" aria-label="Take off this list">' + (window.ICON ? ICON.x : 'Remove') + '</button>');
+      acts.push('<button type="button" class="iconbtn" data-rel-remove="' + it.id + '" title="Take off this list" aria-label="Take off this list">' + ICON.x + '</button>');
       const added = 'Added ' + esc(it.added_at) + (it.added_by ? ' by ' + esc(it.added_by) : '');
       return '<li><div class="relWho"><b>' + esc(who) + '</b><span>' + esc(sub) + '</span><span title="' + added + '">' + added + '</span></div>'
         + '<div class="relMeta">' + tags.join('') + acts.join('') + '</div></li>';
