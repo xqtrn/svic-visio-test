@@ -152,31 +152,36 @@
     .stats-thread-email { color: var(--ink); }
     /* Five figures over two columns leave a hole; the last one takes the full width instead. */
     @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } .kpis .box:last-child { grid-column: 1 / -1; } }
-    /* relationship lists — four panels ruled like one table */
-    .relGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-    .relPanel { background: var(--panel); padding: 20px 22px; display: flex; flex-direction: column; min-width: 0; }
+    /* relationship lists — one .panel-card, four lists ruled inside it like one table */
+    .relGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; }
+    .relPanel { padding: 20px 24px; display: flex; flex-direction: column; min-width: 0; border-bottom: 1px solid var(--line); }
+    .relPanel:nth-child(odd) { border-right: 1px solid var(--line); }
+    .relPanel:nth-last-child(-n+2) { border-bottom: 0; }
     .relPanel h3 { font-family: var(--serif); font-weight: 600; font-size: 17px; margin: 0 0 4px; }
-    .relPanel .relRule { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 14px; }
-    .relList { list-style: none; margin: 0 0 14px; padding: 0; border-top: 1px solid var(--line); }
-    .relList li { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); min-width: 0; }
-    .relList li.empty { color: var(--muted); font-size: 12px; justify-content: flex-start; }
+    .relPanel .relRule { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 12px; }
+    .relList { list-style: none; margin: 0 0 16px; padding: 0; border-top: 1px solid var(--line); }
+    .relList li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+    .relList li.empty { color: var(--muted); font-size: 12px; }
     .relWho { flex: 1 1 auto; min-width: 0; }
     .relWho b { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
     .relWho span { display: block; color: var(--muted); font-size: 11.5px; overflow-wrap: anywhere; }
-    .relMeta { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-    .relMeta .tag { font-size: 10px; padding: 2px 7px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .relAdd { margin-top: auto; display: grid; gap: 8px; }
-    .relAdd textarea { min-height: 64px; resize: vertical; font-size: 12.5px; }
-    .relAdd .btn { justify-self: start; }
-    .relMsg { font-size: 11.5px; color: var(--muted); min-height: 0; }
-    @media (max-width: 900px) { .relGrid { grid-template-columns: 1fr; } }
+    .relMeta { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .relAdd { margin-top: auto; display: grid; gap: 8px; justify-items: start; }
+    .relAdd textarea { width: 100%; min-height: 64px; resize: vertical; font-size: 12.5px; }
+    .relMsg { font-size: 11.5px; color: var(--muted); }
+    @media (max-width: 900px) {
+      .relGrid { grid-template-columns: 1fr; }
+      .relPanel:nth-child(odd) { border-right: 0; }
+      .relPanel:nth-last-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .relPanel:last-child { border-bottom: 0; }
+    }
     @media (max-width: 600px) {
-      .relPanel { padding: 16px 14px; }
+      .relPanel { padding: 16px; }
       /* name and the remove cross share the first line; tags and actions take the second */
-      .relList li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 10px; }
+      .relList li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 12px; }
       .relWho { grid-column: 1; grid-row: 1; }
       .relRm { grid-column: 2; grid-row: 1; }
-      .relMeta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; flex-wrap: wrap; }
+      .relMeta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; flex-wrap: wrap; white-space: normal; }
     }
     @media (max-width: 900px) { .lanes3 { grid-template-columns: 1fr; } .hero { grid-template-columns: 1fr; gap: 14px; } }
     @media (max-width: 600px) {
@@ -321,7 +326,7 @@
       <div class="sec">
         <p class="eyebrow">Partner lane — your approval required</p>
         <p class="muted" style="margin:-4px 0 14px;max-width:640px">Every partner∩company match is shown. You send one note per partner a week — the most relevant company is pre-ticked, but you can pick a different one for that partner instead; ticking a company greys the partner's other companies for the week. Real cooldowns (emailed this week / sent &lt;30 days ago) stay locked. "Select all" ticks one per partner. Choose who it comes from, and send. A daily link brings you here.</p>
-        <p class="muted" style="margin:-6px 0 14px;max-width:640px;font-size:12px">Firms on WhatsApp, partners on personal email check-ins, paused threads and the stop list are locked here automatically — <a href="#relationships">manage the relationship lists</a>.</p>
+        <p class="muted" style="margin:0 0 16px;max-width:640px;font-size:12px">Firms on WhatsApp, partners on personal email check-ins, paused threads and the stop list are locked here automatically — <a href="#relationships">manage the relationship lists</a>.</p>
         <div id="pTemplate" class="pTpl" style="display:none"></div>
         <div class="pBar">
           <div class="seg" id="pSort" role="group" aria-label="Order of the board">
@@ -351,7 +356,7 @@
           <span class="muted" style="font-size:11.5px" id="relDue"></span>
         </div>
         <p class="muted" style="margin:-4px 0 16px;max-width:640px">Paste one or more email addresses (one per line) into a list. A whole firm can be entered as <b>@domain.com</b>. Both the partner lane and the cold lane respect these lists at the moment of sending. Moving an address to another list replaces its old entry.</p>
-        <div class="relGrid" id="relGrid"><div class="relPanel"><p class="muted">Loading…</p></div></div>
+        <div class="relGrid panel-card" id="relGrid"><div class="relPanel"><p class="muted">Loading…</p></div></div>
       </div>
     </section>
 
