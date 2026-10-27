@@ -110,9 +110,14 @@ async function go(path, waitSel, name, opts = {}) {
 }
 // The menu: the burger on a phone, the top-bar «More» / burger on a desktop.
 async function openMenu() {
-  const burger = page.locator('.tb-burger, #menuButton, [aria-label*="menu" i]').first();
-  if (await burger.isVisible().catch(() => false)) { await burger.click(); await page.waitForTimeout(900); return true; }
-  return false;
+  // the drawer every page carries (offcanvas-menu.js): the burger on a phone, the same drawer on a desktop
+  const burger = page.locator('.tb-burger:visible, #menuButton:visible').first();
+  if (await burger.isVisible().catch(() => false)) await burger.click().catch(() => {});
+  await page.waitForTimeout(700);
+  const open = await page.evaluate(() => !!document.querySelector('#oc-panel.open')).catch(() => false);
+  if (!open) await page.evaluate(() => { if (typeof window.openOffcanvas === 'function') window.openOffcanvas(); }).catch(() => {});
+  await page.waitForTimeout(1000);
+  return true;
 }
 async function closeOverlays() { await page.keyboard.press('Escape').catch(() => {}); await page.waitForTimeout(300); }
 
@@ -150,11 +155,10 @@ try {
       await page.waitForTimeout(2500);
       await shot('mail-letter', { targets: ['.msg-subj', '.msg-body', '.att, .attachment'] });
     }
-    // Settings open from the hash once the mailbox app is up (a cold load with the hash stays on the inbox).
-    await page.evaluate(() => { location.hash = '#settings/signatures'; });
-    await page.waitForTimeout(2500);
-    if (!(await visible('[data-settings-group="signature"]'))) { await page.evaluate(() => { location.hash = ''; location.hash = '#settings/signatures'; }); await page.waitForTimeout(2500); }
-    await shot('mail-signature', { targets: ['[data-settings-group="signature"]', '#settingsPanel', '.sig-preview'], settle: 3000 });
+    // Mail → Settings → Signature has its own address (2026-10-26: /mailbox/<person>/settings/signature)
+    await page.goto(BASE + mailHref.replace(/\/$/, '') + '/settings/signature', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+    await shot('mail-signature', { targets: ['[data-settings-group="signature"]', 'a[href*="settings/signature"]', '#settingsPanel', '.sig-preview'], settle: 3500 });
   });
   await step('scheduling', async () => {
     await go('/scheduling', '#setupLink, .sch-console-grid, main', 'scheduling', { targets: ['#setupLink', '.sch-console-grid', '#publishBtn', '[data-step]'], timeout: 45000, settle: 3000 });
@@ -172,7 +176,12 @@ try {
   });
   await step('desk', async () => {
     await go('/candidate-preview', 'body', 'desk-marketplace', { targets: ['.ds-sealed', '.market-table', '.market-row'], settle: 4500 });
-    await go('/desk/matches', 'body', 'desk-matches', { targets: ['#convo .td-pair-row .nm', '#coList .co-item', '#tdTake'], settle: 4500 });
+    await page.goto(BASE + '/desk/matches', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForSelector('#convo .td-pair-row, #coList .co-item', { timeout: 30000 }).catch(() => {});
+    const retry = page.locator('button:has-text("Retry")').first();
+    if (await retry.isVisible().catch(() => false)) { report.matchesRetry = true; await retry.click(); await page.waitForSelector('#convo .td-pair-row, #coList .co-item', { timeout: 30000 }).catch(() => {}); }
+    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+    await shot('desk-matches', { targets: ['#convo .td-pair-row .nm', '#coList .co-item', '#tdTake'], settle: 2500 });
     const row = page.locator('#convo .td-pair-row .nm >> visible=true').first();
     const item = (await row.isVisible().catch(() => false)) ? row : page.locator('#coList .co-item').first();
     if (await item.isVisible().catch(() => false)) { await item.click(); await shot('desk-matches-open', { targets: ['#tdTake', '.ds-sealed'], settle: 2500 }); }
@@ -188,7 +197,7 @@ try {
   });
   await step('menu', async () => {
     await go('/my-path', '#ppGrid .path-card h3', 'menu-closed', { settle: 1500 });
-    if (await openMenu()) await shot('menu-open', { targets: ['a[href="/training/orientation"]', 'a[href="/training/exam-prep"]'], settle: 1200 });
+    if (await openMenu()) await shot('menu-open', { targets: ['#oc-panel a[href="/training/orientation"]', 'a[href="/training/orientation"]', 'a[href="/training/exam-prep"]', 'a[href="/my-account"]', 'a[href="/signin-methods"]'], settle: 1200, full: false });
     await closeOverlays();
   });
   report.path = await page.evaluate(async () => (await fetch('/api/my-path', { credentials: 'include' })).json()).catch(() => null);
