@@ -96,6 +96,16 @@ if ((state.find((x) => x.tier === 'whatsapp_group') || {}).due !== 8) report.err
 await page.click('[data-rel-checkin]');
 await page.waitForTimeout(500);
 
+// Taking someone off a list asks first, inside the page (no native dialog).
+await page.click('[data-rel-remove]');
+await page.waitForTimeout(500);
+const modal = await page.evaluate(() => { const o = document.getElementById('modalOverlay'); return o ? o.innerText : null; });
+await shot('remove-confirm', { modal });
+if (!/Take off/.test(modal || '')) report.errors.push({ step: 'remove-confirm', modal });
+await page.click('#modalOverlay [data-mc="yes"]').catch(() => {});
+await page.waitForTimeout(500);
+if (!report.posts.some((p) => /remove$/.test(p.path || ''))) report.errors.push({ step: 'remove-post', posts: report.posts });
+
 // The partner board shows the locks in words.
 await page.goto(`https://${PLATFORM}/sourcing#partners`, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => document.querySelectorAll('#pBody tr').length > 5, null, { timeout: 20000 }).catch(() => {});

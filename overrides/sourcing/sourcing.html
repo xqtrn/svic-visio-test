@@ -355,7 +355,7 @@
           <p class="eyebrow">Relationship lists — who the mailing leaves alone</p>
           <span class="muted" style="font-size:11.5px" id="relDue"></span>
         </div>
-        <p class="muted" style="margin:-4px 0 16px;max-width:640px">Paste one or more email addresses (one per line) into a list. A whole firm can be entered as <b>@domain.com</b>. Both the partner lane and the cold lane respect these lists at the moment of sending. Moving an address to another list replaces its old entry.</p>
+        <p class="muted" style="margin:-4px 0 16px;max-width:640px">Paste one or more email addresses (one per line) into a list. A whole firm can be entered by its name as it appears on the partner cards, or as <b>@domain.com</b>. Both the partner lane and the cold lane respect these lists at the moment of sending. Moving an address to another list replaces its old entry.</p>
         <div class="relGrid panel-card" id="relGrid"><div class="relPanel"><p class="muted">Loading…</p></div></div>
       </div>
     </section>
@@ -924,7 +924,7 @@
         + '<h3>' + esc(meta.title) + ' <span class="muted" style="font-family:var(--sans);font-size:12px;font-weight:500">' + items.length + '</span></h3>'
         + '<p class="relRule">' + esc(REL_RULE[tier] || '') + '</p>'
         + '<ul class="relList">' + (items.length ? items.map(it => relItemHtml(tier, it)).join('') : '<li class="empty">Nobody on this list yet.</li>') + '</ul>'
-        + '<div class="relAdd"><textarea data-rel-input="' + tier + '" placeholder="name@firm.com — one per line" aria-label="Addresses to add to ' + esc(meta.title) + '"></textarea>'
+        + '<div class="relAdd"><textarea data-rel-input="' + tier + '" placeholder="name@firm.com or a firm name, one per line" aria-label="Addresses to add to ' + esc(meta.title) + '"></textarea>'
         + '<button type="button" class="btn btn-ghost btn-sm" data-rel-add="' + tier + '">Add to list</button>'
         + '<div class="relMsg" data-rel-msg="' + tier + '"></div></div></div>';
     }
@@ -965,6 +965,13 @@
       }
       if (rm) {
         const id = rm.getAttribute('data-rel-remove');
+        const it = relFind(id);
+        const name = it ? (it.person_name || it.firm_name || it.address) : 'this entry';
+        // Taking someone off a list lets the mailing write to them again: ask once.
+        const go = window.confirmModal
+          ? await window.confirmModal('Take ' + name + ' off this list? The mailing may write to them again.', null, { title: 'Take off the list', ok: 'Take off', danger: true })
+          : true;
+        if (!go) return;
         rm.disabled = true;
         const r = await fetch('/api/sourcing/relationships/' + id + '/remove', { method: 'POST', credentials: 'same-origin' }).then(x => x.json()).catch(() => null);
         toast(r && r.ok ? 'Taken off the list — the mailing may write to ' + r.address + ' again' : 'Could not remove');
