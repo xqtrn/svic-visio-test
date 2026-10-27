@@ -1,0 +1,35 @@
+name: associate-orientation
+# The screens of the associate orientation lesson: every section a new associate has
+# after the setup, on the live platform, in a real browser (WebKit iPhone or desktop
+# Chromium), signed in as a QA TEST CANDIDATE only. Read-only.
+on:
+  workflow_dispatch:
+    inputs:
+      engine: { description: 'webkit | chromium', default: 'chromium' }
+      only: { description: 'comma list of steps (empty = all)', default: '' }
+      tag: { description: 'Artifact tag', default: 'run' }
+      slot: { description: 'a | b — which test candidate link secret (AJ_WELCOME_A / AJ_WELCOME_B)', default: 'a' }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: ${{ inputs.engine }}
+          playwright-version: '1.49.0'
+      - run: rm -rf out && timeout 1200 node associate-orientation.mjs
+        env:
+          ENGINE: ${{ inputs.engine }}
+          ONLY: ${{ inputs.only }}
+          # the QA test candidate's setup link, set for the run and deleted right after
+          AJ_WELCOME: ${{ inputs.slot == 'b' && secrets.AJ_WELCOME_B || secrets.AJ_WELCOME_A }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: associate-orientation-${{ inputs.engine }}-${{ inputs.tag }}
+          path: out/
