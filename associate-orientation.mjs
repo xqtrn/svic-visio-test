@@ -56,19 +56,20 @@ page.on('response', (r) => { if (r.status() >= 400 && /platform\.siliconvalleyin
 function safeUrl(u) { return String(u || '').replace(/\/welcome\/[^/?#"\s]+/g, '/welcome/<token>').replace(/\/sign\/[^?#"\s]+/g, '/sign/<token>').replace(/[A-Za-z0-9_-]{40,}/g, '<token>'); }
 const visible = (sel) => page.locator(sel).first().isVisible().catch(() => false);
 
-async function boxes(sels) {
-  return page.evaluate((list) => {
+async function boxes(sels, viewport = false) {
+  return page.evaluate(([list, viewport]) => {
     const out = {};
     for (const s of list) {
       const el = document.querySelector(s);
       if (!el) continue;
       const r = el.getBoundingClientRect();
-      if (r.width && r.height) out[s] = { x: Math.round(r.x + window.scrollX), y: Math.round(r.y + window.scrollY), w: Math.round(r.width), h: Math.round(r.height) };
+      const dx = viewport ? 0 : window.scrollX, dy = viewport ? 0 : window.scrollY;
+      if (r.width && r.height) out[s] = { x: Math.round(r.x + dx), y: Math.round(r.y + dy), w: Math.round(r.width), h: Math.round(r.height) };
     }
     return out;
-  }, sels).catch(() => ({}));
+  }, [sels, viewport]).catch(() => ({}));
 }
-async function shot(name, { targets = [], extra = {}, settle = 900 } = {}) {
+async function shot(name, { targets = [], extra = {}, settle = 900, full = true } = {}) {
   n += 1;
   const base = `${String(n).padStart(2, '0')}-${name}`;
   await page.waitForTimeout(settle);
@@ -83,9 +84,10 @@ async function shot(name, { targets = [], extra = {}, settle = 900 } = {}) {
   probe.url = safeUrl(probe.url);
   probe.text = safeUrl(probe.text || '');
   await page.screenshot({ path: `${OUT}/${base}.png` }).catch(() => {});
-  await Promise.race([page.screenshot({ path: `${OUT}/${base}-full.png`, fullPage: true }), new Promise((r) => setTimeout(r, 20000))]).catch(() => {});
+  // a scrolled screen is a viewport frame only (the video shows what the person sees there)
+  if (full) await Promise.race([page.screenshot({ path: `${OUT}/${base}-full.png`, fullPage: true }), new Promise((r) => setTimeout(r, 20000))]).catch(() => {});
   const spacing = await page.evaluate(PROBE).catch((e) => ({ error: String(e).slice(0, 120) }));
-  const step = { n, name, file: `${base}.png`, ...probe, overflow: probe.scrollWidth > probe.innerWidth + 1, boxes: await boxes(targets), spacing, ...extra };
+  const step = { n, name, file: `${base}.png`, ...probe, overflow: probe.scrollWidth > probe.innerWidth + 1, boxes: await boxes(targets, !full), spacing, viewportOnly: !full, ...extra };
   report.steps.push(step);
   console.log('[shot]', JSON.stringify({ ...step, text: undefined, spacing: undefined }));
   return step;
@@ -133,6 +135,12 @@ try {
   });
   await step('my-path', async () => {
     await go('/my-path', '#ppGrid .path-card h3', 'my-path', { targets: ['#yourPath', '#pathNext', '#ppSetup', '#ppFinalis', '#ppExams', '#ppDesk', '#ppGo', '.path-strip-steps'], settle: 1500 });
+    // the Finalis and the exams cards, scrolled to as the narration reaches them
+    for (const [id, nm] of [['#ppFinalis', 'my-path-finalis'], ['#ppExams', 'my-path-exams']]) {
+      await page.evaluate((sel) => { const el = document.querySelector(sel); if (el) window.scrollTo(0, Math.max(0, el.getBoundingClientRect().top + window.scrollY - (window.innerWidth < 700 ? 150 : 170))); }, id);
+      await shot(nm, { targets: ['#yourPath', '#pathNext', '#ppFinalis', '#ppExams', '#ppDesk'], settle: 700, full: false });
+    }
+    await page.evaluate(() => window.scrollTo(0, 0));
   });
   await step('mail', async () => {
     await go(mailHref, '.mrow, .mb-empty, .empty, main', 'mail-inbox', { targets: ['#yourPath', '#pathNext', '.mrow', '#composeBtn', '.mb-compose', '[data-settings-open]', 'a[href="#settings"]'], timeout: 45000, settle: 2500 });
