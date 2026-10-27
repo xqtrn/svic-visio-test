@@ -194,6 +194,19 @@ try {
   });
   await step('messenger', async () => {
     await go(deskHref || '/messengers', 'main, body', 'messenger', { timeout: 45000, settle: 4000 });
+    // «Try it now» (test call, write to Serge) sits below the fold: a scrolled viewport frame
+    const tryAt = await page.evaluate(() => {
+      const el = [...document.querySelectorAll('h2,h3,h4,.eyebrow,b,strong,div')].find((e) => /^\s*Try it now\s*$/.test(e.textContent || ''));
+      if (!el) return false;
+      const sc = (function f(n) { while (n && n !== document.body) { const cs = getComputedStyle(n); if (/(auto|scroll)/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 4) return n; n = n.parentElement; } return null; })(el.parentElement);
+      const off = window.innerWidth < 700 ? 160 : 200;
+      if (sc) sc.scrollTop += el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 40;
+      else window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - off);
+      el.setAttribute('data-orient-try', '1');
+      [...document.querySelectorAll('button,a')].forEach((b) => { if (/Make a test call/.test(b.textContent)) b.setAttribute('data-orient-call', '1'); if (/Write to Serge/.test(b.textContent)) b.setAttribute('data-orient-serge', '1'); });
+      return true;
+    });
+    if (tryAt) await shot('messenger-try', { targets: ['[data-orient-try]', '[data-orient-call]', '[data-orient-serge]'], settle: 900, full: false });
   });
   await step('group-calls', async () => {
     await go('/group-calls', 'main, body', 'group-calls', { timeout: 45000, settle: 4000 });
