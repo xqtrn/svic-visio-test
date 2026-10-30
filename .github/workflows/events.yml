@@ -8,7 +8,8 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # поиск идёт очередью вычислений платформы (до 25 мин ожидания слота)
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,7 +17,8 @@ jobs:
       - run: npm init -y >/dev/null 2>&1 && npm i pg >/dev/null 2>&1
       - run: node events-scan.mjs
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # модели — только горло платформы /api/internal/ai/* (2026-10-30)
+          SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
           GH_TOKEN: ${{ github.token }}
           # SOT = site_blocks.events в БД стенда (админка); демон добавляет туда же
           DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}

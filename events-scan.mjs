@@ -1,6 +1,7 @@
 // events-scan.mjs — ежедневный демон «Webinars & Events» (Артур 2026-07-12).
 // Ищет НОВЫЕ top-tier мероприятия private markets / institutional investing
-// (Claude + web search, temperature 0 — канон структурных проверок), фильтрует
+// (поиск в сети горлом вычислений платформы — полосу Cloud/API выбирает
+// платформа, своего платного ключа у демона нет с 2026-10-30), фильтрует
 // по планке организатора, качает лого, обновляет релиз events (events.json).
 // Потребитель: testnew-edge worker — страница /events/ на стенде.
 
@@ -27,8 +28,38 @@ async function reportRun(after){
 }
 
 const REL = 'https://github.com/xqtrn/svic-visio-test/releases/download/events/events.json';
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-if (!API_KEY) { console.error('no ANTHROPIC_API_KEY'); process.exit(1); }
+const PLATFORM = String(process.env.SVIC_PLATFORM_URL || 'https://platform.siliconvalleyinvestclub.com').replace(/\/+$/, '');
+const INTERNAL_KEY = process.env.SVIC_INTERNAL_KEY || process.env.INTERNAL_API_KEY || '';
+if (!INTERNAL_KEY) { console.error('no SVIC_INTERNAL_KEY'); process.exit(1); }
+
+// Горло вычислений платформы: поставить задание и дождаться ответа. Пакетная
+// полоса занята — задание ждёт слот на платформе; не дождались к сроку — прогон
+// честно пропускается с пометкой, на платный API не уходим.
+async function platformSearch(body, { timeoutMs = 25 * 60 * 1000 } = {}) {
+  const headers = { 'content-type': 'application/json', 'x-internal-key': INTERNAL_KEY };
+  const q = await fetch(PLATFORM + '/api/internal/ai/jobs', {
+    method: 'POST', headers, body: JSON.stringify({ service: 'events-scan', kind: 'search', ...body }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const queued = await q.json().catch(() => ({}));
+  if (!q.ok || !queued.ok || !queued.id) throw new Error('platform AI ' + q.status + ': ' + String(queued.error || 'enqueue failed').slice(0, 200));
+  const deadline = Date.now() + timeoutMs;
+  let wait = 2000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, wait));
+    wait = Math.min(15000, Math.round(wait * 1.5));
+    const r = await fetch(PLATFORM + '/api/internal/ai/jobs/' + queued.id, { headers, signal: AbortSignal.timeout(30000) }).catch(() => null);
+    if (!r || r.status !== 200) continue;
+    const j = await r.json().catch(() => null);
+    if (!j) continue;
+    if (j.status === 'done') {
+      if (!j.result || j.result.ok !== true) throw new Error('platform AI: ' + String((j.result && j.result.error) || 'empty result').slice(0, 200));
+      return j.result;
+    }
+    if (j.status === 'failed') throw new Error('platform AI: ' + String(j.error || 'job failed').slice(0, 200));
+  }
+  throw Object.assign(new Error('platform AI: job ' + queued.id + ' not finished in ' + Math.round(timeoutMs / 1000) + 's'), { laneBusy: true });
+}
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -59,20 +90,21 @@ Return ONLY a JSON array (no prose). Each item:
 {"title":"...","organizer":"...","format":"Conference|Webinar","start":"YYYY-MM-DD","end":"YYYY-MM-DD or omit","dateLabel":"EXACT human dates (e.g. \"September 8\u201310, 2026\")","city":"City or Virtual","url":"official event page","blurb":"1-2 sentences IN YOUR OWN WORDS (institutional tone, no marketing copy-paste)","details":"3-4 sentences IN YOUR OWN WORDS for the event page: what happens there, who attends, why it matters","highlights":["3 short factual bullets"],"audience":"who attends, short","scale":"attendance figure if VERIFIED, else omit"}
 If a confirmed date is unknown, omit the event. If nothing new qualifies, return [].`;
 
-const r = await fetch('https://api.anthropic.com/v1/messages', {
-  method: 'POST',
-  headers: { 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-  body: JSON.stringify({
-    model: 'claude-sonnet-5',
-    max_tokens: 4000,
-    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 8 }],
-    messages: [{ role: 'user', content: prompt }],
-  }),
-});
-if (!r.ok) { console.error('anthropic http ' + r.status, (await r.text()).slice(0, 300)); process.exit(1); }
-const msg = await r.json();
-const text = (msg.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
-const jm = text.match(/\[[\s\S]*\]/);
+let text = '';
+try {
+  const out = await platformSearch({ operation: 'news_events_scan', question: prompt, max_tokens: 4000, timeout_ms: 300000 });
+  text = String(out.text || '');
+  console.log('lane:', out.lane || 'unknown');
+} catch (e) {
+  // Полоса не ответила — это не поломка демона: отчитываемся и выходим чисто,
+  // следующий прогон добирает. Шаг в журнале остаётся зелёным с пометкой.
+  console.log('::warning::events-scan skipped: ' + e.message);
+  await reportRun({ status: 'skipped', reason: String(e.message).slice(0, 300), total: tracked.length });
+  if (pool) await pool.end();
+  process.exit(0);
+}
+// исполнитель полосы иногда предваряет ответ фразой — берём сам массив
+const jm = text.match(/\[\s*(?:\{[\s\S]*\}\s*)?\]/);
 let found = [];
 try { found = jm ? JSON.parse(jm[0]) : []; } catch (e) { console.error('parse fail'); }
 console.log('candidates:', found.length);
