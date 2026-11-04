@@ -14,6 +14,7 @@ import {
   assertCmsSchema,
   readLiveCmsSchema,
   collectCmsProbeProblems,
+  robotDbSecretError,
 } from './platform-health.mjs';
 
 test('сторож ходит на публичный сайт, не на закрытый Railway-origin', () => {
@@ -353,4 +354,14 @@ test('без живого маршрута пароль секрета по-пр
     origin: 'https://siliconvalleyinvestclub.com',
   });
   assert.match(problems[0], /не удалось проверить схему CMS: password authentication failed/);
+});
+
+test('устаревший пароль базы у роботов виден отдельно, сбой сети — нет', async () => {
+  const failing = (err) => ({ query: async () => { throw err; } });
+  assert.equal(await robotDbSecretError({ query: async () => ({ rows: [{}] }) }), null);
+  assert.match(
+    await robotDbSecretError(failing(Object.assign(new Error('password authentication failed for user "postgres"'), { code: '28P01' }))),
+    /password authentication/,
+  );
+  assert.equal(await robotDbSecretError(failing(new Error('connect ETIMEDOUT'))), null);
 });

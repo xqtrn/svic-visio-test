@@ -50,3 +50,15 @@ def merge_items(fresh: list, retained: list, cap: int = 40) -> list:
         out.append(item)
     out.sort(key=lambda item: -int(item.get('ts') or 0))
     return out[:cap]
+
+
+def feed_unchanged(items: list, retained: list) -> bool:
+    """Same stories in the same order as the published feed: nothing to upload.
+
+    A feed re-sent without changes costs two requests from the repository's
+    hourly limit, which is what the collector ran out of (2026-10-09 onward).
+    """
+    if not retained:
+        return False
+    key = lambda row: (row.get('link'), row.get('title'))
+    return [key(r) for r in items] == [key(r) for r in retained]

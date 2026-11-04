@@ -15,16 +15,13 @@ import pg from 'pg';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { ytId, probeVerdict, probeIsBlind } from './scripts/archive-clips-lib.mjs';
 
-const HOST = process.env.SVIC_HOST || 'https://test.siliconvalleyinvestclub.com';
+const HOST = process.env.SVIC_HOST || 'https://siliconvalleyinvestclub.com';
+const PLAN_ONLY = process.argv.includes('--plan');
 const BUCKET = process.env.S3_BUCKET || 'svic-media';
 const PROXY = process.env.PENGUIN_SOCKS || '';
 const LIMIT = Number(process.env.MAX_CLIPS || 5);   // за один прогон, чтобы не жечь минуты
-
-const ytId = (s) => {
-  const m = String(s || '').match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/)([A-Za-z0-9_-]{6,})|^([A-Za-z0-9_-]{6,})$/);
-  return m ? (m[1] || m[2]) : null;
-};
 
 const db = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const rows = (await db.query(
@@ -33,14 +30,30 @@ const rows = (await db.query(
 await db.end();
 
 const wanted = [];
+const checked = new Set();
+const unknown = [];
 for (const r of rows) {
   const id = ytId(r.vid);
-  if (!id || wanted.some((w) => w.id === id)) continue;
-  const probe = await fetch(`${HOST}/svic-video/${id}.mp4`, { method: 'GET', headers: { Cookie: 'svic_token=edge-preview', Range: 'bytes=0-1' } }).catch(() => null);
-  if (probe && (probe.status === 200 || probe.status === 206)) continue;
-  wanted.push({ id, slug: r.slug, title: r.title });
+  if (!id || checked.has(id)) continue;
+  checked.add(id);
+  const probe = await fetch(`${HOST}/svic-video/${id}.mp4`, { method: 'GET', headers: { Range: 'bytes=0-1' } }).catch(() => null);
+  const verdict = probeVerdict(probe?.status, probe?.headers?.get('content-type'));
+  await probe?.body?.cancel().catch(() => {});
+  if (verdict === 'missing') wanted.push({ id, slug: r.slug, title: r.title });
+  if (verdict === 'unknown') unknown.push(`${id}: ${probe?.status ?? 'нет ответа'}`);
 }
-console.log(`статей с роликом: ${rows.length} · без файла на сайте: ${wanted.length}`);
+console.log(`статей с роликом: ${rows.length} · с YouTube: ${checked.size} · без файла на сайте: ${wanted.length} · не удалось проверить: ${unknown.length}`);
+if (unknown.length) console.error(`сайт не ответил про файл: ${unknown.slice(0, 5).join(', ')}`);
+// Проба, которая не видит сайт, не имеет права объявлять ролики пропавшими и
+// заходить в загрузку: с 2026-09-10 такой слепой пробой робот считал пропавшими все.
+if (probeIsBlind(unknown.length, checked.size)) {
+  console.error(`проверка файлов на ${HOST} не работает: ответ получен меньше чем про половину`);
+  process.exit(1);
+}
+if (PLAN_ONLY) {
+  if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `missing=${wanted.length}\n`);
+  process.exit(0);
+}
 if (!wanted.length) { console.log('✓ все ролики на месте'); process.exit(0); }
 
 // Хранилище — Cloudflare R2 (2026-08-15): S3-совместимо, адрес путём, регион «auto».

@@ -29,7 +29,7 @@ on:
   # правка самого сборщика пересобирает ленты сразу, не дожидаясь слота cron
   push:
     branches: [main]
-    paths: ['.github/workflows/company-news.yml', 'scripts/company-news-link.py', 'scripts/company-news-link.lock.test.mjs']
+    paths: ['.github/workflows/company-news.yml', 'scripts/company-news-link.py', 'scripts/company-news-publish.sh', 'scripts/company-news-link.lock.test.mjs']
 permissions:
   contents: write
 concurrency:
@@ -85,7 +85,9 @@ jobs:
             : > companies.txt
           fi
           echo "компаний в этом шарде: $(wc -l < companies.txt)"
+          # out/ is tracked and holds other robots' files; only this run's feeds go out
           mkdir -p out
+          rm -f out/*.json
           if [ ! -s companies.txt ]; then
             echo 'bounded repair: this shard has no target'
             exit 0
@@ -95,7 +97,8 @@ jobs:
           # ленты — с промежуточной загрузкой таймаут стоит максимум партию
           gh release view company-news -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create company-news -R "$GITHUB_REPOSITORY" --title "Company news feeds" \
-              --notes "Auto-collected news JSON for stand company profiles; refreshed every 6h." --latest=false
+              --notes "Auto-collected news JSON for stand company profiles; refreshed every 6h." --latest=false || \
+            echo 'release check failed; the upload below decides'
           i=0
           while IFS='|' read -r slug query; do
             [ -z "$slug" ] && continue
@@ -275,6 +278,9 @@ jobs:
           except Exception:
               retained = []
           items = nlink.merge_items(items, retained)
+          if nlink.feed_unchanged(items, retained):
+              print(slug, '->', len(items), 'direct-link items, unchanged, published feed stays (retained', len(retained), ')')
+              sys.exit(0)
           with open(f'out/{slug}.json', 'w') as outf:
               json.dump({'slug': slug, 'items': items}, outf)
           print(slug, '->', len(items), 'direct-link items (google resolved:', len(resolved), 'of', len(ids), ', retained', len(retained), ')')
@@ -284,6 +290,7 @@ jobs:
             python3 - "$slug" <<'PYGATE'
           import json, re, sys, os
           p = f'out/{sys.argv[1]}.json'
+          if not os.path.exists(p): sys.exit(0)
           j = json.load(open(p))
           rows = j.get('items') if isinstance(j, dict) else j
           rows = rows if isinstance(rows, list) else []
@@ -297,7 +304,7 @@ jobs:
           PYGATE
             # промежуточная публикация каждые 20 компаний (см. комментарий у цикла)
             if [ $((i % 20)) -eq 0 ]; then
-              ls out/*.json >/dev/null 2>&1 && gh release upload company-news out/*.json -R "$GITHUB_REPOSITORY" --clobber || true
+              bash scripts/company-news-publish.sh out published 0 || echo 'batch stays for the next upload'
             fi
           done < companies.txt
           ls -la out/
@@ -317,12 +324,13 @@ jobs:
                   os.remove(p)
           sys.exit(bad)
           PY
-          # публикация: релиз company-news, ассеты перезаписываются
-          gh release view company-news -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-            gh release create company-news -R "$GITHUB_REPOSITORY" --title "Company news feeds" \
-              --notes "Auto-collected news JSON for stand company profiles; refreshed every 6h." --latest=false
-          if compgen -G 'out/*.json' >/dev/null; then
-            gh release upload company-news out/*.json -R "$GITHUB_REPOSITORY" --clobber
+          # публикация: релиз company-news, ассеты перезаписываются. Лимит запросов
+          # GitHub здесь не приговор: хвост дожидается сброса, пока есть время до
+          # таймаута задания (7200 с), и только потом падает.
+          bash scripts/company-news-publish.sh out published "$((6900 - SECONDS))"
+          gh api rate_limit --jq '"github quota left: \(.resources.core.remaining) of \(.resources.core.limit)"' || true
+          if compgen -G 'published/*.json' >/dev/null; then
+            echo "feeds published: $(find published -name '*.json' | wc -l)"
           elif [ -n "$ONLY_SLUG" ]; then
             # A transient source outage must not turn a valid production feed
             # into a failed recovery. Prove the retained release asset still
@@ -336,5 +344,5 @@ jobs:
           print(f'{sys.argv[1]} retained production feed verified: {n} items')
           PYRETAIN
           else
-            echo 'no feed reached the publication floor in this shard'
+            echo 'no feed changed or reached the publication floor in this shard'
           fi

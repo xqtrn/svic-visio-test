@@ -13,6 +13,7 @@ import { openTask, closeTask } from './system-task.mjs';
 
 export const PUBLIC_ORIGIN = 'https://siliconvalleyinvestclub.com';
 export const TASK_KEY = 'stand-platform-health';
+export const ROBOT_DB_TASK_KEY = 'stand-robot-db-secret-stale';
 export const JWT_SIGN_OPTIONS = {
   expiresIn: '10m',
   issuer: 'svic-platform',
@@ -215,6 +216,19 @@ async function cmsProblemsFromPool(pool, fetchImpl, origin) {
   return problems;
 }
 
+// Сайту копия пароля не нужна, а роботам archive-clips и events нужна. Когда она
+// устарела 2026-10-23, эта проба перестала считать её поломкой сайта (и верно),
+// но и никому не сказала: робот лежал 12 дней. Своя карточка, не про здоровье сайта.
+export async function robotDbSecretError(pool) {
+  try {
+    await pool.query('SELECT 1');
+    return null;
+  } catch (error) {
+    const stale = error?.code === '28P01' || /password authentication failed/i.test(String(error?.message));
+    return stale ? String(error.message) : null;
+  }
+}
+
 export async function collectCmsProbeProblems({ live, pool, fetchImpl, origin }) {
   if (live && live.reachable && live.ok) {
     const problems = [];
@@ -354,6 +368,18 @@ async function main() {
     live, pool, fetchImpl: fetch, origin: ORIGIN,
   });
   problems.push(...cmsProblems);
+
+  const robotDbError = await robotDbSecretError(pool);
+  if (robotDbError) {
+    await openTask({
+      key: ROBOT_DB_TASK_KEY,
+      summary: 'Роботы сайта не могут войти в базу: устарел секрет SVIC_PLATFORM_DATABASE_URL',
+      details: robotDbError,
+      instructions: 'В xqtrn/svic-visio-test обновить секрет SVIC_PLATFORM_DATABASE_URL значением из переменных сервиса site-db (проект Railway svic-platform, публичный вход сервиса). Без него не работают archive-clips и events.',
+    });
+  } else {
+    await closeTask(ROBOT_DB_TASK_KEY, 'Секрет базы у роботов снова верный.');
+  }
 
   if (problems.length) {
     await openTask({
