@@ -269,10 +269,12 @@ export function robotCard(file, streak) {
 }
 
 // Сбой чтения GitHub ничего не открывает и не закрывает: это не сведения о роботе.
+// Считаются и ручные запуски на main: зелёный ручной запуск после починки недельного
+// робота закрывает карточку сразу, а не через неделю.
 export async function checkScheduledRobots({ files, repo, token, fetchImpl, open, close }) {
   const red = [];
   for (const file of files) {
-    const url = `https://api.github.com/repos/${repo}/actions/workflows/${file}/runs?event=schedule&status=completed&per_page=${ROBOT_RUNS_PER_CHECK}`;
+    const url = `https://api.github.com/repos/${repo}/actions/workflows/${file}/runs?branch=main&status=completed&per_page=${ROBOT_RUNS_PER_CHECK}`;
     let runs;
     try {
       const response = await fetchImpl(url, { headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json' } });

@@ -416,7 +416,11 @@ test('красный робот открывает свою карточку, з
       files: Object.keys(responses),
       repo: 'x/y',
       token: 't',
-      fetchImpl: async (url) => responses[url.match(/workflows\/([^/]+)\/runs/)[1]],
+      fetchImpl: async (url) => {
+        assert.match(url, /branch=main/);
+        assert.doesNotMatch(url, /event=schedule/);
+        return responses[url.match(/workflows\/([^/]+)\/runs/)[1]];
+      },
       open: async (card) => opened.push(card),
       close: async (key) => closed.push(key),
     });
