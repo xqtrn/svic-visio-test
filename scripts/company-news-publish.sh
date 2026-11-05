@@ -3,9 +3,9 @@
 #
 # Why this exists (company-news red since 2026-10-09). The collector re-sent ALL
 # feeds gathered so far at every checkpoint (20, 40, ... 120, then all again), so
-# one run of 6 shards made ~3200 uploads, two requests each, against the 1000
-# requests per hour GitHub gives a repository's token. With 124 companies per
-# shard the budget ran out near the end of the run. A file whose old copy was
+# one run of 6 shards made ~3200 uploads, two requests each, against the 5000
+# requests per hour GitHub gives this token. With 124 companies per shard the
+# budget ran out near the end of the run. A file whose old copy was
 # already deleted but whose new copy hit the limit vanished from the site until
 # the next run (evidation, fal-ai, 2026-11-04).
 #
