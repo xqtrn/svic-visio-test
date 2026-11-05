@@ -15,6 +15,10 @@ import {
   readLiveCmsSchema,
   collectCmsProbeProblems,
   robotDbSecretError,
+  redStreak,
+  scheduledWorkflowFiles,
+  robotTaskKey,
+  checkScheduledRobots,
 } from './platform-health.mjs';
 
 test('сторож ходит на публичный сайт, не на закрытый Railway-origin', () => {
@@ -364,4 +368,63 @@ test('устаревший пароль базы у роботов виден о
     /password authentication/,
   );
   assert.equal(await robotDbSecretError(failing(new Error('connect ETIMEDOUT'))), null);
+});
+
+const run = (conclusion, created_at) => ({ conclusion, created_at, html_url: 'https://github.test/run' });
+
+test('красный робот: два падения подряд на отрезке от 12 часов, у любого расписания', () => {
+  const weekly = [run('failure', '2026-11-02T06:00:00Z'), run('failure', '2026-10-26T06:00:00Z'), run('success', '2026-10-19T06:00:00Z')];
+  assert.equal(redStreak(weekly).count, 2);
+  assert.equal(redStreak(weekly).since, '2026-10-26T06:00:00Z');
+  const halfHourly = Array.from({ length: 30 }, (_, i) => run('failure', new Date(Date.UTC(2026, 10, 4, 23) - i * 1800000).toISOString()));
+  const streak = redStreak(halfHourly);
+  assert.equal(streak.count, 30);
+  assert.equal(streak.atLeast, true);
+});
+
+test('не красный: одиночный сбой, короткая серия, зелёный последний прогон', () => {
+  assert.equal(redStreak([run('failure', '2026-11-04T10:00:00Z'), run('success', '2026-11-04T09:00:00Z')]), null);
+  assert.equal(redStreak([run('failure', '2026-11-04T10:00:00Z'), run('failure', '2026-11-04T09:00:00Z'), run('success', '2026-11-04T08:00:00Z')]), null);
+  assert.equal(redStreak([run('success', '2026-11-04T10:00:00Z'), run('failure', '2026-11-03T10:00:00Z'), run('failure', '2026-11-02T10:00:00Z')]), null);
+  assert.equal(redStreak([]), null);
+});
+
+test('отменённый прогон серию не обрывает', () => {
+  const streak = redStreak([run('failure', '2026-11-04T18:00:00Z'), run('cancelled', '2026-11-04T12:00:00Z'), run('failure', '2026-11-04T00:00:00Z'), run('success', '2026-11-03T18:00:00Z')]);
+  assert.equal(streak.count, 2);
+});
+
+test('сторож видит все плановые расписания и только их', () => {
+  const files = scheduledWorkflowFiles(new URL('../.github/workflows', import.meta.url).pathname);
+  for (const f of ['archive-clips.yml', 'company-news.yml', 'faces.yml', 'events.yml', 'platform-health.yml']) assert.ok(files.includes(f), f);
+  assert.ok(!files.includes('visio.yml'), 'visio запускается вручную');
+});
+
+test('красный робот открывает свою карточку, зелёный закрывает, сбой GitHub не трогает', async () => {
+  const responses = {
+    'bad.yml': { ok: true, json: async () => ({ workflow_runs: [run('failure', '2026-11-04T18:00:00Z'), run('failure', '2026-11-04T00:00:00Z')] }) },
+    'good.yml': { ok: true, json: async () => ({ workflow_runs: [run('success', '2026-11-04T18:00:00Z')] }) },
+    'limit.yml': { ok: false, status: 403 },
+    'empty.yml': { ok: true, json: async () => ({ workflow_runs: [] }) },
+  };
+  const opened = [];
+  const closed = [];
+  const errors = console.error;
+  console.error = () => {};
+  try {
+    const red = await checkScheduledRobots({
+      files: Object.keys(responses),
+      repo: 'x/y',
+      token: 't',
+      fetchImpl: async (url) => responses[url.match(/workflows\/([^/]+)\/runs/)[1]],
+      open: async (card) => opened.push(card),
+      close: async (key) => closed.push(key),
+    });
+    assert.deepEqual(red, ['bad.yml']);
+  } finally {
+    console.error = errors;
+  }
+  assert.deepEqual(opened.map((c) => c.key), [robotTaskKey('bad.yml')]);
+  assert.match(opened[0].summary, /Робот bad падает с 03\.11\.2026, плановых прогонов подряд: 2/);
+  assert.deepEqual(closed, [robotTaskKey('good.yml')]);
 });

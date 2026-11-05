@@ -7,6 +7,7 @@
 // этом отвечал. Ходим по адресу посетителя. JWT платформы обязан нести
 // issuer/audience, иначе подпись после 26.08 не принимается.
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { openTask, closeTask } from './system-task.mjs';
@@ -229,6 +230,70 @@ export async function robotDbSecretError(pool) {
   }
 }
 
+// Красный прогон GitHub никому не докладывает: archive-clips падал 8 недель, faces 13,
+// company-news почти 4, и никто этого не видел. Поэтому та же ежечасная проба смотрит
+// на все расписания репозитория. Одиночный сбой не повод: нужны два падения подряд
+// на отрезке не короче 12 часов (хватает и получасовому, и недельному расписанию).
+const RED_MIN_SPAN_MS = 12 * 3600 * 1000;
+const ROBOT_RUNS_PER_CHECK = 30;
+
+export function redStreak(runs, minSpanMs = RED_MIN_SPAN_MS) {
+  const real = (runs || []).filter((r) => !['cancelled', 'skipped', 'neutral'].includes(r.conclusion));
+  let n = 0;
+  while (n < real.length && ['failure', 'timed_out'].includes(real[n].conclusion)) n += 1;
+  if (n < 2) return null;
+  if (Date.parse(real[0].created_at) - Date.parse(real[n - 1].created_at) < minSpanMs) return null;
+  return { count: n, since: real[n - 1].created_at, url: real[0].html_url, atLeast: n === real.length && runs.length >= ROBOT_RUNS_PER_CHECK };
+}
+
+export function scheduledWorkflowFiles(dir = '.github/workflows') {
+  return fs.readdirSync(dir)
+    .filter((f) => /\.ya?ml$/.test(f) && /^\s+schedule:\s*$/m.test(fs.readFileSync(path.join(dir, f), 'utf8')))
+    .sort();
+}
+
+export const robotTaskKey = (file) => 'stand-robot-schedule-' + file.replace(/\.ya?ml$/, '');
+
+export function robotCard(file, streak) {
+  const name = file.replace(/\.ya?ml$/, '');
+  const since = new Date(streak.since).toLocaleDateString('ru-RU', { timeZone: 'America/Los_Angeles' });
+  const from = (streak.atLeast ? 'как минимум с ' : 'с ') + since;
+  const count = (streak.atLeast ? 'не меньше ' : '') + streak.count;
+  return {
+    key: robotTaskKey(file),
+    summary: `Робот ${name} падает ${from}, плановых прогонов подряд: ${count}`,
+    ownerBrief: `Фоновый робот сайта «${name}» не работает ${from}. Причину разбирает исполнитель.`,
+    details: `Последнее падение: ${streak.url}`,
+    instructions: 'Прочитать лог последнего падения, назвать причину, починить там, где она рождается, и дождаться зелёного планового прогона: карточка закроется сама.',
+  };
+}
+
+// Сбой чтения GitHub ничего не открывает и не закрывает: это не сведения о роботе.
+export async function checkScheduledRobots({ files, repo, token, fetchImpl, open, close }) {
+  const red = [];
+  for (const file of files) {
+    const url = `https://api.github.com/repos/${repo}/actions/workflows/${file}/runs?event=schedule&status=completed&per_page=${ROBOT_RUNS_PER_CHECK}`;
+    let runs;
+    try {
+      const response = await fetchImpl(url, { headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json' } });
+      if (!response.ok) { console.error(`[robots] ${file}: GitHub ответил ${response.status}`); continue; }
+      runs = (await response.json()).workflow_runs;
+    } catch (error) {
+      console.error(`[robots] ${file}: ${error.message}`);
+      continue;
+    }
+    if (!Array.isArray(runs) || !runs.length) continue;
+    const streak = redStreak(runs);
+    if (streak) {
+      red.push(file);
+      await open(robotCard(file, streak));
+    } else {
+      await close(robotTaskKey(file), 'Плановые прогоны робота снова зелёные.');
+    }
+  }
+  return red;
+}
+
 export async function collectCmsProbeProblems({ live, pool, fetchImpl, origin }) {
   if (live && live.reachable && live.ok) {
     const problems = [];
@@ -379,6 +444,18 @@ async function main() {
     });
   } else {
     await closeTask(ROBOT_DB_TASK_KEY, 'Секрет базы у роботов снова верный.');
+  }
+
+  if (process.env.GH_TOKEN && process.env.GITHUB_REPOSITORY) {
+    const red = await checkScheduledRobots({
+      files: scheduledWorkflowFiles(),
+      repo: process.env.GITHUB_REPOSITORY,
+      token: process.env.GH_TOKEN,
+      fetchImpl: fetch,
+      open: openTask,
+      close: closeTask,
+    });
+    console.log(red.length ? `роботы красные: ${red.join(', ')}` : 'все расписания в порядке');
   }
 
   if (problems.length) {

@@ -27,4 +27,5 @@ jobs:
           DATABASE_URL: ${{ secrets.SVIC_PLATFORM_DATABASE_URL }}
           SVIC_INTERNAL_KEY: ${{ secrets.SVIC_INTERNAL_KEY }}
           PLATFORM_SESSION_SECRET: ${{ secrets.PLATFORM_SESSION_SECRET }}
+          GH_TOKEN: ${{ github.token }}
         run: node scripts/platform-health.mjs

@@ -3,59 +3,78 @@
 # on the home page, detect faces and emit object-position percentages so CSS
 # `object-fit:cover` crops around the FACES, not the geometric center.
 # Output: faces.json {"<path>": "X% Y%"} — served to the edge worker via GH release.
-import json, re, sys, urllib.request
+import json, os, sys, time, urllib.error, urllib.parse, urllib.request
 
 import cv2
 import numpy as np
 
-COOKIE = 'svic_token=edge-preview'
-HOME = 'https://test.siliconvalleyinvestclub.com/'
+sys.path.insert(0, 'scripts')
+import faces_keys as keys
+
+SITE = os.environ.get('SVIC_SITE', 'https://siliconvalleyinvestclub.com').rstrip('/')
+RELEASE = 'https://github.com/xqtrn/svic-visio-test/releases/download/faces/'
+SCAN_SECONDS = 45 * 60   # the rest waits for next week's run; the job limit is 60 minutes
 
 def fetch(url, binary=False):
-    req = urllib.request.Request(url, headers={'Cookie': COOKIE, 'User-Agent': 'svic-faces/1'})
+    req = urllib.request.Request(url, headers={'User-Agent': 'svic-faces/1'})
     with urllib.request.urlopen(req, timeout=30) as r:
         return r.read() if binary else r.read().decode('utf-8', 'ignore')
 
-html = fetch(HOME)
-# home covers (dedup by path, strip query)
-paths = set(re.findall(r'i0\.wp\.com/(siliconvalleyinvestclub\.com/wp-content/uploads/[^"?\s]+\.(?:jpg|jpeg|png|webp))', html))
-# + the FULL archive via REST featured-media (Load More reaches the earliest post)
-page = 1
-while True:
+def published(name, required):
     try:
-        js = json.loads(fetch(HOME.rstrip('/') + f'/wp-json/wp/v2/posts?per_page=100&page={page}&_embed=wp:featuredmedia&_fields=id,_links,_embedded'))
-    except Exception as e:
-        print('rest stop', page, str(e)[:60], file=sys.stderr); break
-    if not isinstance(js, list) or not js: break
-    for post in js:
-        try:
-            src = post['_embedded']['wp:featuredmedia'][0]['source_url']
-            m = re.search(r'(siliconvalleyinvestclub\.com/wp-content/uploads/[^"?\s]+\.(?:jpg|jpeg|png|webp))', src, re.I)
-            if m: paths.add(m.group(1))
-        except Exception: pass
-    if len(js) < 100: break
-    page += 1
-paths = sorted(paths)
-print('covers found (home+archive):', len(paths))
+        return json.loads(fetch(RELEASE + name))
+    except urllib.error.HTTPError as e:
+        if e.code == 404 and not required: return None
+        raise
+
+# Covers come from the public site: the home page plus every post the site lists.
+# The robot used to read test.* (behind login since 2026-08-03) and WordPress REST
+# (gone), so nothing published after 2026-07-27 got a face map.
+paths = keys.paths_from_html(fetch(SITE + '/'))
+offset = 0
+while True:
+    posts = json.loads(fetch(f'{SITE}/api/site/posts?limit=50&offset={offset}')).get('posts') or []
+    paths |= keys.paths_from_posts(posts)
+    offset += len(posts)
+    if len(posts) < 50: break
+print('covers on the site:', len(paths))
+if not paths:
+    sys.exit('the site returned no covers: refusing to publish from a blind read')
+
+# The published map is kept and only new covers are scanned, so a bad read can
+# never shrink it. Covers already scanned without a face are remembered separately:
+# the site reads any entry in faces.json as a face.
+out = published('faces.json', True)
+no_face = set(published('faces-seen.json', False) or [])
+todo = keys.to_scan(paths, set(out) | no_face)
+print('already mapped:', len(out), '| seen without a face:', len(no_face), '| to scan:', len(todo))
+started = time.monotonic()
+scanned = failed = found = 0
 
 # YuNet (opencv_zoo, Apache-2.0) — compact open face detector, single onnx file
 MODEL = 'face_detection_yunet_2023mar.onnx'
 urllib.request.urlretrieve('https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx', MODEL)
 det = cv2.FaceDetectorYN_create(MODEL, '', (320, 320), score_threshold=0.6)
-out = {}
-for p in paths:
+for p, path in todo.items():
+    if time.monotonic() - started > SCAN_SECONDS:
+        print('time limit: the rest waits for the next run,', len(todo) - scanned, 'left')
+        break
+    scanned += 1
     try:
-        # Photon 404s from GH-runner IPs — pull originals through our own edge (cookie'd)
-        raw = fetch('https://test.siliconvalleyinvestclub.com/' + p.split('siliconvalleyinvestclub.com/',1)[1], binary=True)
+        raw = fetch(SITE + urllib.parse.quote(path, safe='/%'), binary=True)
         img = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
-        if img is None: continue
+        if img is None:
+            no_face.add(p)
+            continue
         if img.shape[1] > 900:
             sc = 900 / img.shape[1]
             img = cv2.resize(img, (900, int(img.shape[0] * sc)))
         h, w = img.shape[:2]
         det.setInputSize((w, h))
         ok, faces = det.detect(img)
-        if faces is None or len(faces) == 0: continue
+        if faces is None or len(faces) == 0:
+            no_face.add(p)
+            continue
         # weighted center of all faces (weight = bbox area) + face extent + spread
         cx = cy = tw = 0.0; top = 1.0; fhmax = 0.0; bot = 0.0
         gleft = 1.0; gright = 0.0; best = None; barea = 0.0
@@ -114,8 +133,14 @@ for p in paths:
             y_anchor = top + round(fh * 0.38)
         x = min(95, max(5, fx)); y = min(85, max(5, y_anchor))
         out[p] = {'pos': f'{x}% {y}%', 'f': [fx, fy], 'top': top, 'fh': fh, 'n': int(len(faces)), 'bot': bot, 'gl': gl, 'gr': gr, 'ar': round(1000 * w / h)}
+        found += 1
     except Exception as e:
+        failed += 1
         print('skip', p, str(e)[:80], file=sys.stderr)
 
+print(f'scanned {scanned}: faces in {found}, failed {failed}')
+if scanned and failed == scanned:
+    sys.exit('every cover failed to load: the site is not answering this robot')
 json.dump(out, open('faces.json', 'w'), ensure_ascii=False, indent=0)
+json.dump(sorted(no_face), open('faces-seen.json', 'w'), ensure_ascii=False, indent=0)
 print('faces.json entries:', len(out))
