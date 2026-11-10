@@ -1,0 +1,27 @@
+name: video-back
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Base URL'
+        default: 'https://siliconvalleyinvestclub.com'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm init -y >/dev/null && npm i playwright@1.49.0 >/dev/null
+      - uses: ./.github/actions/install-playwright
+        with:
+          browsers: webkit
+          playwright-version: '1.49.0'
+          extra-apt: gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
+      - run: rm -rf out && node video-back.mjs
+        env:
+          BASE: ${{ inputs.base }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: video-back-out, path: out/ }
