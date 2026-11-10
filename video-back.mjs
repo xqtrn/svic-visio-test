@@ -19,24 +19,27 @@ const sample = () => page.evaluate(async () => {
     videos: vs.map((v, i) => ({ i, visible: Math.round(ratio(v) * 100) / 100, paused: v.paused, rs: v.readyState,
       moved: Math.round((v.currentTime - before[i]) * 10) / 10, user: v.dataset.svicUserPaused || '' })).filter((x) => x.visible > 0) };
 });
-const step = async (name) => { const s = await sample(); report.steps.push({ name, url: page.url(), ...s }); await page.screenshot({ path: `out/${name}.png` }); };
-await page.goto(BASE + '/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+const save = () => fs.writeFileSync('out/report.json', JSON.stringify(report, null, 1));
+const log = (m) => console.log(new Date().toISOString().slice(11, 19), m);
+const limit = (p, ms, what) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout: ' + what)), ms))]);
+const step = async (name) => { log('sample ' + name); const s = await limit(sample(), 30000, 'sample ' + name);
+  report.steps.push({ name, url: page.url(), ...s }); save(); log(JSON.stringify(s));
+  await limit(page.screenshot({ path: `out/${name}.png`, timeout: 15000 }), 20000, 'shot').catch((e) => log('no screenshot: ' + e.message)); };
+log('open'); await page.goto(BASE + '/', { waitUntil: 'commit', timeout: 60000 });
 await page.waitForTimeout(9000);
 await step('1-open');
 const href = await page.evaluate(() => { const v = [...document.querySelectorAll('video')][0];
   let n = v; for (let i = 0; n && i < 8; i++, n = n.parentElement) { const a = n.querySelector && n.querySelector('a[href*="/20"]'); if (a) return a.href; } return null; });
 report.href = href;
 if (href) {
-  await page.evaluate((h) => { const a = [...document.querySelectorAll('a[href]')].find((x) => x.href === h); a.click(); }, href);
+  log('go to article ' + href); await limit(page.evaluate((h) => { const a = [...document.querySelectorAll('a[href]')].find((x) => x.href === h); setTimeout(() => a.click(), 50); }, href), 15000, 'click');
   await page.waitForTimeout(9000);
   report.article = page.url();
-  await page.goBack({ waitUntil: 'domcontentloaded', timeout: 60000 });
+  log('back from ' + report.article); await limit(page.goBack({ waitUntil: 'commit', timeout: 30000 }), 35000, 'back');
   await page.waitForTimeout(6000);
   await step('2-after-back');
   await page.evaluate(() => scrollBy(0, 700)); await page.waitForTimeout(3000);
   await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(4000);
   await step('3-after-scroll');
 }
-fs.writeFileSync('out/report.json', JSON.stringify(report, null, 1));
-console.log(JSON.stringify(report, null, 1));
-await browser.close();
+save(); log('done'); await limit(browser.close(), 10000, 'close').catch(() => {}); process.exit(0);
