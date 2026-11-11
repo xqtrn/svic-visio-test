@@ -260,8 +260,12 @@ export const RELEASES = ['clips3', 'clips2', 'clips']; // тома склада 
 // Версия движка карты: при смене сбрасываем yt-info/no-source/error, чтобы
 // починка клиентов YouTube сразу пересчитала дыру, а не ждала RETRY_DAYS.
 // unavailable не трогаем — снятый ролик от смены клиента не оживает.
-export const ENGINE = 5;
+export const ENGINE = 6;
 export const RETRYABLE_FAILS = ['yt-info', 'no-source', 'error'];
+// Four shards drained ~400 videos through one Penguin IP in 74 minutes on
+// 11.11; YouTube then returned a bot challenge to every remaining shard.
+// Bound the total work per workflow, not per shard, to give that IP a rest.
+export const MAX_PER_RUN = 60;
 
 export function copyCandidates(id, assets){
   // полная запись интервью, обычная копия, облегчённая .480 — по порядку; у
@@ -288,7 +292,7 @@ export function planList(covers, map, assets, now = Date.now()){
   }
   // свежие посты первыми: их видят на главной
   list.sort((a, b) => (b.d > a.d ? 1 : b.d < a.d ? -1 : 0));
-  return list;
+  return list.slice(0, MAX_PER_RUN);
 }
 
 export function shard(list, n){

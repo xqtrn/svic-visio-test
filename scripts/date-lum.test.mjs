@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verify, switches, darkAt, planList, copyCandidates, mergeResults, coverageGap, RATE,
   settleYtInfo, refreshMap, ENGINE, DEAD_YT, YT_INFO_CLIENTS, YT_DL_ATTEMPTS,
-  YT_JS_RUNTIME, ytDlpArgs, YT_WORKING_CLIENTS, mp4FileTruncated,
+  YT_JS_RUNTIME, ytDlpArgs, YT_WORKING_CLIENTS, mp4FileTruncated, MAX_PER_RUN,
   COVERS_URL, coversFromManifest, fetchCovers } from './date-lum.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -75,6 +75,30 @@ test('план: свежие первыми, со шкалой и недавни
   const list = planList(covers, map, new Set(['clips/bbbbbbbbbbb.mp4', 'clips2/full-bbbbbbbbbbb.mp4']), now);
   assert.deepEqual(list.map((x) => x.id), ['bbbbbbbbbbb', 'aaaaaaaaaaa']);
   assert.deepEqual(list[0].copies, ['clips2/full-bbbbbbbbbbb.mp4', 'clips/bbbbbbbbbbb.mp4']);
+});
+
+// Замок бага: карточка #52f0a048-3108-4fcf-acd2-7e24419583f2
+// 11.11 четыре потока вместе обработали ~400 роликов за 74 минуты; после этого
+// каждый запрос через Пингвин получил bot challenge, оставив 23 новые дыры.
+test('Замок бага: карточка #52f0a048-3108-4fcf-acd2-7e24419583f2 — общий лимит волны и немедленный повтор старых отказов', () => {
+  const now = Date.parse('2026-11-11T20:00:00Z');
+  const covers = Array.from({ length: 120 }, (_, i) => ({
+    v: String(i).padStart(11, '0'), d: `2022-01-${String(1 + i % 28).padStart(2, '0')}`,
+  }));
+  const fails = Object.fromEntries(covers.slice(0, 53).map(({ v }) => [v, {
+    reason: 'yt-info', n: 2, at: '2026-11-11T19:49:07Z',
+  }]));
+  const { map, reset } = refreshMap({ engine: 5, tracks: {}, fails });
+  assert.equal(reset.length, 53);
+  assert.equal(map.fails[covers[0].v], undefined);
+  assert.equal(MAX_PER_RUN, 60);
+  const first = planList(covers, map, new Set(), now);
+  assert.equal(first.length, 60);
+  assert.equal(new Set(first.map(({ id }) => id)).size, 60);
+  assert.ok(first[0].d >= first.at(-1).d);
+  const remaining = planList(covers, { ...map, tracks: Object.fromEntries(first.map(({ id }) => [id, {}])) }, new Set(), now);
+  assert.equal(remaining.length, 60);
+  assert.equal(new Set([...first, ...remaining].map(({ id }) => id)).size, 120);
 });
 
 test('копии: полная запись интервью первой, каждый вид — из самого нового тома', () => {
@@ -177,7 +201,7 @@ test('Замок бага: карточка #b1851043-bcf5-4954-bcdc-01723ae4013
 test('Замок бага: карточка #f4fed8bd-3bb9-4e0f-89da-e49b8e492632 — бот-стена лечится EJS на Node, не новым клиентом', () => {
   assert.deepEqual(YT_JS_RUNTIME, ['--js-runtimes', 'node']);
   assert.deepEqual(ytDlpArgs().slice(0, 2), ['--js-runtimes', 'node']);
-  assert.equal(ENGINE, 5);
+  assert.equal(ENGINE, 6);
   const src = readFileSync(join(ROOT, 'scripts/date-lum.mjs'), 'utf8');
   assert.match(src, /function ytInfo/);
   assert.equal((src.match(/sh\('yt-dlp'/g) || []).length, 2);
@@ -223,7 +247,7 @@ test('Замок бага: карточка #f4fed8bd-3bb9-4e0f-89da-e49b8e49263
 // yt-dlp 2026.08.19, а ios/android/tv_embedded отвечают бот-стеной.
 // tv_embedded из экстрактора снят; default — tv_samsung,visionos,web.
 test('Замок бага: карточка #cc97cde4-f479-45fc-a6b8-d9bf9c83218b — живые клиенты tv_samsung/visionos, мёртвые ios/android/tv_embedded не зовутся', () => {
-  assert.equal(ENGINE, 5);
+  assert.equal(ENGINE, 6);
   for (const c of ['web_safari', 'tv_samsung', 'visionos', 'android_vr', 'tv_simply']) {
     assert.ok(YT_INFO_CLIENTS.includes(c), c);
   }
@@ -286,7 +310,7 @@ test('Замок бага: карточка #cc97cde4-f479-45fc-a6b8-d9bf9c83218
 // десятки мегабайт и обрывается). ffprobe читает длительность, ffmpeg —
 // «partial file». Отдельное видео по https у этих роликов целое.
 test('Замок бага: карточка #8e87966e-460f-46ff-8333-1270d09c3b01 — пустой mdat не источник, сначала видео без звука', () => {
-  assert.equal(ENGINE, 5);
+  assert.equal(ENGINE, 6);
   assert.match(YT_DL_ATTEMPTS[0].format, /^wv\[height<=360\]\[ext=mp4\]\[protocol=https\]/);
   for (const a of YT_DL_ATTEMPTS) {
     assert.match(a.format, /protocol=https/);
