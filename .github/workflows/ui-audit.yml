@@ -19,7 +19,7 @@ on:
         default: '4000'
 jobs:
   audit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

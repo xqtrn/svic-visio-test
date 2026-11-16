@@ -14,7 +14,7 @@ on:
       notype: { description: '1 = type nothing: Details, photo and typed signature must come prefilled; checks the photo gate', default: '0' }
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4

@@ -9,7 +9,7 @@ on:
       code: { description: 'QA candidate code (/apply/<code>)', default: '' }
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

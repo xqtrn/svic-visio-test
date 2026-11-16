@@ -11,7 +11,7 @@ on:
       slot: { description: 'a | b — which test candidate link secret (AJ_WELCOME_A / AJ_WELCOME_B)', default: 'a' }
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4

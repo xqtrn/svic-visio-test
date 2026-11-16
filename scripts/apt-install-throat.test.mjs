@@ -29,6 +29,18 @@ test('self-hosted-only workflows are outside the lock; GitHub-hosted ones are no
   assert.equal(githubHosted('jobs:\n  a:\n    runs-on: [self-hosted, svic]\n  b:\n    runs-on: ubuntu-latest\n'), true);
 });
 
+// 2026-11-16: ubuntu-latest reached Ubuntu 26.04, where Playwright 1.49
+// WebKit install-deps cannot find libicu74, libxml2, libvpx9, or libx264-164.
+test('GitHub-hosted Playwright workflows pin Ubuntu 24.04', () => {
+  const hits = [];
+  for (const name of WORKFLOWS) {
+    const text = read(`.github/workflows/${name}`);
+    if (!githubHosted(text) || !/playwright/i.test(text)) continue;
+    if (/^\s*runs-on:\s*ubuntu-latest\s*$/m.test(text)) hits.push(name);
+  }
+  assert.deepEqual(hits, []);
+});
+
 test('ни один workflow не вызывает сырой apt-get update или playwright --with-deps', () => {
   const hits = [];
   for (const name of WORKFLOWS) {

@@ -9,7 +9,7 @@ on:
       strip: { description: '1 = branch loader.js with the test candidate strip cookie set', default: '0' }
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
