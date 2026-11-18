@@ -70,20 +70,19 @@ jobs:
               q = (it.get('news_query') or '').strip()
               if it.get('slug') and q: print(it['slug'] + '|' + q)
           PYLIST
-          # A repair dispatch may target one company. Keep the same collector,
-          # validation and release transport as the scheduled class-wide run.
-          if [ -n "$ONLY_SLUG" ]; then
-            awk -F'|' -v slug="$ONLY_SLUG" '$1 == slug' companies.txt > only-company.txt
-            mv only-company.txt companies.txt
-          fi
-          # каждый шард берёт свою долю списка — иначе 220 компаний подряд
-          # не укладываются в лимит одного прогона
-          if [ -z "$ONLY_SLUG" ]; then
-            awk -v s="$SHARD" -v n="$SHARDS" 'NR % n == s' companies.txt > shard.txt
-            mv shard.txt companies.txt
-          elif [ "$SHARD" != '0' ]; then
-            : > companies.txt
-          fi
+          # Stable shard per slug: adding a company cannot move an older feed
+          # into another bundle. One release asset per shard avoids GitHub's
+          # hard 1000-assets-per-release limit (hit on 2026-11-18).
+          python3 - <<'PYSHARD' > shard.txt
+          import hashlib, os
+          shard, count = int(os.environ['SHARD']), int(os.environ['SHARDS'])
+          only = os.environ.get('ONLY_SLUG', '')
+          for line in open('companies.txt'):
+              slug = line.split('|', 1)[0]
+              if (not only or slug == only) and hashlib.sha256(slug.encode()).digest()[0] % count == shard:
+                  print(line.rstrip('\n'))
+          PYSHARD
+          mv shard.txt companies.txt
           echo "компаний в этом шарде: $(wc -l < companies.txt)"
           # out/ is tracked and holds other robots' files; only this run's feeds go out
           mkdir -p out
@@ -92,13 +91,24 @@ jobs:
             echo 'bounded repair: this shard has no target'
             exit 0
           fi
-          # релиз готовим ДО цикла и грузим партиями по 20 компаний: прогон
-          # 12.08.26 умер по таймауту в самом конце и потерял ВСЕ собранные
-          # ленты — с промежуточной загрузкой таймаут стоит максимум партию
-          gh release view company-news -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-            gh release create company-news -R "$GITHUB_REPOSITORY" --title "Company news feeds" \
-              --notes "Auto-collected news JSON for stand company profiles; refreshed every 6h." --latest=false || \
-            echo 'release check failed; the upload below decides'
+          # v2 has six bundle assets, while the legacy per-company release stays
+          # intact as a fallback for feeds not refreshed since the migration.
+          gh release view company-news-v2 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create company-news-v2 -R "$GITHUB_REPOSITORY" --title "Company news bundles" \
+              --notes "Stable shard bundles of company news feeds." --latest=false || \
+            gh release view company-news-v2 -R "$GITHUB_REPOSITORY" >/dev/null
+          if ! curl -fsSL --max-time 60 \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/company-news-v2/shard-${SHARD}.json" \
+            -o prior-v2.json; then
+            asset_names=$(gh release view company-news-v2 -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name') || exit 1
+            if printf '%s\n' "$asset_names" | grep -Fxq "shard-${SHARD}.json"; then
+              echo "existing shard bundle could not be read" >&2
+              exit 1
+            fi
+            printf '{}\n' > prior-v2.json
+          fi
+          # Legacy release is read-only; do not recreate or upload to it.
+          gh release view company-news -R "$GITHUB_REPOSITORY" >/dev/null
           i=0
           while IFS='|' read -r slug query; do
             [ -z "$slug" ] && continue
@@ -272,9 +282,14 @@ jobs:
               items.append({'title': r['title'], 'link': link, 'source': r['source'], 'date': r['date'], 'ts': r['ts']})
           retained = []
           repo = os.environ.get('GITHUB_REPOSITORY') or 'xqtrn/svic-visio-test'
+          prior_bundle = json.load(open('prior-v2.json'))
+          prior_feed = prior_bundle.get(slug) if isinstance(prior_bundle, dict) else None
           try:
-              prev = json.loads(curl(f'https://github.com/{repo}/releases/download/company-news/{slug}.json') or '')
-              retained = list(prev.get('items') or [])
+              if prior_feed:
+                  retained = list(prior_feed.get('items') or [])
+              else:
+                  prev = json.loads(curl(f'https://github.com/{repo}/releases/download/company-news/{slug}.json') or '')
+                  retained = list(prev.get('items') or [])
           except Exception:
               retained = []
           items = nlink.merge_items(items, retained)
@@ -324,9 +339,9 @@ jobs:
                   os.remove(p)
           sys.exit(bad)
           PY
-          # публикация: релиз company-news, ассеты перезаписываются. Лимит запросов
-          # GitHub здесь не приговор: хвост дожидается сброса, пока есть время до
-          # таймаута задания (7200 с), и только потом падает.
+          # Публикация: шесть стабильных bundle-ассетов в company-news-v2.
+          # Временный лимит GitHub ждём до срока задания, постоянный HTTP 422
+          # по числу ассетов останавливаем сразу.
           bash scripts/company-news-publish.sh out published "$((6900 - SECONDS))"
           gh api rate_limit --jq '"github quota left: \(.resources.core.remaining) of \(.resources.core.limit)"' || true
           if compgen -G 'published/*.json' >/dev/null; then
@@ -335,6 +350,15 @@ jobs:
             # A transient source outage must not turn a valid production feed
             # into a failed recovery. Prove the retained release asset still
             # satisfies the exact same floor; fail if it is absent or thin.
+            if python3 - "$ONLY_SLUG" <<'PYV2'; then
+          import json, sys
+          feed = json.load(open('prior-v2.json')).get(sys.argv[1]) or {}
+          n = len(feed.get('items') or [])
+          if n < 8: raise SystemExit(1)
+          print(f'{sys.argv[1]} retained v2 production feed verified: {n} items')
+          PYV2
+              exit 0
+            fi
             curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/releases/download/company-news/${ONLY_SLUG}.json?run=${GITHUB_RUN_ID}" -o retained.json
             python3 - "$ONLY_SLUG" <<'PYRETAIN'
           import json, sys
