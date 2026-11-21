@@ -36,25 +36,56 @@ concurrency:
   group: company-news
   cancel-in-progress: true
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - id: plan
+        env:
+          ONLY_SLUG: ${{ inputs.only_slug || '' }}
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 60 "https://siliconvalleyinvestclub.com/api/site/companies" -o companies.json
+          python3 - <<'PY'
+          import hashlib, json, math, os
+          items = json.load(open('companies.json')).get('items') or []
+          slugs = [it['slug'] for it in items if it.get('slug') and (it.get('news_query') or '').strip()]
+          if not slugs:
+              raise SystemExit('catalog returned no news queries')
+          # Each company is several proxied fetches plus an archive pause.
+          # Keep a shard near 40 companies so the 120-minute job still finishes
+          # after the catalog grows, and do not go below the old six-way split.
+          shards = min(18, max(6, math.ceil(len(slugs) / 40)))
+          only = os.environ.get('ONLY_SLUG') or ''
+          indexes = [hashlib.sha256(only.encode()).digest()[0] % shards] if only else list(range(shards))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write(f'shards={shards}\n')
+              out.write('matrix=' + json.dumps(indexes) + '\n')
+          print(f'companies {len(slugs)} shards {shards} running {indexes}')
+          PY
   collect:
+    needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5]
+        shard: ${{ fromJson(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
       - name: lock — Bing apiclick разворачивается из &amp;url=
-        run: node --test scripts/company-news-link.lock.test.mjs
+        run: node --test scripts/company-news-link.lock.test.mjs tests/company-news-release-cap.test.mjs
       - name: Collect and publish news feeds
         env:
           SOCKS: ${{ secrets.PENGUIN_SOCKS }}
           GH_TOKEN: ${{ github.token }}
           SHARD: ${{ matrix.shard }}
-          SHARDS: '6'
+          SHARDS: ${{ needs.plan.outputs.shards }}
           ONLY_SLUG: ${{ inputs.only_slug || '' }}
         run: |
           set -e
@@ -70,20 +101,21 @@ jobs:
               q = (it.get('news_query') or '').strip()
               if it.get('slug') and q: print(it['slug'] + '|' + q)
           PYLIST
-          # A repair dispatch may target one company. Keep the same collector,
-          # validation and release transport as the scheduled class-wide run.
-          if [ -n "$ONLY_SLUG" ]; then
-            awk -F'|' -v slug="$ONLY_SLUG" '$1 == slug' companies.txt > only-company.txt
-            mv only-company.txt companies.txt
-          fi
-          # каждый шард берёт свою долю списка — иначе 220 компаний подряд
-          # не укладываются в лимит одного прогона
-          if [ -z "$ONLY_SLUG" ]; then
-            awk -v s="$SHARD" -v n="$SHARDS" 'NR % n == s' companies.txt > shard.txt
-            mv shard.txt companies.txt
-          elif [ "$SHARD" != '0' ]; then
-            : > companies.txt
-          fi
+          # Stable shard per slug. Adding a company must not move an older feed
+          # into another bundle. The plan job sizes the modulus so one shard
+          # stays inside the job timeout as the catalog grows.
+          python3 - <<'PYSHARD' > shard.txt
+          import hashlib, os
+          shard, count = int(os.environ['SHARD']), int(os.environ['SHARDS'])
+          only = os.environ.get('ONLY_SLUG', '')
+          for line in open('companies.txt'):
+              slug = line.split('|', 1)[0]
+              if only and slug != only:
+                  continue
+              if hashlib.sha256(slug.encode()).digest()[0] % count == shard:
+                  print(line.rstrip('\n'))
+          PYSHARD
+          mv shard.txt companies.txt
           echo "компаний в этом шарде: $(wc -l < companies.txt)"
           # out/ is tracked and holds other robots' files; only this run's feeds go out
           mkdir -p out
@@ -94,11 +126,23 @@ jobs:
           fi
           # релиз готовим ДО цикла и грузим партиями по 20 компаний: прогон
           # 12.08.26 умер по таймауту в самом конце и потерял ВСЕ собранные
-          # ленты — с промежуточной загрузкой таймаут стоит максимум партию
-          gh release view company-news -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-            gh release create company-news -R "$GITHUB_REPOSITORY" --title "Company news feeds" \
-              --notes "Auto-collected news JSON for stand company profiles; refreshed every 6h." --latest=false || \
-            echo 'release check failed; the upload below decides'
+          # ленты — с промежуточной загрузкой таймаут стоит максимум партию.
+          # Старый релиз company-news уже упёрся в 1000 ассетов и остаётся
+          # только для чтения. Пишем bundle-ы в company-news-v2.
+          gh release view company-news-v2 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create company-news-v2 -R "$GITHUB_REPOSITORY" --title "Company news bundles" \
+              --notes "Stable shard bundles of company news feeds. One asset per shard, not per company." --latest=false || \
+            gh release view company-news-v2 -R "$GITHUB_REPOSITORY" >/dev/null
+          if ! curl -fsSL --max-time 60 \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/company-news-v2/shard-${SHARD}.json" \
+            -o prior-v2.json; then
+            asset_names=$(gh release view company-news-v2 -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name') || exit 1
+            if printf '%s\n' "$asset_names" | grep -Fxq "shard-${SHARD}.json"; then
+              echo "existing shard bundle could not be read" >&2
+              exit 1
+            fi
+            printf '{}\n' > prior-v2.json
+          fi
           i=0
           while IFS='|' read -r slug query; do
             [ -z "$slug" ] && continue
@@ -272,9 +316,14 @@ jobs:
               items.append({'title': r['title'], 'link': link, 'source': r['source'], 'date': r['date'], 'ts': r['ts']})
           retained = []
           repo = os.environ.get('GITHUB_REPOSITORY') or 'xqtrn/svic-visio-test'
+          prior_bundle = json.load(open('prior-v2.json'))
+          prior_feed = prior_bundle.get(slug) if isinstance(prior_bundle, dict) else None
           try:
-              prev = json.loads(curl(f'https://github.com/{repo}/releases/download/company-news/{slug}.json') or '')
-              retained = list(prev.get('items') or [])
+              if isinstance(prior_feed, dict) and prior_feed.get('items'):
+                  retained = list(prior_feed.get('items') or [])
+              else:
+                  prev = json.loads(curl(f'https://github.com/{repo}/releases/download/company-news/{slug}.json') or '')
+                  retained = list(prev.get('items') or [])
           except Exception:
               retained = []
           items = nlink.merge_items(items, retained)
@@ -302,9 +351,12 @@ jobs:
               print(f'{p}: всего {n} новостей — ленту не публикуем')
               os.remove(p)
           PYGATE
-            # промежуточная публикация каждые 20 компаний (см. комментарий у цикла)
+            # промежуточная публикация каждые 20 компаний (см. комментарий у цикла).
+            # Потолок ассетов не лечится ожиданием: такой отказ останавливает шард.
             if [ $((i % 20)) -eq 0 ]; then
-              bash scripts/company-news-publish.sh out published 0 || echo 'batch stays for the next upload'
+              bash scripts/company-news-publish.sh out published 0 && status=0 || status=$?
+              if [ "$status" -eq 2 ]; then exit 2; fi
+              if [ "$status" -ne 0 ]; then echo 'batch stays for the next upload'; fi
             fi
           done < companies.txt
           ls -la out/
@@ -324,9 +376,9 @@ jobs:
                   os.remove(p)
           sys.exit(bad)
           PY
-          # публикация: релиз company-news, ассеты перезаписываются. Лимит запросов
-          # GitHub здесь не приговор: хвост дожидается сброса, пока есть время до
-          # таймаута задания (7200 с), и только потом падает.
+          # Публикация: один bundle на шард. Временный лимит запросов ждём до
+          # срока задания. Постоянный HTTP 422 по числу ассетов издатель
+          # останавливает сразу и не переводит в успешный прогон.
           bash scripts/company-news-publish.sh out published "$((6900 - SECONDS))"
           gh api rate_limit --jq '"github quota left: \(.resources.core.remaining) of \(.resources.core.limit)"' || true
           if compgen -G 'published/*.json' >/dev/null; then

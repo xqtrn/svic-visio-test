@@ -57,12 +57,21 @@ test('a feed with the same stories is not uploaded again', () => {
   assert.equal(py(`print(m.feed_unchanged(${old}, []))`), 'False');
 });
 
+function feedBody(slug) {
+  return JSON.stringify({
+    slug,
+    items: Array.from({ length: 8 }, (_, n) => ({
+      title: `Story ${n}`, link: `https://example.com/${slug}/${n}`,
+    })),
+  });
+}
+
 function publishFixture(ghScript, feeds = 45) {
   const dir = mkdtempSync(path.join(tmpdir(), 'cn-publish-'));
   const bin = path.join(dir, 'bin');
   mkdirSync(bin);
   mkdirSync(path.join(dir, 'out'));
-  for (let i = 0; i < feeds; i += 1) writeFileSync(path.join(dir, 'out', `c${i}.json`), '{}');
+  for (let i = 0; i < feeds; i += 1) writeFileSync(path.join(dir, 'out', `c${i}.json`), feedBody(`c${i}`));
   writeFileSync(path.join(bin, 'gh'), `#!/usr/bin/env bash\necho "$*" >> ${dir}/gh.log\n${ghScript}\n`, { mode: 0o755 });
   writeFileSync(path.join(bin, 'nosleep'), `#!/usr/bin/env bash\necho "$1" >> ${dir}/sleep.log\n`, { mode: 0o755 });
   return { dir, bin };
@@ -71,16 +80,21 @@ function publishFixture(ghScript, feeds = 45) {
 function runPublish({ dir, bin }, maxWait) {
   return spawnSync('bash', [path.join(here, 'company-news-publish.sh'), path.join(dir, 'out'), path.join(dir, 'published'), String(maxWait)], {
     encoding: 'utf8',
-    env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, GITHUB_REPOSITORY: 'x/y', PUBLISH_SLEEP_BIN: path.join(bin, 'nosleep') },
+    env: {
+      ...process.env, PATH: `${bin}:${process.env.PATH}`, GITHUB_REPOSITORY: 'x/y',
+      SHARD: '0', SHARDS: '1', PUBLISH_SLEEP_BIN: path.join(bin, 'nosleep'),
+    },
   });
 }
+
+const publishedFeeds = (dir) => readdirSync(path.join(dir, 'published')).filter((name) => name.endsWith('.json') && !name.startsWith('.'));
 
 const uploads = (dir) => readFileSync(path.join(dir, 'gh.log'), 'utf8').split('\n').filter((l) => l.startsWith('release upload'));
 
 test('each feed goes out once: a second pass uploads nothing', () => {
   const fx = publishFixture('exit 0');
   assert.equal(runPublish(fx, 0).status, 0);
-  assert.equal(readdirSync(path.join(fx.dir, 'published')).length, 45);
+  assert.equal(publishedFeeds(fx.dir).length, 45);
   assert.equal(readdirSync(path.join(fx.dir, 'out')).length, 0);
   const first = uploads(fx.dir).length;
   assert.equal(first, 3, 'uploaded in chunks of 20');
@@ -89,7 +103,7 @@ test('each feed goes out once: a second pass uploads nothing', () => {
 });
 
 test('a batch pass without waiting keeps unsent feeds and reports failure', () => {
-  const fx = publishFixture('[ "$1" = release ] && { echo "HTTP 403: API rate limit exceeded" >&2; exit 1; }; echo "0 9999999999"');
+  const fx = publishFixture('[ "$2" = upload ] && { echo "HTTP 403: API rate limit exceeded" >&2; exit 1; }; [ "$1" = api ] && echo "0 9999999999"; exit 0');
   assert.equal(runPublish(fx, 0).status, 1);
   assert.equal(readdirSync(path.join(fx.dir, 'out')).length, 45);
   assert.equal(existsSync(path.join(fx.dir, 'sleep.log')), false);
@@ -99,11 +113,11 @@ test('the final pass waits for the limit to reset, then finishes', () => {
   const now = Math.floor(Date.now() / 1000);
   const fx = publishFixture(`if [ "$1" = api ]; then echo "0 ${now + 600}"; exit 0; fi
 n=$(grep -c '^release upload' "$(dirname "$(dirname "$0")")/gh.log")
-[ "$n" -gt 1 ] && exit 0
-echo "HTTP 403: API rate limit exceeded" >&2; exit 1`);
+[ "$2" = upload ] && [ "$n" -le 1 ] && { echo "HTTP 403: API rate limit exceeded" >&2; exit 1; }
+exit 0`);
   const r = runPublish(fx, 3000);
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(readdirSync(path.join(fx.dir, 'published')).length, 45);
+  assert.equal(publishedFeeds(fx.dir).length, 45);
   const slept = Number(readFileSync(path.join(fx.dir, 'sleep.log'), 'utf8').trim());
   assert.ok(slept > 590 && slept <= 605, `slept ${slept}`);
 });
@@ -111,7 +125,8 @@ echo "HTTP 403: API rate limit exceeded" >&2; exit 1`);
 test('the final pass fails honestly when the wait does not fit the job', () => {
   const now = Math.floor(Date.now() / 1000);
   const fx = publishFixture(`if [ "$1" = api ]; then echo "0 ${now + 3000}"; exit 0; fi
-echo "HTTP 403: API rate limit exceeded" >&2; exit 1`);
+[ "$2" = upload ] && { echo "HTTP 403: API rate limit exceeded" >&2; exit 1; }
+exit 0`);
   const r = runPublish(fx, 600);
   assert.equal(r.status, 1);
   assert.match(r.stderr, /45 feeds not published/);
