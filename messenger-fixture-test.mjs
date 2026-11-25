@@ -291,15 +291,24 @@ await check('scroll-list', async () => {
 });
 
 await check('select-and-copy', async () => {
-  const c = await copyCenter('.msg .selectable-text', 2);
+  // The chat opened by click-row shows "Chat N message K", scrolled to its end: the
+  // line is picked among those on screen, never by a fixed index that may sit above it.
+  const i = await page.evaluate(() => {
+    const d = document.querySelector('#wacHost iframe').contentDocument;
+    const h = d.defaultView.innerHeight;
+    const all = [...d.querySelectorAll('.msg .selectable-text')];
+    return all.findIndex(e => { const r = e.getBoundingClientRect(); return r.height > 0 && r.top > 40 && r.bottom < h - 120; });
+  });
+  expect(i >= 0, 'no message line on screen');
+  const c = await copyCenter('.msg .selectable-text', i);
   await page.mouse.click(c.x, c.y, { clickCount: 3 });
   await page.waitForTimeout(700);
   const selected = await page.evaluate(() => String(document.querySelector('#wacHost iframe').contentDocument.defaultView.getSelection()));
-  expect(/Message number/.test(selected), `selection in the copy lost: "${selected.slice(0, 60)}"`);
+  expect(/[Mm]essage (number )?\d+/.test(selected), `selection in the copy lost: "${selected.slice(0, 60)}"`);
   await page.keyboard.press('Control+C');
   await page.waitForTimeout(400);
   const clip = await page.evaluate(() => navigator.clipboard.readText());
-  expect(/Message number \d+/.test(clip), `clipboard: ${clip}`);
+  expect(/[Mm]essage (number )?\d+/.test(clip), `clipboard: ${clip}`);
   return { clipboard: clip.trim() };
 });
 
