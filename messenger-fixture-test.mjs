@@ -293,11 +293,18 @@ await check('scroll-list', async () => {
 await check('select-and-copy', async () => {
   // The chat opened by click-row shows "Chat N message K", scrolled to its end: the
   // line is picked among those on screen, never by a fixed index that may sit above it.
+  // On screen = inside the list's own visible box: a line the list scrolled away still
+  // has a box in the page (above the list, under the panel), and a click there is the panel's.
   const i = await page.evaluate(() => {
     const d = document.querySelector('#wacHost iframe').contentDocument;
-    const h = d.defaultView.innerHeight;
+    const box = d.getElementById('msgs').getBoundingClientRect();
     const all = [...d.querySelectorAll('.msg .selectable-text')];
-    return all.findIndex(e => { const r = e.getBoundingClientRect(); return r.height > 0 && r.top > 40 && r.bottom < h - 120; });
+    return all.findIndex(e => {
+      const r = e.getBoundingClientRect();
+      if (!(r.height > 0 && r.top >= box.top && r.bottom <= box.bottom)) return false;
+      const hit = d.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return Boolean(hit && (hit === e || e.contains(hit)));
+    });
   });
   expect(i >= 0, 'no message line on screen');
   const c = await copyCenter('.msg .selectable-text', i);
